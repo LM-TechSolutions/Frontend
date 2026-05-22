@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Search, UserPlus, Edit, Key, Eye } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -27,7 +28,17 @@ export default function Drivers() {
   const [drivers, setDrivers] = useState<Driver[]>(mockDrivers);
   const [searchQuery, setSearchQuery] = useState('');
   const [addDriverOpen, setAddDriverOpen] = useState(false);
+  const navigate = useNavigate();
+  const [editDriverOpen, setEditDriverOpen] = useState(false);
+  const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [newDriver, setNewDriver] = useState({
+    name: '',
+    phone: '',
+    vehicle: '',
+    licensePlate: '',
+    couponBalance: 0
+  });
+  const [editDriver, setEditDriver] = useState({
     name: '',
     phone: '',
     vehicle: '',
@@ -80,6 +91,42 @@ export default function Drivers() {
     setAddDriverOpen(false);
     setNewDriver({ name: '', phone: '', vehicle: '', licensePlate: '', couponBalance: 0 });
     toast.success('Driver added successfully!');
+  };
+
+  const handleEditDriver = () => {
+    if (!editingDriver || !editDriver.name || !editDriver.phone || !editDriver.vehicle || !editDriver.licensePlate) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setDrivers(drivers.map((driver) => {
+      if (driver.id !== editingDriver.id) return driver;
+      return {
+        ...driver,
+        name: editDriver.name,
+        phone: editDriver.phone,
+        vehicle: editDriver.vehicle,
+        licensePlate: editDriver.licensePlate,
+        couponBalance: editDriver.couponBalance,
+      };
+    }));
+
+    setEditDriverOpen(false);
+    setEditingDriver(null);
+    setEditDriver({ name: '', phone: '', vehicle: '', licensePlate: '', couponBalance: 0 });
+    toast.success('Driver updated successfully!');
+  };
+
+  const openEditDialog = (driver: Driver) => {
+    setEditingDriver(driver);
+    setEditDriver({
+      name: driver.name,
+      phone: driver.phone,
+      vehicle: driver.vehicle,
+      licensePlate: driver.licensePlate,
+      couponBalance: driver.couponBalance,
+    });
+    setEditDriverOpen(true);
   };
 
   return (
@@ -173,6 +220,73 @@ export default function Drivers() {
               </div>
             </DialogContent>
           </Dialog>
+
+          <Dialog open={editDriverOpen} onOpenChange={setEditDriverOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Edit Driver</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editName">Full Name *</Label>
+                  <Input
+                    id="editName"
+                    value={editDriver.name}
+                    onChange={(e) => setEditDriver({ ...editDriver, name: e.target.value })}
+                    placeholder="Enter driver name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editPhone">Phone Number *</Label>
+                  <Input
+                    id="editPhone"
+                    value={editDriver.phone}
+                    onChange={(e) => setEditDriver({ ...editDriver, phone: e.target.value })}
+                    placeholder="+251 911 234567"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editVehicle">Vehicle Model *</Label>
+                  <Input
+                    id="editVehicle"
+                    value={editDriver.vehicle}
+                    onChange={(e) => setEditDriver({ ...editDriver, vehicle: e.target.value })}
+                    placeholder="e.g., Toyota Corolla"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editLicensePlate">License Plate *</Label>
+                  <Input
+                    id="editLicensePlate"
+                    value={editDriver.licensePlate}
+                    onChange={(e) => setEditDriver({ ...editDriver, licensePlate: e.target.value })}
+                    placeholder="e.g., AA-3-12345"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editCouponBalance">Coupon Balance</Label>
+                  <Input
+                    id="editCouponBalance"
+                    type="number"
+                    value={editDriver.couponBalance}
+                    onChange={(e) => setEditDriver({ ...editDriver, couponBalance: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="outline" onClick={() => setEditDriverOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-[#00BDC3] hover:bg-[#009EA3] text-white"
+                  onClick={handleEditDriver}
+                >
+                  Update Driver
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -232,21 +346,14 @@ export default function Drivers() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => toast.info('Edit driver feature coming soon')}
+                      onClick={() => openEditDialog(driver)}
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => toast.info('Reset password feature coming soon')}
-                    >
-                      <Key className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toast.info('View rides feature coming soon')}
+                      onClick={() => navigate(`/employees/${driver.id}`)}
                     >
                       <Eye className="w-4 h-4" />
                     </Button>

@@ -10,6 +10,7 @@ import RideTracking from "./pages/RideTracking";
 import Operators from "./pages/Operators";
 import Analytics from "./pages/Analytics";
 import CallLogs from "./pages/CallLogs";
+import EmployeeProfile from "./pages/EmployeeProfile";
 
 export const router = createBrowserRouter([
   {

@@ -380,6 +380,20 @@ export const getOperatorById = (id: string): Operator | undefined => {
   return mockOperators.find(o => o.id === id);
 };
 
+export const getEmployeeById = (id: string): Driver | Operator | undefined => {
+  return getDriverById(id) ?? getOperatorById(id);
+};
+
+export const getEmployeeType = (id: string): EmployeeType | undefined => {
+  if (mockDrivers.some(d => d.id === id)) {
+    return 'driver';
+  }
+  if (mockOperators.some(o => o.id === id)) {
+    return 'operator';
+  }
+  return undefined;
+};
+
 export const getCallLogsByOperator = (operatorId: string): CallLog[] => {
   return mockCallLogs.filter(c => c.operatorId === operatorId);
 };

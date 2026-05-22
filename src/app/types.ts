@@ -66,6 +66,9 @@ export interface Operator {
   avgCallDuration: number; // in seconds
 }
 
+export type EmployeeType = 'driver' | 'operator';
+export type Employee = Driver | Operator;
+
 export interface CallLog {
   id: string;
   operatorId: string;

@@ -58,6 +58,10 @@ export default function RideTracking() {
     return colors[status] || 'bg-gray-500';
   };
 
+  const vehicleImage = driver
+    ? `https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=80`
+    : `https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=800&q=80`;
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -224,28 +228,58 @@ export default function RideTracking() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-[#6B7280] mb-1">Ride ID</p>
-              <p className="font-semibold text-[#111827]">#{ride.id}</p>
-            </div>
-            <div>
-              <p className="text-sm text-[#6B7280] mb-1">Created At</p>
-              <p className="font-semibold text-[#111827]">
-                {format(ride.createdAt, 'MMM dd, yyyy HH:mm')}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-[#6B7280] mb-1">Last Updated</p>
-              <p className="font-semibold text-[#111827]">
-                {format(ride.updatedAt, 'MMM dd, yyyy HH:mm')}
-              </p>
-            </div>
-            {ride.fare && (
-              <div>
-                <p className="text-sm text-[#6B7280] mb-1">Estimated Fare</p>
-                <p className="text-2xl font-bold text-[#00BDC3]">{ride.fare} ETB</p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[180px_1fr]">
+              <div className="rounded-2xl overflow-hidden bg-[#F3F4F6] border border-[#E5E7EB]">
+                <img
+                  src={vehicleImage}
+                  alt="Vehicle"
+                  className="h-40 w-full object-cover"
+                />
               </div>
-            )}
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-[#6B7280] mb-1">Ride ID</p>
+                  <p className="font-semibold text-[#111827]">#{ride.id}</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-[#6B7280] mb-1">Created At</p>
+                    <p className="font-semibold text-[#111827]">
+                      {format(ride.createdAt, 'MMM dd, yyyy HH:mm')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[#6B7280] mb-1">Last Updated</p>
+                    <p className="font-semibold text-[#111827]">
+                      {format(ride.updatedAt, 'MMM dd, yyyy HH:mm')}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-[#6B7280] mb-1">Pickup</p>
+                    <p className="font-medium text-[#111827]">{ride.pickupLocation}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-[#6B7280] mb-1">Destination</p>
+                    <p className="font-medium text-[#111827]">{ride.dropoffLocation}</p>
+                  </div>
+                </div>
+                {driver && (
+                  <div>
+                    <p className="text-sm text-[#6B7280] mb-1">Vehicle</p>
+                    <p className="font-semibold text-[#111827]">{driver.vehicle}</p>
+                    <p className="text-sm text-[#6B7280]">License: {driver.licensePlate}</p>
+                  </div>
+                )}
+                {ride.fare && (
+                  <div>
+                    <p className="text-sm text-[#6B7280] mb-1">Estimated Fare</p>
+                    <p className="text-2xl font-bold text-[#00BDC3]">{ride.fare} ETB</p>
+                  </div>
+                )}
+              </div>
+            </div>
             <Separator />
             {ride.status !== 'completed' && ride.status !== 'cancelled' && (
               <Button

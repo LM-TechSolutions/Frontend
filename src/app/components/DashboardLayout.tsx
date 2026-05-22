@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router';
-import { LayoutDashboard, Car, Users, Wallet, Settings, Bell, User, LogOut, Shield, BarChart3, UserCog, PhoneCall } from 'lucide-react';
+import { LayoutDashboard, Car, Users, Wallet, Settings, Bell, User, LogOut, Shield, BarChart3, UserCog, PhoneCall, Moon, Sun } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
   DropdownMenu,
@@ -10,25 +10,33 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { Badge } from '../components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import { useEffect, useState } from 'react';
+import { useAppContext } from '../contexts/AppContext';
 
 const operatorNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Rides', href: '/rides', icon: Car },
-  { name: 'Drivers', href: '/drivers', icon: Users },
-  { name: 'Coupons', href: '/coupons', icon: Wallet },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { nameKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { nameKey: 'nav.rides', href: '/rides', icon: Car },
+  { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
+  { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
+  { nameKey: 'nav.settings', href: '/settings', icon: Settings },
 ];
 
 const adminNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Operators', href: '/operators', icon: UserCog },
-  { name: 'Call Logs', href: '/call-logs', icon: PhoneCall },
-  { name: 'Rides', href: '/rides', icon: Car },
-  { name: 'Drivers', href: '/drivers', icon: Users },
-  { name: 'Coupons', href: '/coupons', icon: Wallet },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { nameKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { nameKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
+  { nameKey: 'nav.operators', href: '/operators', icon: UserCog },
+  { nameKey: 'nav.callLogs', href: '/call-logs', icon: PhoneCall },
+  { nameKey: 'nav.rides', href: '/rides', icon: Car },
+  { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
+  { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
+  { nameKey: 'nav.settings', href: '/settings', icon: Settings },
 ];
 
 export default function DashboardLayout() {
@@ -36,9 +44,10 @@ export default function DashboardLayout() {
   const location = useLocation();
   const [userRole, setUserRole] = useState<'admin' | 'operator'>('operator');
   const [userName, setUserName] = useState('Agent Smith');
+  const { t, language, setLanguage, theme, setTheme } = useAppContext();
 
   useEffect(() => {
-    const role = localStorage.getItem('userRole') as 'admin' | 'operator' || 'operator';
+    const role = (localStorage.getItem('userRole') as 'admin' | 'operator') || 'operator';
     const name = localStorage.getItem('userName') || 'Agent Smith';
     setUserRole(role);
     setUserName(name);
@@ -73,7 +82,7 @@ export default function DashboardLayout() {
             const isActive = location.pathname === item.href;
             return (
               <button
-                key={item.name}
+                key={item.nameKey}
                 onClick={() => navigate(item.href)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive
@@ -82,7 +91,7 @@ export default function DashboardLayout() {
                 }`}
               >
                 <item.icon className="w-5 h-5" />
-                <span className="font-medium">{item.name}</span>
+                <span className="font-medium">{t(item.nameKey)}</span>
               </button>
             );
           })}
@@ -112,7 +121,7 @@ export default function DashboardLayout() {
         <header className="h-16 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-semibold text-[#111827]">
-              {navigation.find(item => item.href === location.pathname)?.name || 'TEKUMMA'}
+              {t(navigation.find(item => item.href === location.pathname)?.nameKey || 'nav.dashboard') || 'TEKUMMA'}
             </h1>
             {userRole === 'admin' && (
               <Badge className="bg-[#00BDC3] text-white hover:bg-[#00BDC3]">
@@ -122,13 +131,40 @@ export default function DashboardLayout() {
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Notifications */}
+          <div className="flex items-center gap-3">
+            <Select value={language} onValueChange={(value) => setLanguage(value as 'en' | 'am' | 'om')}>
+              <SelectTrigger className="w-[140px] h-10">
+                <SelectValue placeholder={t('common.language')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="am">አማርኛ</SelectItem>
+                <SelectItem value="om">Oromiffa</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title={theme === 'dark' ? t('common.lightMode') : t('common.darkMode')}
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5 text-[#6B7280]" />
+              ) : (
+                <Moon className="w-5 h-5 text-[#6B7280]" />
+              )}
+            </Button>
+
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="w-5 h-5 text-[#6B7280]" />
               <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-[#EF4444] text-white text-xs">
                 3
               </Badge>
+            </Button>
+
+            <Button variant="outline" size="icon" onClick={handleLogout} className="border-[#E5E7EB] text-[#111827] hover:bg-[#F3F4F6]">
+              <LogOut className="w-5 h-5" />
             </Button>
 
             {/* User Menu */}

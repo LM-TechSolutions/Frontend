@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -56,6 +57,7 @@ const formatDuration = (seconds: number) => {
 };
 
 export default function Operators() {
+  const navigate = useNavigate();
   const [operators] = useState<Operator[]>(mockOperators);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<OperatorStatus | 'all'>('all');
@@ -249,7 +251,7 @@ export default function Operators() {
                 </div>
               </div>
 
-              <Button variant="outline" className="w-full mt-2" size="sm">
+              <Button variant="outline" className="w-full mt-2" size="sm" onClick={() => navigate(`/employees/${operator.id}`)}>
                 View Details
               </Button>
             </CardContent>
