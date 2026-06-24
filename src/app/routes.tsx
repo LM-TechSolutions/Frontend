@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import Login from "./pages/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Rides from "./pages/Rides";
@@ -18,6 +19,9 @@ export const router = createBrowserRouter([
     element: <Login />,
   },
   {
+    element: <ProtectedRoute />,
+    children: [
+      {
     path: "/",
     element: <DashboardLayout />,
     children: [
@@ -56,6 +60,8 @@ export const router = createBrowserRouter([
       {
         path: "settings",
         element: <Settings />,
+      },
+    ],
       },
     ],
   },

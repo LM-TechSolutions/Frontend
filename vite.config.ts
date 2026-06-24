@@ -31,6 +31,19 @@ export default defineConfig({
     },
   },
 
+  // Dev server runs on 3001 (matches the backend's CORS + trusted origins) and
+  // proxies API + WebSocket traffic to the backend on 3000, so the browser sees a
+  // single origin — session cookies and Socket.IO "just work" without CORS issues.
+  server: {
+    port: 3001,
+    strictPort: true,
+    proxy: {
+      '/v1': { target: 'http://localhost:3000', changeOrigin: true, cookieDomainRewrite: 'localhost' },
+      '/api': { target: 'http://localhost:3000', changeOrigin: true, cookieDomainRewrite: 'localhost' },
+      '/socket.io': { target: 'http://localhost:3000', changeOrigin: true, ws: true },
+    },
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

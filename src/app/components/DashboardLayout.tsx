@@ -18,7 +18,11 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useAppContext } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
+import { connectSocket, getSocket } from '../lib/socket';
+import { rideStatusLabel } from '../lib/format';
 
 const operatorNavigation = [
   { nameKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -42,24 +46,39 @@ const adminNavigation = [
 export default function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [userRole, setUserRole] = useState<'admin' | 'operator'>('operator');
-  const [userName, setUserName] = useState('Agent Smith');
+  const { user, role: userRole, logout } = useAuth();
+  const userName = user?.name ?? 'User';
   const { t, language, setLanguage, theme, setTheme } = useAppContext();
+  const [notifications, setNotifications] = useState(0);
 
+  // Live dispatch notifications over WebSockets (centralized for the whole dashboard).
   useEffect(() => {
-    const role = (localStorage.getItem('userRole') as 'admin' | 'operator') || 'operator';
-    const name = localStorage.getItem('userName') || 'Agent Smith';
-    setUserRole(role);
-    setUserName(name);
+    const socket = getSocket() ?? connectSocket();
+
+    const onStatus = (data: any) => {
+      setNotifications((n) => n + 1);
+      const label = data?.statusLabel ?? rideStatusLabel(data?.status);
+      toast(`Ride ${String(data?.rideId ?? '').slice(0, 8)} → ${label}`);
+    };
+    const onCompleted = (data: any) => {
+      setNotifications((n) => n + 1);
+      toast.success(`Ride completed · ${data?.fare ?? ''} ${data?.currency ?? 'ETB'}`);
+    };
+
+    socket.on('ride:status', onStatus);
+    socket.on('ride:completed', onCompleted);
+
+    return () => {
+      socket.off('ride:status', onStatus);
+      socket.off('ride:completed', onCompleted);
+    };
   }, []);
 
   const navigation = userRole === 'admin' ? adminNavigation : operatorNavigation;
 
   const handleLogout = () => {
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userEmail');
-    navigate('/');
+    logout();
+    navigate('/', { replace: true });
   };
 
   return (
@@ -156,11 +175,13 @@ export default function DashboardLayout() {
               )}
             </Button>
 
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative" onClick={() => setNotifications(0)}>
               <Bell className="w-5 h-5 text-[#6B7280]" />
-              <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-[#EF4444] text-white text-xs">
-                3
-              </Badge>
+              {notifications > 0 && (
+                <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-[#EF4444] text-white text-xs">
+                  {notifications > 9 ? '9+' : notifications}
+                </Badge>
+              )}
             </Button>
 
             <Button variant="outline" size="icon" onClick={handleLogout} className="border-[#E5E7EB] text-[#111827] hover:bg-[#F3F4F6]">

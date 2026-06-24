@@ -1,41 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
-import { Shield, User } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { ApiError } from '../lib/api';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login, isAuthenticated, isReady } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'operator'>('operator');
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Already signed in → skip the login screen.
+  useEffect(() => {
+    if (isReady && isAuthenticated) navigate('/dashboard', { replace: true });
+  }, [isReady, isAuthenticated, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast.error('Please fill in all fields');
       return;
     }
 
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // The backend determines the role from the account — no role selection here.
+      const user = await login(email.trim(), password);
+      toast.success(`Welcome back, ${user.name}`);
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Unable to sign in. Please try again.';
+      toast.error(message);
+    } finally {
       setIsLoading(false);
-      
-      // Store user info in localStorage
-      localStorage.setItem('userRole', selectedRole);
-      localStorage.setItem('userName', selectedRole === 'admin' ? 'Admin User' : 'Agent Smith');
-      localStorage.setItem('userEmail', email);
-      
-      toast.success(`Login successful as ${selectedRole === 'admin' ? 'Administrator' : 'Operator'}!`);
-      navigate('/dashboard');
-    }, 1000);
+    }
   };
 
   return (
@@ -47,55 +52,21 @@ export default function Login() {
               <span className="text-white text-2xl font-bold">T</span>
             </div>
           </div>
-          <CardTitle className="text-2xl">Welcome to TEKUMMA</CardTitle>
+          <CardTitle className="text-2xl">Welcome to Tokuma</CardTitle>
           <CardDescription>Sign in to access the dispatch system</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
-            {/* Role Selection */}
-            <div className="space-y-2">
-              <Label>Login as</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('operator')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                    selectedRole === 'operator'
-                      ? 'border-[#00BDC3] bg-[#00BDC3]/5'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <User className={`w-6 h-6 ${selectedRole === 'operator' ? 'text-[#00BDC3]' : 'text-gray-400'}`} />
-                  <span className={`text-sm font-medium ${selectedRole === 'operator' ? 'text-[#00BDC3]' : 'text-gray-600'}`}>
-                    Operator
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('admin')}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                    selectedRole === 'admin'
-                      ? 'border-[#00BDC3] bg-[#00BDC3]/5'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <Shield className={`w-6 h-6 ${selectedRole === 'admin' ? 'text-[#00BDC3]' : 'text-gray-400'}`} />
-                  <span className={`text-sm font-medium ${selectedRole === 'admin' ? 'text-[#00BDC3]' : 'text-gray-600'}`}>
-                    Admin
-                  </span>
-                </button>
-              </div>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder={selectedRole === 'admin' ? 'admin@tekumma.com' : 'agent@tekumma.com'}
+                placeholder="you@tokuma.et"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-10 border-gray-300"
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -107,6 +78,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-10 border-gray-300"
+                autoComplete="current-password"
               />
             </div>
             <Button
@@ -114,7 +86,13 @@ export default function Login() {
               className="w-full h-10 bg-[#00BDC3] hover:bg-[#009EA3] text-white"
               disabled={isLoading}
             >
-              {isLoading ? 'Logging in...' : 'Login'}
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Signing in…
+                </span>
+              ) : (
+                'Login'
+              )}
             </Button>
           </form>
         </CardContent>
