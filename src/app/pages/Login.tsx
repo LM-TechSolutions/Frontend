@@ -44,7 +44,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] p-6">
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <Card className="w-full max-w-[400px] shadow-lg">
         <CardHeader className="space-y-1 text-center pb-6">
           <div className="flex justify-center mb-4">
@@ -65,7 +65,7 @@ export default function Login() {
                 placeholder="you@tokuma.et"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-10 border-gray-300"
+                className="h-10 border-border"
                 autoComplete="email"
               />
             </div>
@@ -77,7 +77,7 @@ export default function Login() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-10 border-gray-300"
+                className="h-10 border-border"
                 autoComplete="current-password"
               />
             </div>

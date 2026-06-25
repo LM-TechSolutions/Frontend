@@ -41,8 +41,8 @@ export default function Analytics() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#111827]">Analytics &amp; Reports</h1>
-          <p className="text-sm text-[#6B7280] mt-1">Overview of dispatch performance</p>
+          <h1 className="text-2xl font-semibold text-foreground">Analytics &amp; Reports</h1>
+          <p className="text-sm text-muted-foreground mt-1">Overview of dispatch performance</p>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
           <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
@@ -60,7 +60,7 @@ export default function Analytics() {
           <Card key={m.label}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div><p className="text-sm text-[#6B7280]">{m.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: m.color }}>{m.value}</p></div>
+                <div><p className="text-sm text-muted-foreground">{m.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: m.color }}>{m.value}</p></div>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: `${m.color}1a` }}><m.icon className="w-6 h-6" style={{ color: m.color }} /></div>
               </div>
             </CardContent>
@@ -71,19 +71,19 @@ export default function Analytics() {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6 flex items-center justify-between">
-            <div><p className="text-sm text-[#6B7280]">Completed Rides</p><p className="text-2xl font-semibold text-[#10B981] mt-1">{stats.completedRides ?? 0}</p><p className="text-xs text-[#6B7280] mt-1">{pct(stats.completedRides, stats.totalRides)}% of total</p></div>
+            <div><p className="text-sm text-muted-foreground">Completed Rides</p><p className="text-2xl font-semibold text-[#10B981] mt-1">{stats.completedRides ?? 0}</p><p className="text-xs text-muted-foreground mt-1">{pct(stats.completedRides, stats.totalRides)}% of total</p></div>
             <CheckCircle className="w-10 h-10 text-[#10B981]" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 flex items-center justify-between">
-            <div><p className="text-sm text-[#6B7280]">Cancelled Rides</p><p className="text-2xl font-semibold text-[#EF4444] mt-1">{stats.cancelledRides ?? 0}</p><p className="text-xs text-[#6B7280] mt-1">{pct(stats.cancelledRides, stats.totalRides)}% of total</p></div>
+            <div><p className="text-sm text-muted-foreground">Cancelled Rides</p><p className="text-2xl font-semibold text-[#EF4444] mt-1">{stats.cancelledRides ?? 0}</p><p className="text-xs text-muted-foreground mt-1">{pct(stats.cancelledRides, stats.totalRides)}% of total</p></div>
             <XCircle className="w-10 h-10 text-[#EF4444]" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 flex items-center justify-between">
-            <div><p className="text-sm text-[#6B7280]">Active Rides</p><p className="text-2xl font-semibold text-[#00BDC3] mt-1">{stats.activeRides ?? 0}</p><p className="text-xs text-[#6B7280] mt-1">Avg fare {formatETB(stats.averageFare)}</p></div>
+            <div><p className="text-sm text-muted-foreground">Active Rides</p><p className="text-2xl font-semibold text-[#00BDC3] mt-1">{stats.activeRides ?? 0}</p><p className="text-xs text-muted-foreground mt-1">Avg fare {formatETB(stats.averageFare)}</p></div>
             <Activity className="w-10 h-10 text-[#00BDC3]" />
           </CardContent>
         </Card>
@@ -95,24 +95,24 @@ export default function Analytics() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
+                <tr className="border-b border-border">
                   {['Operator', 'Status', 'Shift', 'Rides Created', 'Total Calls'].map((h) => (
-                    <th key={h} className="text-left py-3 px-4 text-sm font-medium text-[#6B7280]">{h}</th>
+                    <th key={h} className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {operators.map((op) => (
-                  <tr key={op.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm font-medium text-[#111827]">{op.name}</td>
+                  <tr key={op.id} className="border-b border-border hover:bg-muted/50">
+                    <td className="py-3 px-4 text-sm font-medium text-foreground">{op.name}</td>
                     <td className="py-3 px-4"><Badge className={op.status === 'active' ? 'bg-[#10B981] text-white' : 'bg-[#6B7280] text-white'}>{op.status}</Badge></td>
-                    <td className="py-3 px-4 text-sm text-[#6B7280] capitalize">{op.shift}</td>
-                    <td className="py-3 px-4 text-sm text-[#111827]">{op.totalRidesCreated ?? 0}</td>
-                    <td className="py-3 px-4 text-sm text-[#6B7280]">{(op.totalCalls ?? 0).toLocaleString()}</td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground capitalize">{op.shift}</td>
+                    <td className="py-3 px-4 text-sm text-foreground">{op.totalRidesCreated ?? 0}</td>
+                    <td className="py-3 px-4 text-sm text-muted-foreground">{(op.totalCalls ?? 0).toLocaleString()}</td>
                   </tr>
                 ))}
                 {operators.length === 0 && (
-                  <tr><td colSpan={5} className="text-center py-8 text-[#6B7280]">No operators yet</td></tr>
+                  <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No operators yet</td></tr>
                 )}
               </tbody>
             </table>

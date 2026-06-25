@@ -82,16 +82,16 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F9FAFB]">
+    <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
-      <aside className="w-[260px] bg-white border-r border-[#E5E7EB] flex flex-col">
+      <aside className="w-[260px] bg-sidebar border-r border-sidebar-border flex flex-col">
         {/* Logo */}
-        <div className="h-16 flex items-center justify-center border-b border-[#E5E7EB]">
+        <div className="h-16 flex items-center justify-center border-b border-sidebar-border">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-full bg-[#00BDC3] flex items-center justify-center">
               <span className="text-white font-bold">T</span>
             </div>
-            <span className="text-xl font-bold text-[#111827]">TEKUMMA</span>
+            <span className="text-xl font-bold text-sidebar-foreground">TEKUMMA</span>
           </div>
         </div>
 
@@ -106,7 +106,7 @@ export default function DashboardLayout() {
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-[#00BDC3] text-white'
-                    : 'text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 }`}
               >
                 <item.icon className="w-5 h-5" />
@@ -117,18 +117,18 @@ export default function DashboardLayout() {
         </nav>
 
         {/* User Profile at Bottom */}
-        <div className="p-4 border-t border-[#E5E7EB]">
+        <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-[#F3F4F6] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center">
               {userRole === 'admin' ? (
                 <Shield className="w-5 h-5 text-[#00BDC3]" />
               ) : (
-                <User className="w-5 h-5 text-[#6B7280]" />
+                <User className="w-5 h-5 text-muted-foreground" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm text-[#111827] truncate">{userName}</p>
-              <p className="text-xs text-[#6B7280]">{userRole === 'admin' ? 'Administrator' : 'Call Center'}</p>
+              <p className="font-medium text-sm text-sidebar-foreground truncate">{userName}</p>
+              <p className="text-xs text-muted-foreground">{userRole === 'admin' ? 'Administrator' : 'Call Center'}</p>
             </div>
           </div>
         </div>
@@ -137,9 +137,9 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-6">
+        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-[#111827]">
+            <h1 className="text-xl font-semibold text-foreground">
               {t(navigation.find(item => item.href === location.pathname)?.nameKey || 'nav.dashboard') || 'TEKUMMA'}
             </h1>
             {userRole === 'admin' && (
@@ -169,14 +169,14 @@ export default function DashboardLayout() {
               title={theme === 'dark' ? t('common.lightMode') : t('common.darkMode')}
             >
               {theme === 'dark' ? (
-                <Sun className="w-5 h-5 text-[#6B7280]" />
+                <Sun className="w-5 h-5 text-muted-foreground" />
               ) : (
-                <Moon className="w-5 h-5 text-[#6B7280]" />
+                <Moon className="w-5 h-5 text-muted-foreground" />
               )}
             </Button>
 
             <Button variant="ghost" size="icon" className="relative" onClick={() => setNotifications(0)}>
-              <Bell className="w-5 h-5 text-[#6B7280]" />
+              <Bell className="w-5 h-5 text-muted-foreground" />
               {notifications > 0 && (
                 <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-[#EF4444] text-white text-xs">
                   {notifications > 9 ? '9+' : notifications}
@@ -184,7 +184,7 @@ export default function DashboardLayout() {
               )}
             </Button>
 
-            <Button variant="outline" size="icon" onClick={handleLogout} className="border-[#E5E7EB] text-[#111827] hover:bg-[#F3F4F6]">
+            <Button variant="outline" size="icon" onClick={handleLogout} className="border-border text-foreground hover:bg-accent">
               <LogOut className="w-5 h-5" />
             </Button>
 
@@ -192,14 +192,14 @@ export default function DashboardLayout() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-[#F3F4F6] flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
                     {userRole === 'admin' ? (
                       <Shield className="w-4 h-4 text-[#00BDC3]" />
                     ) : (
-                      <User className="w-4 h-4 text-[#6B7280]" />
+                      <User className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>
-                  <span className="text-sm font-medium text-[#111827]">{userName}</span>
+                  <span className="text-sm font-medium text-foreground">{userName}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">

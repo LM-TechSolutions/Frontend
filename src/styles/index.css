@@ -18,16 +18,18 @@ button:active {
 }
 
 ::-webkit-scrollbar-track {
-  background: #F3F4F6;
+  background: var(--secondary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
+  background: var(--muted-foreground);
   border-radius: 4px;
+  opacity: 0.5;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9CA3AF;
+  background: var(--foreground);
+  opacity: 0.4;
 }
 
 /* Card hover effects */

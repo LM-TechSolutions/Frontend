@@ -103,24 +103,24 @@ export default function RideLocationPicker({ pickup, dropoff, onChange }: Props)
         <button
           type="button"
           onClick={() => setActive('pickup')}
-          className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm transition-colors ${active === 'pickup' ? 'border-[#10B981] bg-[#10B981]/5' : 'border-gray-200 hover:border-gray-300'}`}
+          className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm transition-colors ${active === 'pickup' ? 'border-[#10B981] bg-[#10B981]/5' : 'border-border hover:border-muted-foreground'}`}
         >
           <MapPin className="w-4 h-4 text-[#10B981] flex-shrink-0" />
-          <span className="truncate text-left text-[#111827]">{pickup ? pickup.address : 'Set Pickup'}</span>
+          <span className="truncate text-left text-foreground">{pickup ? pickup.address : 'Set Pickup'}</span>
         </button>
         <button
           type="button"
           onClick={() => setActive('dropoff')}
-          className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm transition-colors ${active === 'dropoff' ? 'border-[#EF4444] bg-[#EF4444]/5' : 'border-gray-200 hover:border-gray-300'}`}
+          className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm transition-colors ${active === 'dropoff' ? 'border-[#EF4444] bg-[#EF4444]/5' : 'border-border hover:border-muted-foreground'}`}
         >
           <Navigation className="w-4 h-4 text-[#EF4444] flex-shrink-0" />
-          <span className="truncate text-left text-[#111827]">{dropoff ? dropoff.address : 'Set Destination'}</span>
+          <span className="truncate text-left text-foreground">{dropoff ? dropoff.address : 'Set Destination'}</span>
         </button>
       </div>
 
       {/* Autocomplete search */}
       <div className="relative" ref={boxRef}>
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280] z-10" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -137,31 +137,31 @@ export default function RideLocationPicker({ pickup, dropoff, onChange }: Props)
         {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00BDC3] animate-spin" />}
 
         {open && suggestions.length > 0 && (
-          <div className="absolute z-[500] mt-1 w-full bg-white border border-[#E5E7EB] rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div className="absolute z-[500] mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
             {suggestions.map((s, i) => (
               <button
                 key={`${s.latitude}-${s.longitude}-${i}`}
                 type="button"
                 onClick={() => pick(s)}
-                className="w-full text-left px-3 py-2 hover:bg-[#F3F4F6] flex items-start gap-2 border-b border-gray-50 last:border-0"
+                className="w-full text-left px-3 py-2 hover:bg-muted flex items-start gap-2 border-b border-border last:border-0"
               >
                 <MapPin className={`w-4 h-4 mt-0.5 flex-shrink-0 ${active === 'pickup' ? 'text-[#10B981]' : 'text-[#EF4444]'}`} />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#111827] truncate">{s.name}</p>
-                  <p className="text-xs text-[#6B7280] truncate">{s.formattedAddress}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{s.formattedAddress}</p>
                 </div>
               </button>
             ))}
           </div>
         )}
         {open && !searching && query.trim().length >= 2 && suggestions.length === 0 && (
-          <div className="absolute z-[500] mt-1 w-full bg-white border border-[#E5E7EB] rounded-lg shadow-lg px-3 py-2 text-sm text-[#6B7280]">
+          <div className="absolute z-[500] mt-1 w-full bg-card border border-border rounded-lg shadow-lg px-3 py-2 text-sm text-muted-foreground">
             No matches — click the map to drop a pin.
           </div>
         )}
       </div>
 
-      <p className="text-xs text-[#6B7280]">
+      <p className="text-xs text-muted-foreground">
         Setting <strong>{active === 'pickup' ? 'pickup' : 'destination'}</strong> — pick a suggestion above, or click the map.
       </p>
 

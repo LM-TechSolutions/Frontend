@@ -34,7 +34,7 @@ export default function EmployeeProfile() {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <p className="text-[#6B7280]">Driver not found</p>
+          <p className="text-muted-foreground">Driver not found</p>
           <Button className="mt-4 bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => navigate('/drivers')}>Back to Drivers</Button>
         </div>
       </div>
@@ -46,8 +46,8 @@ export default function EmployeeProfile() {
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/drivers')}><ArrowLeft className="w-5 h-5" /></Button>
         <div>
-          <h1 className="text-2xl font-semibold text-[#111827]">{driver.name}</h1>
-          <p className="text-sm text-[#6B7280] mt-1">Driver • #{String(driver.id).slice(0, 8)}</p>
+          <h1 className="text-2xl font-semibold text-foreground">{driver.name}</h1>
+          <p className="text-sm text-muted-foreground mt-1">Driver • #{String(driver.id).slice(0, 8)}</p>
         </div>
       </div>
 
@@ -59,12 +59,24 @@ export default function EmployeeProfile() {
               <div className="w-14 h-14 rounded-full bg-[#00BDC3]/10 flex items-center justify-center text-[#00BDC3] font-semibold">
                 {String(driver.name).split(' ').map((i: string) => i[0]).join('')}
               </div>
-              <div><p className="font-semibold text-[#111827]">{driver.name}</p><p className="text-sm text-[#6B7280]">{driver.phone}</p></div>
+              <div>
+                <p className="font-semibold text-card-foreground">{driver.name}</p>
+                <p className="text-sm text-muted-foreground">{driver.phone}</p>
+              </div>
             </div>
             <div className="space-y-3">
-              <div><p className="text-sm text-[#6B7280]">Email</p><p className="font-semibold text-[#111827]">{driver.email || '—'}</p></div>
-              <div><p className="text-sm text-[#6B7280]">Status</p><Badge className={statusBadge(driver.status)}>{driver.status}</Badge></div>
-              <div><p className="text-sm text-[#6B7280]">Coupon Balance</p><p className="font-semibold text-[#111827]">{driver.couponBalance} coupons</p></div>
+              <div>
+                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="font-semibold text-card-foreground">{driver.email || '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Badge className={statusBadge(driver.status)}>{driver.status}</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Coupon Balance</p>
+                <p className="font-semibold text-card-foreground">{driver.couponBalance} coupons</p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -73,16 +85,40 @@ export default function EmployeeProfile() {
           <CardHeader><CardTitle>Details</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><p className="text-sm text-[#6B7280]">Vehicle Type</p><p className="font-semibold text-[#111827] capitalize">{driver.vehicleType ?? '—'}</p></div>
-              <div><p className="text-sm text-[#6B7280]">Vehicle Model</p><p className="font-semibold text-[#111827]">{driver.vehicleModel ?? '—'}</p></div>
-              <div><p className="text-sm text-[#6B7280]">License Plate</p><p className="font-semibold text-[#111827]">{driver.licensePlate}</p></div>
-              <div><p className="text-sm text-[#6B7280]">License Number</p><p className="font-semibold text-[#111827]">{driver.licenseNumber ?? '—'}</p></div>
-              <div><p className="text-sm text-[#6B7280]">Rating</p><p className="font-semibold text-[#111827]">{driver.rating ?? '—'} ★</p></div>
-              <div><p className="text-sm text-[#6B7280]">Completed Rides</p><p className="font-semibold text-[#111827]">{driver.completedRides ?? driver.totalRides ?? 0}</p></div>
+              <div>
+                <p className="text-sm text-muted-foreground">Vehicle Type</p>
+                <p className="font-semibold text-card-foreground capitalize">{driver.vehicleType ?? '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Vehicle Model</p>
+                <p className="font-semibold text-card-foreground">{driver.vehicleModel ?? '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">License Plate</p>
+                <p className="font-semibold text-card-foreground">{driver.licensePlate}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">License Number</p>
+                <p className="font-semibold text-card-foreground">{driver.licenseNumber ?? '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Rating</p>
+                <p className="font-semibold text-card-foreground">{driver.rating ?? '—'} ★</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Completed Rides</p>
+                <p className="font-semibold text-card-foreground">{driver.completedRides ?? driver.totalRides ?? 0}</p>
+              </div>
               {driver.currentLocation && (
-                <div><p className="text-sm text-[#6B7280]">Last Location</p><p className="font-semibold text-[#111827]">{driver.currentLocation.lat.toFixed(3)}, {driver.currentLocation.lng.toFixed(3)}</p></div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Last Location</p>
+                  <p className="font-semibold text-card-foreground">{driver.currentLocation.lat.toFixed(3)}, {driver.currentLocation.lng.toFixed(3)}</p>
+                </div>
               )}
-              <div><p className="text-sm text-[#6B7280]">Tokuma Commission</p><p className="font-semibold text-[#111827]">{driver.commissionPercent ?? 10}%</p></div>
+              <div>
+                <p className="text-sm text-muted-foreground">Tokuma Commission</p>
+                <p className="font-semibold text-card-foreground">{driver.commissionPercent ?? 10}%</p>
+              </div>
             </div>
             <div className="mt-6">
               <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => navigate('/coupons')}>Manage Coupons</Button>

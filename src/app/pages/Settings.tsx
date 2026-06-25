@@ -59,8 +59,8 @@ export default function Settings() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-[#111827] mb-1">Settings</h2>
-        <p className="text-[#6B7280]">Manage your account and Tokuma system configuration</p>
+        <h2 className="text-2xl font-semibold text-foreground mb-1">Settings</h2>
+        <p className="text-muted-foreground">Manage your account and Tokuma system configuration</p>
       </div>
 
       <div className="max-w-4xl space-y-6">
