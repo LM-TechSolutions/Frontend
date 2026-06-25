@@ -53,7 +53,32 @@ export default function GebetaMapView({
   const mapRef = useRef<GebetaMapRef>(null);
   const markersRef = useRef<Record<string, maplibregl.Marker>>({});
   const fleetMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
   const [ready, setReady] = useState(false);
+
+  // Attach a reliable click listener straight to the MapLibre instance (always
+  // calls the latest handler via the ref, so the active pickup/destination is correct).
+  useEffect(() => {
+    if (!ready) return;
+    const map = mapRef.current?.getMapInstance();
+    if (!map) return;
+
+    const handler = (e: maplibregl.MapMouseEvent) => {
+      onMapClickRef.current?.(e.lngLat.lng, e.lngLat.lat);
+    };
+    map.on('click', handler);
+    if (onMapClickRef.current) {
+      try {
+        map.getCanvas().style.cursor = 'crosshair';
+      } catch {
+        /* ignore */
+      }
+    }
+    return () => {
+      map.off('click', handler);
+    };
+  }, [ready]);
 
   const center: [number, number] = pickup
     ? [pickup.lng, pickup.lat]
@@ -150,7 +175,6 @@ export default function GebetaMapView({
         zoom={zoom}
         style={{ width: '100%', height: '100%' }}
         onMapLoaded={() => setReady(true)}
-        onMapClick={onMapClick ? (lngLat) => onMapClick(lngLat[0], lngLat[1]) : undefined}
       />
     </div>
   );

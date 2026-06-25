@@ -79,16 +79,19 @@ export default function RideLocationPicker({ pickup, dropoff, onChange }: Props)
     setOpen(false);
   };
 
-  // Map click → reverse-geocode → set the active point's address.
-  const setFromMap = async (lat: number, lng: number) => {
-    let address: string | undefined;
-    try {
-      const r = await api.map.reverseGeocode(lat, lng);
-      address = r?.address ?? r?.formattedAddress;
-    } catch {
-      /* ignore */
-    }
-    onChange(active, { lat, lng, address: address ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}` });
+  // Map click → drop the pin instantly (coords), then refine to a real address.
+  const setFromMap = (lat: number, lng: number) => {
+    const target = active;
+    onChange(target, { lat, lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}` });
+    api.map
+      .reverseGeocode(lat, lng)
+      .then((r) => {
+        const address = r?.address ?? r?.formattedAddress;
+        if (address) onChange(target, { lat, lng, address });
+      })
+      .catch(() => {
+        /* keep coordinate label */
+      });
   };
 
   const pickupPoint: MapPoint | null = pickup ? { lat: pickup.lat, lng: pickup.lng } : null;
