@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { format } from 'date-fns';
-import { Search, Filter, Eye, Plus, Loader2 } from 'lucide-react';
+import { Search, Filter, Eye, Plus, Bell, Loader2 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Badge } from '../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { connectSocket, getSocket } from '../lib/socket';
 import { rideStatusLabel, formatETB } from '../lib/format';
-import { ADDIS_CENTER } from '../lib/config';
+import NewRideDialog from '../components/NewRideDialog';
+
+const PENDING_STATES = ['pending', 'unassigned', 'dispatched'];
 
 const statusBadge = (status: string) =>
   ({
@@ -28,13 +28,6 @@ const statusBadge = (status: string) =>
     expired: 'bg-[#6B7280] text-white',
   } as any)[status] || 'bg-gray-500 text-white';
 
-function extractCoords(res: any): { lat: number; lng: number } | null {
-  const c = res?.coordinates ?? res;
-  const lat = c?.latitude ?? c?.lat;
-  const lng = c?.longitude ?? c?.lng;
-  return typeof lat === 'number' && typeof lng === 'number' ? { lat, lng } : null;
-}
-
 const PAGE_SIZE = 20;
 
 export default function Rides() {
@@ -46,8 +39,7 @@ export default function Rides() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [newRideOpen, setNewRideOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newRide, setNewRide] = useState({ customerName: '', customerPhone: '', pickupLocation: '', dropoffLocation: '' });
+  const [redispatchingId, setRedispatchingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -92,35 +84,17 @@ export default function Rides() {
     return `${r.id}${r.customerName}${r.pickupLocation}${r.dropoffLocation}`.toLowerCase().includes(q);
   });
 
-  const handleCreateRide = async () => {
-    const { customerName, customerPhone, pickupLocation, dropoffLocation } = newRide;
-    if (!customerName || !customerPhone || !pickupLocation || !dropoffLocation) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    setCreating(true);
+  const handleRedispatch = async (ride: any) => {
+    setRedispatchingId(ride.id);
     try {
-      const [pg, dg] = await Promise.all([
-        api.map.geocode(pickupLocation).then(extractCoords).catch(() => null),
-        api.map.geocode(dropoffLocation).then(extractCoords).catch(() => null),
-      ]);
-      await api.rides.create({
-        customerName,
-        customerPhone,
-        pickupLocation,
-        pickupCoordinates: pg ?? { lat: ADDIS_CENTER[1], lng: ADDIS_CENTER[0] },
-        dropoffLocation,
-        dropoffCoordinates: dg ?? { lat: ADDIS_CENTER[1] + 0.03, lng: ADDIS_CENTER[0] + 0.03 },
-      });
-      toast.success('Ride created — dispatching to nearby drivers');
-      setNewRide({ customerName: '', customerPhone: '', pickupLocation: '', dropoffLocation: '' });
-      setNewRideOpen(false);
-      setPage(1);
+      const res = await api.rides.redispatch(ride.id);
+      if (res.dispatched) toast.success(`Re-notified ${res.candidates} nearby driver(s)`);
+      else toast.warning('No eligible nearby drivers right now');
       load();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to create ride');
+      toast.error(e?.message ?? 'Failed to re-notify drivers');
     } finally {
-      setCreating(false);
+      setRedispatchingId(null);
     }
   };
 
@@ -152,29 +126,12 @@ export default function Rides() {
                 <SelectItem value="expired">Expired</SelectItem>
               </SelectContent>
             </Select>
-            <Dialog open={newRideOpen} onOpenChange={setNewRideOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white"><Plus className="w-4 h-4 mr-2" /> New Ride</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[520px]">
-                <DialogHeader><DialogTitle>Create New Ride</DialogTitle></DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2"><Label>Customer Name</Label><Input value={newRide.customerName} onChange={(e) => setNewRide({ ...newRide, customerName: e.target.value })} placeholder="Enter customer name" /></div>
-                  <div className="space-y-2"><Label>Customer Phone</Label><Input value={newRide.customerPhone} onChange={(e) => setNewRide({ ...newRide, customerPhone: e.target.value })} placeholder="0911 234567" /></div>
-                  <div className="space-y-2"><Label>Pickup Location</Label><Input value={newRide.pickupLocation} onChange={(e) => setNewRide({ ...newRide, pickupLocation: e.target.value })} placeholder="e.g. Bole, Addis Ababa" /></div>
-                  <div className="space-y-2"><Label>Dropoff Location</Label><Input value={newRide.dropoffLocation} onChange={(e) => setNewRide({ ...newRide, dropoffLocation: e.target.value })} placeholder="e.g. Megenagna, Addis Ababa" /></div>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <Button variant="outline" onClick={() => setNewRideOpen(false)}>Cancel</Button>
-                  <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleCreateRide} disabled={creating}>
-                    {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Create Ride
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}><Plus className="w-4 h-4 mr-2" /> New Ride</Button>
           </div>
         </div>
       </div>
+
+      <NewRideDialog open={newRideOpen} onOpenChange={setNewRideOpen} onCreated={() => { setPage(1); load(); }} />
 
       <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] overflow-hidden">
         {loading ? (
@@ -199,7 +156,23 @@ export default function Rides() {
                   <TableCell><Badge className={statusBadge(ride.status)}>{rideStatusLabel(ride.status)}</Badge></TableCell>
                   <TableCell className="text-sm text-[#6B7280]">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</TableCell>
                   <TableCell className="font-medium text-[#111827]">{ride.fare != null ? formatETB(ride.fare) : '-'}</TableCell>
-                  <TableCell><Button variant="outline" size="sm" onClick={() => navigate(`/rides/${ride.id}`)}><Eye className="w-4 h-4" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/rides/${ride.id}`)} title="Track"><Eye className="w-4 h-4" /></Button>
+                      {PENDING_STATES.includes(ride.status) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-[#00BDC3] text-[#00BDC3] hover:bg-[#00BDC3] hover:text-white"
+                          title="Re-notify nearby drivers"
+                          onClick={() => handleRedispatch(ride)}
+                          disabled={redispatchingId === ride.id}
+                        >
+                          {redispatchingId === ride.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

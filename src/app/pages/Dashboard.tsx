@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, MapPin, Navigation, Phone, DollarSign, Eye, Loader2 } from 'lucide-react';
+import { Plus, MapPin, Navigation, Phone, DollarSign, Eye, Loader2, Bell } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { connectSocket, getSocket } from '../lib/socket';
 import { rideStatusLabel } from '../lib/format';
-import { ADDIS_CENTER } from '../lib/config';
 import GebetaMapView from '../components/GebetaMapView';
 import LogCallDialog from '../components/LogCallDialog';
+import NewRideDialog from '../components/NewRideDialog';
 
 const ACTIVE_STATUSES = ['dispatched', 'accepted', 'arrived', 'in_progress'];
 
@@ -31,24 +29,14 @@ const statusBadge = (status: string) => {
   return colors[status] || 'bg-gray-500 text-white';
 };
 
-/** Pull lat/lng out of the backend geocode response (shape-tolerant). */
-function extractCoords(res: any): { lat: number; lng: number } | null {
-  const c = res?.coordinates ?? res;
-  const lat = c?.latitude ?? c?.lat;
-  const lng = c?.longitude ?? c?.lng;
-  if (typeof lat === 'number' && typeof lng === 'number') return { lat, lng };
-  return null;
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const [rides, setRides] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newRideOpen, setNewRideOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [assignFor, setAssignFor] = useState<any | null>(null);
-  const [newRide, setNewRide] = useState({ customerName: '', customerPhone: '', pickupLocation: '', dropoffLocation: '' });
+  const [redispatchingId, setRedispatchingId] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -94,39 +82,17 @@ export default function Dashboard() {
     [drivers]
   );
 
-  const handleCreateRide = async () => {
-    const { customerName, customerPhone, pickupLocation, dropoffLocation } = newRide;
-    if (!customerName || !customerPhone || !pickupLocation || !dropoffLocation) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-    setCreating(true);
+  const handleRedispatch = async (ride: any) => {
+    setRedispatchingId(ride.id);
     try {
-      // Resolve addresses to coordinates via Gebeta (fall back to Addis center).
-      const [pickupGeo, dropoffGeo] = await Promise.all([
-        api.map.geocode(pickupLocation).then(extractCoords).catch(() => null),
-        api.map.geocode(dropoffLocation).then(extractCoords).catch(() => null),
-      ]);
-      const pickup = pickupGeo ?? { lat: ADDIS_CENTER[1], lng: ADDIS_CENTER[0] };
-      const dropoff = dropoffGeo ?? { lat: ADDIS_CENTER[1] + 0.03, lng: ADDIS_CENTER[0] + 0.03 };
-
-      await api.rides.create({
-        customerName,
-        customerPhone,
-        pickupLocation,
-        pickupCoordinates: pickup,
-        dropoffLocation,
-        dropoffCoordinates: dropoff,
-      });
-
-      toast.success('Ride created — dispatching to nearby drivers');
-      setNewRideOpen(false);
-      setNewRide({ customerName: '', customerPhone: '', pickupLocation: '', dropoffLocation: '' });
+      const res = await api.rides.redispatch(ride.id);
+      if (res.dispatched) toast.success(`Re-notified ${res.candidates} nearby driver(s)`);
+      else toast.warning('No eligible nearby drivers right now');
       load();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to create ride');
+      toast.error(e?.message ?? 'Failed to re-notify drivers');
     } finally {
-      setCreating(false);
+      setRedispatchingId(null);
     }
   };
 
@@ -152,38 +118,7 @@ export default function Dashboard() {
             </Button>
             <LogCallDialog onLogged={load} className="h-12 w-full" />
           </div>
-          <Dialog open={newRideOpen} onOpenChange={setNewRideOpen}>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Create New Ride</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Customer Name</Label>
-                  <Input value={newRide.customerName} onChange={(e) => setNewRide({ ...newRide, customerName: e.target.value })} placeholder="Enter customer name" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <Input value={newRide.customerPhone} onChange={(e) => setNewRide({ ...newRide, customerPhone: e.target.value })} placeholder="+251 911 234567" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Pickup Location</Label>
-                  <Input value={newRide.pickupLocation} onChange={(e) => setNewRide({ ...newRide, pickupLocation: e.target.value })} placeholder="e.g. Bole, Addis Ababa" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Destination</Label>
-                  <Input value={newRide.dropoffLocation} onChange={(e) => setNewRide({ ...newRide, dropoffLocation: e.target.value })} placeholder="e.g. Megenagna, Addis Ababa" />
-                </div>
-              </div>
-              <div className="flex gap-3 justify-end">
-                <Button variant="outline" onClick={() => setNewRideOpen(false)}>Cancel</Button>
-                <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleCreateRide} disabled={creating}>
-                  {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Create Ride
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <NewRideDialog open={newRideOpen} onOpenChange={setNewRideOpen} onCreated={load} />
 
           {loading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>
@@ -220,9 +155,19 @@ export default function Dashboard() {
                             <Eye className="w-4 h-4 mr-2" /> Track
                           </Button>
                           <Button className="flex-1 bg-[#00BDC3] hover:bg-[#009EA3] text-white" size="sm" onClick={() => setAssignFor(ride)}>
-                            Assign Driver
+                            Assign
                           </Button>
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2 border-[#00BDC3] text-[#00BDC3] hover:bg-[#00BDC3] hover:text-white"
+                          onClick={() => handleRedispatch(ride)}
+                          disabled={redispatchingId === ride.id}
+                        >
+                          {redispatchingId === ride.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Bell className="w-4 h-4 mr-2" />}
+                          Re-notify Drivers
+                        </Button>
                       </CardContent>
                     </Card>
                   ))}

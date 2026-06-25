@@ -107,6 +107,8 @@ export const api = {
       cc<any>(`/rides/${rideId}/assign`, { method: 'POST', body: { driverId } }),
     cancel: (rideId: string, reason: string) =>
       cc<any>(`/rides/${rideId}/cancel`, { method: 'POST', body: { reason } }),
+    redispatch: (rideId: string) =>
+      cc<{ rideId: string; dispatched: boolean; candidates: number }>(`/rides/${rideId}/redispatch`, { method: 'POST' }),
     location: (rideId: string) => cc<any>(`/rides/${rideId}/location`),
     history: (rideId: string) => v1<any>(`/rides/${rideId}/history`),
   },
@@ -149,6 +151,12 @@ export const api = {
 
   map: {
     geocode: (address: string) => v1<any>('/map/geocode', { method: 'POST', body: { address } }),
+    reverseGeocode: (latitude: number, longitude: number) =>
+      v1<any>('/map/reverse-geocode', { method: 'POST', body: { latitude, longitude } }),
+    search: (query: string, limit = 6) =>
+      v1<Array<{ name: string; formattedAddress: string; latitude: number; longitude: number }>>('/map/search', {
+        query: { query, limit },
+      }),
     searchLandmarks: (query: string, latitude?: number, longitude?: number) =>
       v1<any[]>('/map/search-landmarks', { method: 'POST', body: { query, latitude, longitude } }),
     route: (startLat: number, startLng: number, endLat: number, endLng: number) =>
