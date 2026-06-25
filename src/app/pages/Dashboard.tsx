@@ -13,6 +13,7 @@ import { connectSocket, getSocket } from '../lib/socket';
 import { rideStatusLabel } from '../lib/format';
 import { ADDIS_CENTER } from '../lib/config';
 import GebetaMapView from '../components/GebetaMapView';
+import LogCallDialog from '../components/LogCallDialog';
 
 const ACTIVE_STATUSES = ['dispatched', 'accepted', 'arrived', 'in_progress'];
 
@@ -145,12 +146,13 @@ export default function Dashboard() {
       {/* Left Panel */}
       <div className="w-[35%] border-r border-[#E5E7EB] bg-white overflow-auto">
         <div className="p-6">
+          <div className="mb-6 grid grid-cols-2 gap-3">
+            <Button className="h-12 bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}>
+              <Plus className="w-5 h-5 mr-2" /> NEW RIDE
+            </Button>
+            <LogCallDialog onLogged={load} className="h-12 w-full" />
+          </div>
           <Dialog open={newRideOpen} onOpenChange={setNewRideOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full h-12 bg-[#00BDC3] hover:bg-[#009EA3] text-white mb-6">
-                <Plus className="w-5 h-5 mr-2" /> NEW RIDE
-              </Button>
-            </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
                 <DialogTitle>Create New Ride</DialogTitle>

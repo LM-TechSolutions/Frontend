@@ -6,6 +6,7 @@ import { Search, Phone, Clock, CheckCircle, XCircle, AlertCircle, Loader2 } from
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
+import LogCallDialog from '../components/LogCallDialog';
 
 const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 const statusColor = (status: string) =>
@@ -23,12 +24,17 @@ export default function CallLogs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
     api.callLogs
       .list({ limit: 200 })
       .then((res) => setLogs(res.callLogs ?? []))
       .catch((e) => toast.error(e?.message ?? 'Failed to load call logs'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, []);
 
   const filtered = logs.filter((log) => {
@@ -44,9 +50,12 @@ export default function CallLogs() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-[#111827]">Call Logs</h1>
-        <p className="text-sm text-[#6B7280] mt-1">Detailed history of all customer calls</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#111827]">Call Logs</h1>
+          <p className="text-sm text-[#6B7280] mt-1">Detailed history of all customer calls</p>
+        </div>
+        <LogCallDialog onLogged={load} />
       </div>
 
       <div className="grid grid-cols-4 gap-4">
