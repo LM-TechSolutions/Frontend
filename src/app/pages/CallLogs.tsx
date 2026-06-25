@@ -52,8 +52,8 @@ export default function CallLogs() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#111827]">Call Logs</h1>
-          <p className="text-sm text-[#6B7280] mt-1">Detailed history of all customer calls</p>
+          <h1 className="text-2xl font-semibold text-foreground">Call Logs</h1>
+          <p className="text-sm text-muted-foreground mt-1">Detailed history of all customer calls</p>
         </div>
         <LogCallDialog onLogged={load} />
       </div>
@@ -68,7 +68,7 @@ export default function CallLogs() {
           <Card key={s.label}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div><p className="text-sm text-[#6B7280]">{s.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: s.color }}>{s.value}</p></div>
+                <div><p className="text-sm text-muted-foreground">{s.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: s.color }}>{s.value}</p></div>
                 <s.icon className="w-8 h-8" style={{ color: s.color }} />
               </div>
             </CardContent>
@@ -80,7 +80,7 @@ export default function CallLogs() {
         <CardContent className="p-4">
           <div className="flex gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search by customer, phone, or operator…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -105,23 +105,23 @@ export default function CallLogs() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
+                  <tr className="border-b border-border">
                     {['Time', 'Customer', 'Phone', 'Operator', 'Status', 'Duration', 'Ride ID', 'Notes'].map((h) => (
-                      <th key={h} className="text-left py-3 px-4 text-sm font-medium text-[#6B7280]">{h}</th>
+                      <th key={h} className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((log) => (
-                    <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-[#111827]">{new Date(log.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="py-3 px-4 text-sm font-medium text-[#111827]">{log.customerName ?? '—'}</td>
-                      <td className="py-3 px-4 text-sm text-[#6B7280]">{log.customerPhone}</td>
-                      <td className="py-3 px-4 text-sm text-[#111827]">{log.operatorName}</td>
+                    <tr key={log.id} className="border-b border-border hover:bg-muted/50">
+                      <td className="py-3 px-4 text-sm text-foreground">{new Date(log.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td className="py-3 px-4 text-sm font-medium text-foreground">{log.customerName ?? '—'}</td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">{log.customerPhone}</td>
+                      <td className="py-3 px-4 text-sm text-foreground">{log.operatorName}</td>
                       <td className="py-3 px-4"><Badge className={statusColor(log.status)}><span className="flex items-center gap-1">{statusIcon(log.status)}{log.status}</span></Badge></td>
-                      <td className="py-3 px-4 text-sm font-medium text-[#111827]">{formatDuration(log.duration ?? 0)}</td>
-                      <td className="py-3 px-4 text-sm">{log.rideId ? <span className="font-mono text-[#00BDC3]">{String(log.rideId).slice(0, 8)}</span> : <span className="text-[#9CA3AF]">—</span>}</td>
-                      <td className="py-3 px-4 text-sm text-[#6B7280] max-w-xs truncate">{log.notes ?? '—'}</td>
+                      <td className="py-3 px-4 text-sm font-medium text-foreground">{formatDuration(log.duration ?? 0)}</td>
+                      <td className="py-3 px-4 text-sm">{log.rideId ? <span className="font-mono text-[#00BDC3]">{String(log.rideId).slice(0, 8)}</span> : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground max-w-xs truncate">{log.notes ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -129,7 +129,7 @@ export default function CallLogs() {
             </div>
           )}
           {!loading && filtered.length === 0 && (
-            <div className="text-center py-12"><Phone className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3" /><p className="text-[#6B7280]">No call logs found</p></div>
+            <div className="text-center py-12"><Phone className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">No call logs found</p></div>
           )}
         </CardContent>
       </Card>

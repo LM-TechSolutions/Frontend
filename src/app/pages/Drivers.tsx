@@ -101,14 +101,14 @@ export default function Drivers() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-[#111827] mb-1">Driver Management</h2>
-        <p className="text-[#6B7280]">Manage your driver fleet</p>
+        <h2 className="text-2xl font-semibold text-foreground mb-1">Driver Management</h2>
+        <p className="text-muted-foreground">Manage your driver fleet</p>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] p-4 mb-6">
+      <div className="bg-card rounded-lg shadow-sm border border-border p-4 mb-6">
         <div className="flex gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search by name, phone, vehicle, plate…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
           </div>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -158,18 +158,18 @@ export default function Drivers() {
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] p-4"><p className="text-sm text-[#6B7280] mb-1">Total Drivers</p><p className="text-3xl font-semibold text-[#111827]">{drivers.length}</p></div>
-        <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] p-4"><p className="text-sm text-[#6B7280] mb-1">Available</p><p className="text-3xl font-semibold text-[#10B981]">{drivers.filter((d) => d.status === 'available').length}</p></div>
-        <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] p-4"><p className="text-sm text-[#6B7280] mb-1">Busy</p><p className="text-3xl font-semibold text-[#EF4444]">{drivers.filter((d) => d.status === 'busy').length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">Total Drivers</p><p className="text-3xl font-semibold text-foreground">{drivers.length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">Available</p><p className="text-3xl font-semibold text-[#10B981]">{drivers.filter((d) => d.status === 'available').length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">Busy</p><p className="text-3xl font-semibold text-[#EF4444]">{drivers.filter((d) => d.status === 'busy').length}</p></div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-[#E5E7EB] overflow-hidden">
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#F9FAFB]">
+              <TableRow className="bg-muted">
                 <TableHead className="font-semibold">Driver Name</TableHead>
                 <TableHead className="font-semibold">Phone</TableHead>
                 <TableHead className="font-semibold">Vehicle</TableHead>
@@ -181,11 +181,11 @@ export default function Drivers() {
             </TableHeader>
             <TableBody>
               {drivers.map((d) => (
-                <TableRow key={d.id} className="hover:bg-[#F9FAFB]">
-                  <TableCell className="font-medium text-[#111827]">{d.name}</TableCell>
-                  <TableCell className="text-sm text-[#6B7280]">{d.phone}</TableCell>
-                  <TableCell className="text-sm text-[#6B7280]">{d.vehicleType ?? d.vehicleModel ?? '—'}</TableCell>
-                  <TableCell className="text-sm text-[#6B7280]">{d.licensePlate}</TableCell>
+                <TableRow key={d.id} className="hover:bg-muted/50">
+                  <TableCell className="font-medium text-foreground">{d.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{d.phone}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{d.vehicleType ?? d.vehicleModel ?? '—'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{d.licensePlate}</TableCell>
                   <TableCell><Badge className={couponBadge(d.couponBalance)}>{d.couponBalance} coupons</Badge></TableCell>
                   <TableCell><Badge className={statusBadge(d.status)}>{d.status}</Badge></TableCell>
                   <TableCell>
@@ -199,7 +199,7 @@ export default function Drivers() {
             </TableBody>
           </Table>
         )}
-        {!loading && drivers.length === 0 && <div className="text-center py-12"><p className="text-[#6B7280]">No drivers found</p></div>}
+        {!loading && drivers.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground">No drivers found</p></div>}
       </div>
 
       {/* Edit dialog */}

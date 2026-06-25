@@ -110,7 +110,7 @@ export default function Dashboard() {
   return (
     <div className="h-full flex">
       {/* Left Panel */}
-      <div className="w-[35%] border-r border-[#E5E7EB] bg-white overflow-auto">
+      <div className="w-[35%] border-r border-border bg-background overflow-auto">
         <div className="p-6">
           <div className="mb-6 grid grid-cols-2 gap-3">
             <Button className="h-12 bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}>
@@ -126,15 +126,15 @@ export default function Dashboard() {
             <>
               {/* Pending */}
               <div className="mb-6">
-                <h3 className="font-semibold text-[#111827] mb-3">Pending Rides ({pendingRides.length})</h3>
+                <h3 className="font-semibold text-foreground mb-3">Pending Rides ({pendingRides.length})</h3>
                 <div className="space-y-3">
                   {pendingRides.map((ride) => (
                     <Card key={ride.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            <p className="font-semibold text-[#111827]">{ride.customerName}</p>
-                            <p className="text-sm text-[#6B7280] flex items-center gap-1 mt-1">
+                            <p className="font-semibold text-card-foreground">{ride.customerName}</p>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                               <Phone className="w-3 h-3" /> {ride.customerPhone}
                             </p>
                           </div>
@@ -143,11 +143,11 @@ export default function Dashboard() {
                         <div className="space-y-2 mb-3">
                           <div className="flex items-start gap-2 text-sm">
                             <MapPin className="w-4 h-4 text-[#10B981] mt-0.5 flex-shrink-0" />
-                            <span className="text-[#6B7280]">{ride.pickupLocation}</span>
+                            <span className="text-muted-foreground">{ride.pickupLocation}</span>
                           </div>
                           <div className="flex items-start gap-2 text-sm">
                             <Navigation className="w-4 h-4 text-[#EF4444] mt-0.5 flex-shrink-0" />
-                            <span className="text-[#6B7280]">{ride.dropoffLocation}</span>
+                            <span className="text-muted-foreground">{ride.dropoffLocation}</span>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -161,7 +161,7 @@ export default function Dashboard() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full mt-2 border-[#00BDC3] text-[#00BDC3] hover:bg-[#00BDC3] hover:text-white"
+                          className="w-full mt-2 border-[#00BDC3] text-[#00BDC3] bg-[#00BDC3]/10 hover:bg-[#00BDC3] hover:text-white"
                           onClick={() => handleRedispatch(ride)}
                           disabled={redispatchingId === ride.id}
                         >
@@ -171,21 +171,21 @@ export default function Dashboard() {
                       </CardContent>
                     </Card>
                   ))}
-                  {pendingRides.length === 0 && <p className="text-sm text-[#6B7280] text-center py-6">No pending rides</p>}
+                  {pendingRides.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No pending rides</p>}
                 </div>
               </div>
 
               {/* Active */}
               <div>
-                <h3 className="font-semibold text-[#111827] mb-3">Active Rides ({activeRides.length})</h3>
+                <h3 className="font-semibold text-foreground mb-3">Active Rides ({activeRides.length})</h3>
                 <div className="space-y-3">
                   {activeRides.map((ride) => (
                     <Card key={ride.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <p className="font-semibold text-[#111827]">{ride.customerName}</p>
-                            <p className="text-sm text-[#6B7280]">Driver: {ride.driverName ?? '—'}</p>
+                            <p className="font-semibold text-card-foreground">{ride.customerName}</p>
+                            <p className="text-sm text-muted-foreground">Driver: {ride.driverName ?? '—'}</p>
                           </div>
                           <Badge className={statusBadge(ride.status)}>{rideStatusLabel(ride.status)}</Badge>
                         </div>
@@ -195,7 +195,7 @@ export default function Dashboard() {
                       </CardContent>
                     </Card>
                   ))}
-                  {activeRides.length === 0 && <p className="text-sm text-[#6B7280] text-center py-6">No active rides</p>}
+                  {activeRides.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No active rides</p>}
                 </div>
               </div>
             </>
@@ -206,9 +206,9 @@ export default function Dashboard() {
       {/* Right Panel - Gebeta Map */}
       <div className="flex-1 relative">
         <GebetaMapView fleet={fleet} height="100%" zoom={12} className="w-full h-full" />
-        <div className="absolute top-4 right-4 bg-white p-4 rounded-lg shadow-lg z-[400]">
-          <h4 className="font-semibold text-sm mb-2">Driver Status</h4>
-          <div className="space-y-2 text-xs">
+        <div className="absolute top-4 right-4 bg-card border border-border p-4 rounded-lg shadow-lg z-[400]">
+          <h4 className="font-semibold text-sm mb-2 text-card-foreground">Driver Status</h4>
+          <div className="space-y-2 text-xs text-card-foreground">
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10B981]" /><span>Available ({drivers.filter((d) => d.status === 'available').length})</span></div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#EF4444]" /><span>Busy ({drivers.filter((d) => d.status === 'busy').length})</span></div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#6B7280]" /><span>Offline ({drivers.filter((d) => d.status === 'offline').length})</span></div>
@@ -229,10 +229,10 @@ export default function Dashboard() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <p className="font-semibold text-[#111827]">{driver.name}</p>
+                        <p className="font-semibold text-card-foreground">{driver.name}</p>
                         <Badge className={statusBadge(driver.status)}>{driver.status}</Badge>
                       </div>
-                      <div className="space-y-1 text-sm text-[#6B7280]">
+                      <div className="space-y-1 text-sm text-muted-foreground">
                         <p>{driver.vehicleType} - {driver.licensePlate}</p>
                         <p className="flex items-center gap-1"><Phone className="w-3 h-3" /> {driver.phone}</p>
                         <p className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> Coupon: {driver.couponBalance}</p>
@@ -245,7 +245,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             ))}
-            {availableDrivers.length === 0 && <p className="text-sm text-[#6B7280] text-center py-6">No available drivers</p>}
+            {availableDrivers.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No available drivers</p>}
           </div>
         </DialogContent>
       </Dialog>

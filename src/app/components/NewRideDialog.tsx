@@ -76,7 +76,7 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
         <DialogHeader><DialogTitle>Create New Ride</DialogTitle></DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label>Customer Name <span className="text-[#9CA3AF] font-normal">(optional)</span></Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Leave blank for Guest" /></div>
+            <div className="space-y-2"><Label>Customer Name <span className="text-muted-foreground font-normal">(optional)</span></Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Leave blank for Guest" /></div>
             <div className="space-y-2"><Label>Phone *</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="0911 234567" /></div>
           </div>
           <RideLocationPicker pickup={pickup} dropoff={dropoff} onChange={handleChange} />

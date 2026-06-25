@@ -42,8 +42,8 @@ export default function Operators() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#111827]">Operators Management</h1>
-          <p className="text-sm text-[#6B7280] mt-1">Manage call center operators and track performance</p>
+          <h1 className="text-2xl font-semibold text-foreground">Operators Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage call center operators and track performance</p>
         </div>
         <AddOperatorDialog onCreated={load} />
       </div>
@@ -58,7 +58,7 @@ export default function Operators() {
           <Card key={s.label}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div><p className="text-sm text-[#6B7280]">{s.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: s.color }}>{s.value}</p></div>
+                <div><p className="text-sm text-muted-foreground">{s.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: s.color }}>{s.value}</p></div>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: `${s.color}1a` }}><s.icon className="w-6 h-6" style={{ color: s.color }} /></div>
               </div>
             </CardContent>
@@ -69,7 +69,7 @@ export default function Operators() {
       <Card>
         <CardContent className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Search by name, email, or phone…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
           </div>
         </CardContent>
@@ -87,17 +87,17 @@ export default function Operators() {
                     <div className="w-12 h-12 rounded-full bg-[#00BDC3]/10 flex items-center justify-center">
                       <span className="text-lg font-semibold text-[#00BDC3]">{String(op.name).split(' ').map((n: string) => n[0]).join('')}</span>
                     </div>
-                    <div><CardTitle className="text-base">{op.name}</CardTitle><p className="text-xs text-[#6B7280] mt-1 capitalize">{op.shift}</p></div>
+                    <div><CardTitle className="text-base">{op.name}</CardTitle><p className="text-xs text-muted-foreground mt-1 capitalize">{op.shift}</p></div>
                   </div>
                   <Badge className={statusColor(op.status === 'active')}>{op.status === 'active' ? 'Active' : 'Inactive'}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-[#6B7280]"><Mail className="w-4 h-4" /><span>{op.email}</span></div>
-                <div className="flex items-center gap-2 text-sm text-[#6B7280]"><Phone className="w-4 h-4" /><span>{op.phone}</span></div>
-                <div className="pt-3 border-t border-gray-200 grid grid-cols-2 gap-4 text-sm">
-                  <div><p className="text-[#6B7280]">Total Calls</p><p className="font-semibold text-[#111827]">{(op.totalCalls ?? 0).toLocaleString()}</p></div>
-                  <div><p className="text-[#6B7280]">Rides Created</p><p className="font-semibold text-[#111827]">{(op.totalRidesCreated ?? 0).toLocaleString()}</p></div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Mail className="w-4 h-4" /><span>{op.email}</span></div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Phone className="w-4 h-4" /><span>{op.phone}</span></div>
+                <div className="pt-3 border-t border-border grid grid-cols-2 gap-4 text-sm">
+                  <div><p className="text-muted-foreground">Total Calls</p><p className="font-semibold text-foreground">{(op.totalCalls ?? 0).toLocaleString()}</p></div>
+                  <div><p className="text-muted-foreground">Rides Created</p><p className="font-semibold text-foreground">{(op.totalRidesCreated ?? 0).toLocaleString()}</p></div>
                 </div>
               </CardContent>
             </Card>
@@ -106,7 +106,7 @@ export default function Operators() {
       )}
 
       {!loading && operators.length === 0 && (
-        <div className="text-center py-12"><Users className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3" /><p className="text-[#6B7280]">No operators found</p></div>
+        <div className="text-center py-12"><Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">No operators found</p></div>
       )}
     </div>
   );

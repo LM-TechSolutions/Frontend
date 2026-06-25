@@ -57,7 +57,6 @@ export default function RideTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideId]);
 
-  // Live updates over WebSockets.
   useEffect(() => {
     if (!rideId) return;
     const socket = connectSocket();
@@ -118,7 +117,7 @@ export default function RideTracking() {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <p className="text-[#6B7280]">Ride not found</p>
+          <p className="text-muted-foreground">Ride not found</p>
           <Button onClick={() => navigate('/rides')} className="mt-4 bg-[#00BDC3] hover:bg-[#009EA3] text-white">
             Back to Rides
           </Button>
@@ -145,8 +144,8 @@ export default function RideTracking() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h2 className="text-2xl font-semibold text-[#111827]">Ride #{String(ride.id).slice(0, 8)}</h2>
-            <p className="text-[#6B7280]">Track ride progress in real-time</p>
+            <h2 className="text-2xl font-semibold text-foreground">Ride #{String(ride.id).slice(0, 8)}</h2>
+            <p className="text-muted-foreground">Track ride progress in real-time</p>
           </div>
         </div>
         <Badge className={`${getStatusColor(ride.status)} text-white text-base px-4 py-2`}>
@@ -169,17 +168,19 @@ export default function RideTracking() {
                   <div className="flex flex-col items-center flex-1">
                     <div
                       className={`w-12 h-12 rounded-full flex items-center justify-center border-4 ${
-                        isPast ? 'bg-[#00BDC3] border-[#00BDC3] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280]'
+                        isPast
+                          ? 'bg-[#00BDC3] border-[#00BDC3] text-white'
+                          : 'bg-card border-border text-muted-foreground'
                       } ${isCurrent ? 'ring-4 ring-[#00BDC3]/30 scale-110' : ''}`}
                     >
                       <span className="font-bold">{index + 1}</span>
                     </div>
-                    <p className={`mt-2 text-sm font-medium text-center ${isPast ? 'text-[#111827]' : 'text-[#6B7280]'}`}>
+                    <p className={`mt-2 text-sm font-medium text-center ${isPast ? 'text-foreground' : 'text-muted-foreground'}`}>
                       {rideStatusLabel(status)}
                     </p>
                   </div>
                   {index < rideStatuses.length - 1 && (
-                    <div className={`h-1 flex-1 mx-2 mt-[-30px] ${index < currentStatusIndex ? 'bg-[#00BDC3]' : 'bg-[#E5E7EB]'}`} />
+                    <div className={`h-1 flex-1 mx-2 mt-[-30px] ${index < currentStatusIndex ? 'bg-[#00BDC3]' : 'bg-border'}`} />
                   )}
                 </div>
               );
@@ -198,27 +199,27 @@ export default function RideTracking() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-[#6B7280] mb-1">Name</p>
-              <p className="font-semibold text-[#111827]">{ride.customerName}</p>
+              <p className="text-sm text-muted-foreground mb-1">Name</p>
+              <p className="font-semibold text-card-foreground">{ride.customerName}</p>
             </div>
             <div>
-              <p className="text-sm text-[#6B7280] mb-1">Phone Number</p>
-              <p className="font-semibold text-[#111827]">{ride.customerPhone}</p>
+              <p className="text-sm text-muted-foreground mb-1">Phone Number</p>
+              <p className="font-semibold text-card-foreground">{ride.customerPhone}</p>
             </div>
             <Separator />
             <div className="space-y-3">
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-[#10B981] mt-1 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-[#6B7280]">Pickup</p>
-                  <p className="text-sm font-medium text-[#111827]">{ride.pickupLocation}</p>
+                  <p className="text-xs text-muted-foreground">Pickup</p>
+                  <p className="text-sm font-medium text-card-foreground">{ride.pickupLocation}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <Navigation className="w-4 h-4 text-[#EF4444] mt-1 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-[#6B7280]">Destination</p>
-                  <p className="text-sm font-medium text-[#111827]">{ride.dropoffLocation}</p>
+                  <p className="text-xs text-muted-foreground">Destination</p>
+                  <p className="text-sm font-medium text-card-foreground">{ride.dropoffLocation}</p>
                 </div>
               </div>
             </div>
@@ -236,20 +237,20 @@ export default function RideTracking() {
             {hasDriver ? (
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-[#6B7280] mb-1">Driver Name</p>
-                  <p className="font-semibold text-[#111827]">{ride.driverName}</p>
+                  <p className="text-sm text-muted-foreground mb-1">Driver Name</p>
+                  <p className="font-semibold text-card-foreground">{ride.driverName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-[#6B7280] mb-1">Phone Number</p>
-                  <p className="font-semibold text-[#111827]">{ride.driverPhone ?? '—'}</p>
+                  <p className="text-sm text-muted-foreground mb-1">Phone Number</p>
+                  <p className="font-semibold text-card-foreground">{ride.driverPhone ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-[#6B7280] mb-1">Vehicle</p>
-                  <p className="font-semibold text-[#111827]">{ride.vehicleInfo ?? '—'}</p>
+                  <p className="text-sm text-muted-foreground mb-1">Vehicle</p>
+                  <p className="font-semibold text-card-foreground">{ride.vehicleInfo ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-[#6B7280] mb-1">License Plate</p>
-                  <p className="font-semibold text-[#111827]">{ride.licensePlate ?? '—'}</p>
+                  <p className="text-sm text-muted-foreground mb-1">License Plate</p>
+                  <p className="font-semibold text-card-foreground">{ride.licensePlate ?? '—'}</p>
                 </div>
                 {ride.driverPhone && (
                   <Button className="w-full bg-[#00BDC3] hover:bg-[#009EA3] text-white" asChild>
@@ -261,7 +262,7 @@ export default function RideTracking() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-[#6B7280]">No driver assigned yet</p>
+                <p className="text-muted-foreground">No driver assigned yet</p>
               </div>
             )}
           </CardContent>
@@ -276,27 +277,27 @@ export default function RideTracking() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-[#6B7280] mb-1">Ride ID</p>
-              <p className="font-semibold text-[#111827]">#{String(ride.id).slice(0, 8)}</p>
+              <p className="text-sm text-muted-foreground mb-1">Ride ID</p>
+              <p className="font-semibold text-card-foreground">#{String(ride.id).slice(0, 8)}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-sm text-[#6B7280] mb-1">Created</p>
-                <p className="font-semibold text-[#111827]">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</p>
+                <p className="text-sm text-muted-foreground mb-1">Created</p>
+                <p className="font-semibold text-card-foreground">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</p>
               </div>
               <div>
-                <p className="text-sm text-[#6B7280] mb-1">Updated</p>
-                <p className="font-semibold text-[#111827]">{format(new Date(ride.updatedAt), 'MMM dd, HH:mm')}</p>
+                <p className="text-sm text-muted-foreground mb-1">Updated</p>
+                <p className="font-semibold text-card-foreground">{format(new Date(ride.updatedAt), 'MMM dd, HH:mm')}</p>
               </div>
             </div>
             {ride.distance != null && (
               <div>
-                <p className="text-sm text-[#6B7280] mb-1">Distance</p>
-                <p className="font-semibold text-[#111827]">{Number(ride.distance).toFixed(2)} km</p>
+                <p className="text-sm text-muted-foreground mb-1">Distance</p>
+                <p className="font-semibold text-card-foreground">{Number(ride.distance).toFixed(2)} km</p>
               </div>
             )}
             <div>
-              <p className="text-sm text-[#6B7280] mb-1">{ride.status === 'completed' ? 'Final Fare' : 'Fare'}</p>
+              <p className="text-sm text-muted-foreground mb-1">{ride.status === 'completed' ? 'Final Fare' : 'Fare'}</p>
               <p className="text-2xl font-bold text-[#00BDC3]">{formatETB(ride.fare)}</p>
             </div>
             <Separator />
