@@ -1,361 +1,169 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { 
-  Phone, 
-  Mail, 
-  Clock, 
-  PhoneCall, 
-  Users, 
-  Plus,
-  Search,
-  Timer,
-  UserCog
-} from 'lucide-react';
-import { mockOperators } from '../data/mockData';
-import type { Operator, OperatorStatus } from '../types';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../components/ui/dialog';
+import { Phone, Mail, PhoneCall, Users, Plus, Search, UserCog, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
+import { api } from '../lib/api';
 
-const getStatusColor = (status: OperatorStatus) => {
-  switch (status) {
-    case 'online':
-      return 'bg-[#10B981] text-white';
-    case 'away':
-      return 'bg-[#F59E0B] text-white';
-    case 'offline':
-      return 'bg-[#6B7280] text-white';
-  }
-};
-
-const getStatusText = (status: OperatorStatus) => {
-  return status.charAt(0).toUpperCase() + status.slice(1);
-};
-
-const formatDuration = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}m ${secs}s`;
-};
+const statusColor = (active: boolean) => (active ? 'bg-[#10B981] text-white' : 'bg-[#6B7280] text-white');
 
 export default function Operators() {
-  const navigate = useNavigate();
-  const [operators] = useState<Operator[]>(mockOperators);
+  const [operators, setOperators] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<OperatorStatus | 'all'>('all');
 
-  // Calculate overall statistics
-  const totalOperators = operators.length;
-  const onlineOperators = operators.filter(op => op.status === 'online').length;
-  const totalCallsToday = operators.reduce((sum, op) => sum + op.todayCalls, 0);
-  const totalCustomersToday = operators.reduce((sum, op) => sum + op.todayCustomers, 0);
+  const load = async () => {
+    try {
+      const res = await api.operators.list({ limit: 200, search: searchQuery || undefined });
+      setOperators(res.operators ?? []);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to load operators');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Filter operators
-  const filteredOperators = operators.filter(op => {
-    const matchesSearch = 
-      op.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      op.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      op.phone.includes(searchQuery);
-    
-    const matchesStatus = filterStatus === 'all' || op.status === filterStatus;
+  useEffect(() => {
+    const t = setTimeout(load, searchQuery ? 300 : 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
-    return matchesSearch && matchesStatus;
-  });
+  const onlineCount = operators.filter((o) => o.status === 'active').length;
+  const totalCalls = operators.reduce((s, o) => s + (o.totalCalls ?? 0), 0);
+  const totalCustomers = operators.reduce((s, o) => s + (o.totalRidesCreated ?? 0), 0);
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[#111827]">Operators Management</h1>
           <p className="text-sm text-[#6B7280] mt-1">Manage call center operators and track performance</p>
         </div>
-        <AddOperatorDialog />
+        <AddOperatorDialog onCreated={load} />
       </div>
 
-      {/* Statistics Cards */}
       <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B7280]">Total Operators</p>
-                <p className="text-2xl font-semibold text-[#111827] mt-1">{totalOperators}</p>
+        {[
+          { label: 'Total Operators', value: operators.length, icon: UserCog, color: '#00BDC3' },
+          { label: 'Online Now', value: onlineCount, icon: Users, color: '#10B981' },
+          { label: 'Total Rides Created', value: totalCustomers, icon: Users, color: '#00BDC3' },
+          { label: 'Total Calls', value: totalCalls, icon: PhoneCall, color: '#00BDC3' },
+        ].map((s) => (
+          <Card key={s.label}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div><p className="text-sm text-[#6B7280]">{s.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: s.color }}>{s.value}</p></div>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: `${s.color}1a` }}><s.icon className="w-6 h-6" style={{ color: s.color }} /></div>
               </div>
-              <div className="w-12 h-12 rounded-full bg-[#00BDC3]/10 flex items-center justify-center">
-                <UserCog className="w-6 h-6 text-[#00BDC3]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B7280]">Online Now</p>
-                <p className="text-2xl font-semibold text-[#10B981] mt-1">{onlineOperators}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-[#10B981]/10 flex items-center justify-center">
-                <Users className="w-6 h-6 text-[#10B981]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B7280]">Total Calls Today</p>
-                <p className="text-2xl font-semibold text-[#111827] mt-1">{totalCallsToday}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-[#00BDC3]/10 flex items-center justify-center">
-                <PhoneCall className="w-6 h-6 text-[#00BDC3]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#6B7280]">Customers Today</p>
-                <p className="text-2xl font-semibold text-[#111827] mt-1">{totalCustomersToday}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-[#00BDC3]/10 flex items-center justify-center">
-                <Users className="w-6 h-6 text-[#00BDC3]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
-              <Input
-                placeholder="Search by name, email, or phone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-10"
-              />
-            </div>
-            <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as OperatorStatus | 'all')}>
-              <SelectTrigger className="w-[200px] h-10">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="online">Online</SelectItem>
-                <SelectItem value="away">Away</SelectItem>
-                <SelectItem value="offline">Offline</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Operators List */}
-      <div className="grid grid-cols-2 gap-4">
-        {filteredOperators.map((operator) => (
-          <Card key={operator.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#00BDC3]/10 flex items-center justify-center">
-                    <span className="text-lg font-semibold text-[#00BDC3]">
-                      {operator.name.split(' ').map(n => n[0]).join('')}
-                    </span>
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{operator.name}</CardTitle>
-                    <p className="text-xs text-[#6B7280] mt-1">{operator.shift}</p>
-                  </div>
-                </div>
-                <Badge className={getStatusColor(operator.status)}>
-                  {getStatusText(operator.status)}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-[#6B7280]">
-                <Mail className="w-4 h-4" />
-                <span>{operator.email}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-[#6B7280]">
-                <Phone className="w-4 h-4" />
-                <span>{operator.phone}</span>
-              </div>
-              
-              <div className="pt-3 border-t border-gray-200">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <div className="flex items-center gap-1 text-xs text-[#6B7280] mb-1">
-                      <PhoneCall className="w-3 h-3" />
-                      <span>Today</span>
-                    </div>
-                    <p className="text-lg font-semibold text-[#111827]">{operator.todayCalls}</p>
-                    <p className="text-xs text-[#6B7280]">calls</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 text-xs text-[#6B7280] mb-1">
-                      <Users className="w-3 h-3" />
-                      <span>Today</span>
-                    </div>
-                    <p className="text-lg font-semibold text-[#111827]">{operator.todayCustomers}</p>
-                    <p className="text-xs text-[#6B7280]">customers</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 text-xs text-[#6B7280] mb-1">
-                      <Timer className="w-3 h-3" />
-                      <span>Avg Time</span>
-                    </div>
-                    <p className="text-lg font-semibold text-[#111827]">{formatDuration(operator.avgCallDuration)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-gray-200">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-[#6B7280]">Total Calls</p>
-                    <p className="font-semibold text-[#111827]">{operator.totalCalls.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-[#6B7280]">Total Customers</p>
-                    <p className="font-semibold text-[#111827]">{operator.totalCustomers.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-
-              <Button variant="outline" className="w-full mt-2" size="sm" onClick={() => navigate(`/employees/${operator.id}`)}>
-                View Details
-              </Button>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {filteredOperators.length === 0 && (
-        <div className="text-center py-12">
-          <Users className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3" />
-          <p className="text-[#6B7280]">No operators found matching your criteria</p>
+      <Card>
+        <CardContent className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
+            <Input placeholder="Search by name, email, or phone…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {operators.map((op) => (
+            <Card key={op.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-[#00BDC3]/10 flex items-center justify-center">
+                      <span className="text-lg font-semibold text-[#00BDC3]">{String(op.name).split(' ').map((n: string) => n[0]).join('')}</span>
+                    </div>
+                    <div><CardTitle className="text-base">{op.name}</CardTitle><p className="text-xs text-[#6B7280] mt-1 capitalize">{op.shift}</p></div>
+                  </div>
+                  <Badge className={statusColor(op.status === 'active')}>{op.status === 'active' ? 'Active' : 'Inactive'}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-[#6B7280]"><Mail className="w-4 h-4" /><span>{op.email}</span></div>
+                <div className="flex items-center gap-2 text-sm text-[#6B7280]"><Phone className="w-4 h-4" /><span>{op.phone}</span></div>
+                <div className="pt-3 border-t border-gray-200 grid grid-cols-2 gap-4 text-sm">
+                  <div><p className="text-[#6B7280]">Total Calls</p><p className="font-semibold text-[#111827]">{(op.totalCalls ?? 0).toLocaleString()}</p></div>
+                  <div><p className="text-[#6B7280]">Rides Created</p><p className="font-semibold text-[#111827]">{(op.totalRidesCreated ?? 0).toLocaleString()}</p></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      )}
+
+      {!loading && operators.length === 0 && (
+        <div className="text-center py-12"><Users className="w-12 h-12 text-[#9CA3AF] mx-auto mb-3" /><p className="text-[#6B7280]">No operators found</p></div>
       )}
     </div>
   );
 }
 
-function AddOperatorDialog() {
+function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    shift: 'Morning (8AM-4PM)'
-  });
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', shift: 'morning' });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Operator added successfully!');
-    setOpen(false);
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      shift: 'Morning (8AM-4PM)'
-    });
+    if (!form.name || !form.email || !form.phone || !form.password) {
+      toast.error('Name, email, phone and password are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.operators.create(form);
+      toast.success('Operator added');
+      setOpen(false);
+      setForm({ name: '', email: '', phone: '', password: '', shift: 'morning' });
+      onCreated();
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to add operator');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Operator
-        </Button>
+        <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white"><Plus className="w-4 h-4 mr-2" /> Add Operator</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Add New Operator</DialogTitle>
-          <DialogDescription>
-            Add a new call center operator to the system
-          </DialogDescription>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>Add New Operator</DialogTitle><DialogDescription>Add a new call center operator to the system</DialogDescription></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div className="space-y-2"><Label>Full Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" required /></div>
+          <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@tokuma.et" required /></div>
+          <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0911 123456" required /></div>
+          <div className="space-y-2"><Label>Password</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" required /></div>
           <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="John Doe"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="john.doe@tekumma.com"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+251 911 123456"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="shift">Shift</Label>
-            <Select value={formData.shift} onValueChange={(value) => setFormData({ ...formData, shift: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+            <Label>Shift</Label>
+            <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Morning (8AM-4PM)">Morning (8AM-4PM)</SelectItem>
-                <SelectItem value="Afternoon (4PM-12AM)">Afternoon (4PM-12AM)</SelectItem>
-                <SelectItem value="Night (12AM-8AM)">Night (12AM-8AM)</SelectItem>
+                <SelectItem value="morning">Morning</SelectItem>
+                <SelectItem value="afternoon">Afternoon</SelectItem>
+                <SelectItem value="night">Night</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1 bg-[#00BDC3] hover:bg-[#009EA3] text-white">
-              Add Operator
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">Cancel</Button>
+            <Button type="submit" className="flex-1 bg-[#00BDC3] hover:bg-[#009EA3] text-white" disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Add Operator
             </Button>
           </div>
         </form>

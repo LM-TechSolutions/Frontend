@@ -61,6 +61,10 @@ export const router = createBrowserRouter([
         path: "settings",
         element: <Settings />,
       },
+      {
+        path: "employees/:employeeId",
+        element: <EmployeeProfile />,
+      },
     ],
       },
     ],

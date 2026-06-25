@@ -43,6 +43,7 @@ export default function GebetaMapView({
   pickup,
   dropoff,
   driver,
+  fleet,
   routeCoords,
   height = 400,
   zoom = 12,
@@ -51,6 +52,7 @@ export default function GebetaMapView({
 }: GebetaMapViewProps) {
   const mapRef = useRef<GebetaMapRef>(null);
   const markersRef = useRef<Record<string, maplibregl.Marker>>({});
+  const fleetMarkersRef = useRef<maplibregl.Marker[]>([]);
   const [ready, setReady] = useState(false);
 
   const center: [number, number] = pickup
@@ -85,6 +87,15 @@ export default function GebetaMapView({
     upsert('dropoff', dropoff, '#EF4444', 'D');
     upsert('driver', driver, '#00BDC3', '🚗');
 
+    // Fleet markers (rebuilt each render).
+    fleetMarkersRef.current.forEach((m) => m.remove());
+    fleetMarkersRef.current = [];
+    (fleet ?? []).forEach((d) => {
+      const el = document.createElement('div');
+      el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${d.color ?? '#00BDC3'};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);`;
+      fleetMarkersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]).addTo(map));
+    });
+
     // Route path: explicit, else connect pickup → driver → dropoff.
     const path =
       routeCoords && routeCoords.length > 1
@@ -109,7 +120,7 @@ export default function GebetaMapView({
       pts.forEach((p) => bounds.extend([p.lng, p.lat]));
       map.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 600 });
     }
-  }, [ready, pickup, dropoff, driver, routeCoords]);
+  }, [ready, pickup, dropoff, driver, routeCoords, fleet]);
 
   if (!config.gebetaApiKey) {
     return (

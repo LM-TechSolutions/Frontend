@@ -1,19 +1,18 @@
-import { defineConfig } from 'vite'
-import path from 'path'
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
-
+import { defineConfig } from "vite";
+import path from "path";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 
 function figmaAssetResolver() {
   return {
-    name: 'figma-asset-resolver',
+    name: "figma-asset-resolver",
     resolveId(id) {
-      if (id.startsWith('figma:asset/')) {
-        const filename = id.replace('figma:asset/', '')
-        return path.resolve(__dirname, 'src/assets', filename)
+      if (id.startsWith("figma:asset/")) {
+        const filename = id.replace("figma:asset/", "");
+        return path.resolve(__dirname, "src/assets", filename);
       }
     },
-  }
+  };
 }
 
 export default defineConfig({
@@ -27,23 +26,35 @@ export default defineConfig({
   resolve: {
     alias: {
       // Alias @ to the src directory
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 
-  // Dev server runs on 3001 (matches the backend's CORS + trusted origins) and
-  // proxies API + WebSocket traffic to the backend on 3000, so the browser sees a
-  // single origin — session cookies and Socket.IO "just work" without CORS issues.
+  // Dev server runs on 3002 and proxies API + WebSocket traffic to the backend
+  // on 3001 so the browser sees a single origin — session cookies and Socket.IO
+  // "just work" without CORS issues.
   server: {
-    port: 3001,
+    port: 3002,
     strictPort: true,
     proxy: {
-      '/v1': { target: 'http://localhost:3000', changeOrigin: true, cookieDomainRewrite: 'localhost' },
-      '/api': { target: 'http://localhost:3000', changeOrigin: true, cookieDomainRewrite: 'localhost' },
-      '/socket.io': { target: 'http://localhost:3000', changeOrigin: true, ws: true },
+      "/v1": {
+        target: "http://localhost:3003",
+        changeOrigin: true,
+        cookieDomainRewrite: "localhost",
+      },
+      "/api": {
+        target: "http://localhost:3003",
+        changeOrigin: true,
+        cookieDomainRewrite: "localhost",
+      },
+      "/socket.io": {
+        target: "http://localhost:3003",
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
-  assetsInclude: ['**/*.svg', '**/*.csv'],
-})
+  assetsInclude: ["**/*.svg", "**/*.csv"],
+});
