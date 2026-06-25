@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import GebetaMap, { type GebetaMapRef } from '@gebeta/tiles';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -57,28 +57,23 @@ export default function GebetaMapView({
   onMapClickRef.current = onMapClick;
   const [ready, setReady] = useState(false);
 
-  // Attach a reliable click listener straight to the MapLibre instance (always
-  // calls the latest handler via the ref, so the active pickup/destination is correct).
+  // The SDK captures onMapClick once at mount, so we hand it a STABLE callback that
+  // reads the latest handler from a ref — clicks always target the active point.
+  const handleMapClick = useCallback((lngLat: [number, number]) => {
+    onMapClickRef.current?.(lngLat[0], lngLat[1]);
+  }, []);
+
+  // Crosshair cursor when the map is in pick mode, so it's clearly clickable.
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !onMapClick) return;
     const map = mapRef.current?.getMapInstance();
     if (!map) return;
-
-    const handler = (e: maplibregl.MapMouseEvent) => {
-      onMapClickRef.current?.(e.lngLat.lng, e.lngLat.lat);
-    };
-    map.on('click', handler);
-    if (onMapClickRef.current) {
-      try {
-        map.getCanvas().style.cursor = 'crosshair';
-      } catch {
-        /* ignore */
-      }
+    try {
+      map.getCanvas().style.cursor = 'crosshair';
+    } catch {
+      /* ignore */
     }
-    return () => {
-      map.off('click', handler);
-    };
-  }, [ready]);
+  }, [ready, onMapClick]);
 
   const center: [number, number] = pickup
     ? [pickup.lng, pickup.lat]
@@ -175,6 +170,7 @@ export default function GebetaMapView({
         zoom={zoom}
         style={{ width: '100%', height: '100%' }}
         onMapLoaded={() => setReady(true)}
+        onMapClick={onMapClick ? handleMapClick : undefined}
       />
     </div>
   );

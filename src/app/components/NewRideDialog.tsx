@@ -35,8 +35,8 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
   };
 
   const submit = async () => {
-    if (!customerName || !customerPhone) {
-      toast.error('Customer name and phone are required');
+    if (!customerPhone) {
+      toast.error('Customer phone is required');
       return;
     }
     if (!pickup || !dropoff) {
@@ -46,7 +46,7 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
     setCreating(true);
     try {
       await api.rides.create({
-        customerName,
+        customerName: customerName.trim() || undefined,
         customerPhone,
         pickupLocation: pickup.address,
         pickupCoordinates: { lat: pickup.lat, lng: pickup.lng },
@@ -76,8 +76,8 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
         <DialogHeader><DialogTitle>Create New Ride</DialogTitle></DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label>Customer Name</Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer name" /></div>
-            <div className="space-y-2"><Label>Phone</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="0911 234567" /></div>
+            <div className="space-y-2"><Label>Customer Name <span className="text-[#9CA3AF] font-normal">(optional)</span></Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Leave blank for Guest" /></div>
+            <div className="space-y-2"><Label>Phone *</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="0911 234567" /></div>
           </div>
           <RideLocationPicker pickup={pickup} dropoff={dropoff} onChange={handleChange} />
         </div>
