@@ -46,7 +46,6 @@ export default function Rides() {
     try {
       const res = await api.rides.list({
         status: statusFilter === 'all' ? undefined : statusFilter,
-        search: searchQuery || undefined,
         page,
         limit: PAGE_SIZE,
       });
@@ -60,10 +59,9 @@ export default function Rides() {
   };
 
   useEffect(() => {
-    const t = setTimeout(load, searchQuery ? 300 : 0);
-    return () => clearTimeout(t);
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, page, searchQuery]);
+  }, [statusFilter, page]);
 
   useEffect(() => {
     const socket = getSocket() ?? connectSocket();
@@ -78,9 +76,15 @@ export default function Rides() {
   }, []);
 
   const visible = rides.filter((r) => {
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase().replace(/^#/, ''); // strip leading # if user types it
     if (!q) return true;
-    return `${r.id}${r.customerName}${r.pickupLocation}${r.dropoffLocation}`.toLowerCase().includes(q);
+    return (
+      String(r.id).toLowerCase().includes(q) ||
+      String(r.id).slice(0, 8).toLowerCase().includes(q) ||
+      (r.customerName ?? '').toLowerCase().includes(q) ||
+      (r.customerPhone ?? '').toLowerCase().includes(q) ||
+      (r.driverName ?? '').toLowerCase().includes(q)
+    );
   });
 
   const handleRedispatch = async (ride: any) => {
@@ -108,7 +112,7 @@ export default function Rides() {
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
           <div className="flex-1 relative min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search by Ride ID, Customer, Location…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="pl-10" />
+            <Input placeholder="Search by Ride ID, Customer, Driver…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="pl-10" />
           </div>
           <div className="flex items-center gap-3">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
