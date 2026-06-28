@@ -19,7 +19,7 @@ export default function Operators() {
 
   const load = async () => {
     try {
-      const res = await api.operators.list({ limit: 200, search: searchQuery || undefined });
+      const res = await api.operators.list({ limit: 200 });
       setOperators(res.operators ?? []);
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to load operators');
@@ -29,10 +29,20 @@ export default function Operators() {
   };
 
   useEffect(() => {
-    const t = setTimeout(load, searchQuery ? 300 : 0);
-    return () => clearTimeout(t);
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
+  }, []);
+
+  // Client-side filter by name, email, and phone
+  const visible = operators.filter((o) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (o.name ?? '').toLowerCase().includes(q) ||
+      (o.email ?? '').toLowerCase().includes(q) ||
+      (o.phone ?? '').toLowerCase().includes(q)
+    );
+  });
 
   const onlineCount = operators.filter((o) => o.status === 'active').length;
   const totalCalls = operators.reduce((s, o) => s + (o.totalCalls ?? 0), 0);
@@ -79,7 +89,7 @@ export default function Operators() {
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {operators.map((op) => (
+          {visible.map((op) => (
             <Card key={op.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -105,7 +115,7 @@ export default function Operators() {
         </div>
       )}
 
-      {!loading && operators.length === 0 && (
+      {!loading && visible.length === 0 && (
         <div className="text-center py-12"><Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">No operators found</p></div>
       )}
     </div>

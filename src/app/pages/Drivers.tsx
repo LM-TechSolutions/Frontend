@@ -29,7 +29,7 @@ export default function Drivers() {
 
   const load = async () => {
     try {
-      const res = await api.drivers.list({ limit: 200, search: searchQuery || undefined });
+      const res = await api.drivers.list({ limit: 200 });
       setDrivers(res.drivers ?? []);
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to load drivers');
@@ -39,10 +39,20 @@ export default function Drivers() {
   };
 
   useEffect(() => {
-    const t = setTimeout(load, searchQuery ? 300 : 0);
-    return () => clearTimeout(t);
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
+  }, []);
+
+  // Client-side filter by name, phone, and license plate
+  const visible = drivers.filter((d) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (d.name ?? '').toLowerCase().includes(q) ||
+      (d.phone ?? '').toLowerCase().includes(q) ||
+      (d.licensePlate ?? '').toLowerCase().includes(q)
+    );
+  });
 
   const statusBadge = (s: string) =>
     ({ available: 'bg-[#10B981] text-white', busy: 'bg-[#EF4444] text-white', offline: 'bg-[#6B7280] text-white' } as any)[s] ||
@@ -180,7 +190,7 @@ export default function Drivers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {drivers.map((d) => (
+              {visible.map((d) => (
                 <TableRow key={d.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium text-foreground">{d.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{d.phone}</TableCell>
@@ -199,7 +209,7 @@ export default function Drivers() {
             </TableBody>
           </Table>
         )}
-        {!loading && drivers.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground">No drivers found</p></div>}
+        {!loading && visible.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground">No drivers found</p></div>}
       </div>
 
       {/* Edit dialog */}

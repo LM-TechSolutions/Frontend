@@ -1,74 +1,73 @@
 import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
-import { TrendingUp, TrendingDown, Plus, Loader2 } from 'lucide-react';
-import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
+import { Label } from '../components/ui/label';
+import { Phone, Car, Search, Wallet, Plus, Loader2, AlertTriangle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 
-const isCredit = (type: string) => type === 'refill' || type === 'topup' || type === 'refund';
+const couponBadge = (b: number) =>
+  b < 15
+    ? 'bg-[#EF4444] text-white'
+    : b < 30
+    ? 'bg-[#F59E0B] text-white'
+    : 'bg-[#10B981] text-white';
+
+const statusBadge = (s: string) =>
+  ({ available: 'bg-[#10B981] text-white', busy: 'bg-[#EF4444] text-white', offline: 'bg-[#6B7280] text-white' } as any)[s] ||
+  'bg-gray-500 text-white';
 
 export default function Coupons() {
   const [drivers, setDrivers] = useState<any[]>([]);
-  const [selectedDriverId, setSelectedDriverId] = useState('');
-  const [balance, setBalance] = useState<any>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [txLoading, setTxLoading] = useState(false);
-  const [refillOpen, setRefillOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [refillDriver, setRefillDriver] = useState<any | null>(null);
   const [refillAmount, setRefillAmount] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    api.drivers
-      .list({ limit: 200 })
-      .then((res) => {
-        setDrivers(res.drivers ?? []);
-        if (res.drivers?.[0]) setSelectedDriverId(res.drivers[0].id);
-      })
-      .catch((e) => toast.error(e?.message ?? 'Failed to load drivers'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const loadDriverData = async (driverId: string) => {
-    if (!driverId) return;
-    setTxLoading(true);
+  const load = async () => {
     try {
-      const [bal, tx] = await Promise.all([
-        api.coupons.balance(driverId).catch(() => null),
-        api.coupons.list({ driverId, limit: 100 }).catch(() => ({ transactions: [] })),
-      ]);
-      setBalance(bal);
-      setTransactions(tx.transactions ?? []);
+      const res = await api.drivers.list({ limit: 200 });
+      setDrivers(res.drivers ?? []);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to load drivers');
     } finally {
-      setTxLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (selectedDriverId) loadDriverData(selectedDriverId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDriverId]);
+    load();
+  }, []);
 
-  const selectedDriver = drivers.find((d) => d.id === selectedDriverId);
-  const currentBalance = balance?.balance ?? selectedDriver?.couponBalance ?? 0;
+  // Client-side filter by name, license plate, and phone
+  const visible = drivers.filter((d) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (d.name ?? '').toLowerCase().includes(q) ||
+      (d.licensePlate ?? '').toLowerCase().includes(q) ||
+      (d.phone ?? '').toLowerCase().includes(q)
+    );
+  });
 
   const handleRefill = async () => {
     const amount = parseInt(refillAmount);
     if (!amount || amount <= 0) return toast.error('Please enter a valid amount');
+    if (!refillDriver) return;
     setSaving(true);
     try {
-      await api.coupons.refill(selectedDriverId, amount, 'Manual refill');
-      toast.success(`Added ${amount} coupons to ${selectedDriver?.name}`);
-      setRefillOpen(false);
+      await api.coupons.refill(refillDriver.id, amount, 'Manual refill');
+      toast.success(`Added ${amount} coupons to ${refillDriver.name}`);
+      setRefillDriver(null);
       setRefillAmount('');
-      loadDriverData(selectedDriverId);
+      // Update balance locally so the card reflects it immediately
+      setDrivers((prev) =>
+        prev.map((d) => (d.id === refillDriver.id ? { ...d, couponBalance: (d.couponBalance ?? 0) + amount } : d))
+      );
     } catch (e: any) {
       toast.error(e?.message ?? 'Refill failed');
     } finally {
@@ -76,128 +75,187 @@ export default function Coupons() {
     }
   };
 
+  const closeRefill = () => {
+    setRefillDriver(null);
+    setRefillAmount('');
+  };
+
+  // Summary stats
+  const lowBalance = drivers.filter((d) => (d.couponBalance ?? 0) < 15).length;
+  const totalCoupons = drivers.reduce((s, d) => s + (d.couponBalance ?? 0), 0);
+
   if (loading) {
-    return <div className="p-6 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>;
+    return <div className="p-6 flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>;
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">Coupon Management</h2>
-        <p className="text-muted-foreground">Manage driver coupon balances and transactions</p>
-      </div>
-
-      <div className="bg-card rounded-lg shadow-sm border border-border p-4 mb-6">
-        <div className="flex gap-4 items-center">
-          <Label className="font-semibold text-foreground whitespace-nowrap">Select Driver:</Label>
-          <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-            <SelectTrigger className="max-w-xs"><SelectValue placeholder="Choose a driver" /></SelectTrigger>
-            <SelectContent>
-              {drivers.map((d) => (
-                <SelectItem key={d.id} value={d.id}>{d.name} - {d.vehicleType ?? ''}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Coupon Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage driver coupon balances</p>
         </div>
       </div>
 
-      {selectedDriver ? (
-        <>
-          <Card className="mb-6 shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-lg">Driver Information</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div><p className="text-sm text-muted-foreground mb-1">Driver Name</p><p className="font-semibold text-card-foreground">{selectedDriver.name}</p></div>
-                <div><p className="text-sm text-muted-foreground mb-1">Phone</p><p className="font-semibold text-card-foreground">{selectedDriver.phone}</p></div>
-                <div><p className="text-sm text-muted-foreground mb-1">Vehicle</p><p className="font-semibold text-card-foreground">{selectedDriver.vehicleType ?? '—'}</p></div>
-                <div><p className="text-sm text-muted-foreground mb-1">License Plate</p><p className="font-semibold text-card-foreground">{selectedDriver.licensePlate}</p></div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="mb-6 shadow-sm border-2 border-[#00BDC3]">
-            <CardContent className="pt-6">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Total Drivers', value: drivers.length, color: '#00BDC3', icon: Car },
+          { label: 'Total Coupons', value: totalCoupons, color: '#10B981', icon: Wallet },
+          { label: 'Low Balance', value: lowBalance, color: '#EF4444', icon: AlertTriangle },
+        ].map((s) => (
+          <Card key={s.label}>
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-2">Current Coupon Balance</p>
-                  <div className="flex items-baseline gap-3">
-                    <p className="text-5xl font-bold text-card-foreground">{currentBalance}</p>
-                    <p className="text-xl text-muted-foreground">coupons</p>
-                  </div>
-                  {currentBalance < 15 ? <Badge className="mt-3 bg-[#EF4444] text-white">Low Balance Warning</Badge>
-                    : currentBalance < 30 ? <Badge className="mt-3 bg-[#F59E0B] text-white">Moderate Balance</Badge>
-                    : <Badge className="mt-3 bg-[#10B981] text-white">Good Balance</Badge>}
+                  <p className="text-sm text-muted-foreground">{s.label}</p>
+                  <p className="text-2xl font-semibold mt-1" style={{ color: s.color }}>{s.value}</p>
                 </div>
-                <Dialog open={refillOpen} onOpenChange={setRefillOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white h-12 px-6"><Plus className="w-5 h-5 mr-2" /> Refill Coupons</Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader><DialogTitle>Refill Coupons</DialogTitle></DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2"><Label>Driver</Label><p className="font-medium text-foreground">{selectedDriver.name}</p></div>
-                      <div className="space-y-2"><Label>Current Balance</Label><p className="text-2xl font-bold text-foreground">{currentBalance} coupons</p></div>
-                      <div className="space-y-2"><Label>Amount to Add</Label><Input type="number" value={refillAmount} onChange={(e) => setRefillAmount(e.target.value)} placeholder="Enter number of coupons" min="1" /></div>
-                      {refillAmount && parseInt(refillAmount) > 0 && (
-                        <div className="bg-muted p-3 rounded-lg"><p className="text-sm text-muted-foreground mb-1">New Balance</p><p className="text-xl font-bold text-[#00BDC3]">{currentBalance + parseInt(refillAmount)} coupons</p></div>
-                      )}
-                    </div>
-                    <div className="flex gap-3 justify-end">
-                      <Button variant="outline" onClick={() => setRefillOpen(false)}>Cancel</Button>
-                      <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleRefill} disabled={saving}>
-                        {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Confirm Refill
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: `${s.color}1a` }}>
+                  <s.icon className="w-6 h-6" style={{ color: s.color }} />
+                </div>
               </div>
             </CardContent>
           </Card>
+        ))}
+      </div>
 
-          <Card className="shadow-sm">
-            <CardHeader><CardTitle className="text-lg">Transaction History</CardTitle></CardHeader>
-            <CardContent>
-              <div className="overflow-hidden rounded-lg border border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted">
-                      <TableHead className="font-semibold">Date & Time</TableHead>
-                      <TableHead className="font-semibold">Type</TableHead>
-                      <TableHead className="font-semibold">Amount</TableHead>
-                      <TableHead className="font-semibold">Note</TableHead>
-                      <TableHead className="font-semibold">Balance After</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {txLoading ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#00BDC3] inline" /></TableCell></TableRow>
-                    ) : transactions.length > 0 ? (
-                      transactions.map((t) => (
-                        <TableRow key={t.id} className="hover:bg-muted/50">
-                          <TableCell className="text-sm text-muted-foreground">{format(new Date(t.createdAt), 'MMM dd, yyyy HH:mm')}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {isCredit(t.type) ? <TrendingUp className="w-4 h-4 text-[#10B981]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
-                              <span className={`font-medium capitalize ${isCredit(t.type) ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>{t.type}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell><span className={`font-semibold ${isCredit(t.type) ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>{isCredit(t.type) ? '+' : '-'}{Math.abs(t.amount)}</span></TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{t.notes ?? '-'}</TableCell>
-                          <TableCell className="font-medium text-foreground">{t.balance} coupons</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No transactions found for this driver</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </>
+      {/* Search */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, plate number, or phone…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-10"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Driver Cards */}
+      {visible.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {visible.map((d) => {
+            const balance = d.couponBalance ?? 0;
+            return (
+              <Card key={d.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-[#00BDC3]/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-lg font-semibold text-[#00BDC3]">
+                          {String(d.name).split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <CardTitle className="text-base truncate">{d.name}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5 capitalize">{d.vehicleType ?? '—'}</p>
+                      </div>
+                    </div>
+                    <Badge className={statusBadge(d.status)}>{d.status}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="w-4 h-4 flex-shrink-0" />
+                    <span>{d.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Car className="w-4 h-4 flex-shrink-0" />
+                    <span>{d.licensePlate}</span>
+                  </div>
+
+                  <div className="pt-3 border-t border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Coupon Balance</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-foreground">{balance}</span>
+                          <Badge className={couponBadge(balance)}>
+                            {balance < 15 ? 'Low' : balance < 30 ? 'Moderate' : 'Good'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full bg-[#00BDC3] hover:bg-[#009EA3] text-white"
+                      size="sm"
+                      onClick={() => setRefillDriver(d)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Refill Coupons
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       ) : (
-        <div className="text-center py-12"><p className="text-muted-foreground">No drivers yet — add a driver first.</p></div>
+        <div className="text-center py-12">
+          <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground">No drivers found</p>
+        </div>
       )}
+
+      {/* Refill Dialog */}
+      <Dialog open={!!refillDriver} onOpenChange={(open) => !open && closeRefill()}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Refill Coupons — {refillDriver?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-muted rounded-lg p-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-muted-foreground">Phone</p>
+                <p className="font-medium text-foreground">{refillDriver?.phone}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Plate</p>
+                <p className="font-medium text-foreground">{refillDriver?.licensePlate}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Current Balance</p>
+                <p className="text-xl font-bold text-foreground">{refillDriver?.couponBalance ?? 0}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Status</p>
+                <Badge className={statusBadge(refillDriver?.status ?? '')}>{refillDriver?.status}</Badge>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Amount to Add</Label>
+              <Input
+                type="number"
+                value={refillAmount}
+                onChange={(e) => setRefillAmount(e.target.value)}
+                placeholder="Enter number of coupons"
+                min="1"
+                autoFocus
+              />
+            </div>
+
+            {refillAmount && parseInt(refillAmount) > 0 && (
+              <div className="bg-[#00BDC3]/10 border border-[#00BDC3]/30 rounded-lg p-3">
+                <p className="text-sm text-muted-foreground mb-1">New Balance</p>
+                <p className="text-xl font-bold text-[#00BDC3]">
+                  {(refillDriver?.couponBalance ?? 0) + parseInt(refillAmount)} coupons
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={closeRefill}>Cancel</Button>
+            <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleRefill} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Confirm Refill
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
