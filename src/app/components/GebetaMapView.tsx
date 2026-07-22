@@ -161,21 +161,71 @@ export default function GebetaMapView({
       fleetMarkersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]).addTo(map));
     });
 
-    // Prefer explicit coords → road route → never prefer straight over road when loading finishes.
+    // Render route using MapLibre GL native GeoJSON line layers for smooth, road-accurate polylines
     const path: [number, number][] =
       routeCoords && routeCoords.length > 1
         ? routeCoords
         : roadCoords && roadCoords.length > 1
         ? roadCoords
-        : ([pickup, dropoff].filter(Boolean) as MapPoint[]).map((p) => [p.lng, p.lat] as [number, number]);
+        : [];
 
     try {
       mapRef.current?.clearPaths();
-      if (path.length > 1) {
-        mapRef.current?.addPath(path, { color: '#00BDC3', width: 4 } as any);
-      }
     } catch {
-      /* addPath signature differences are non-fatal */
+      /* ignore */
+    }
+
+    if (map) {
+      const geojson: GeoJSON.Feature<GeoJSON.LineString> = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: path,
+        },
+      };
+
+      const source = map.getSource('road-route-source') as maplibregl.GeoJSONSource;
+      if (source) {
+        source.setData(geojson);
+      } else if (path.length > 1) {
+        map.addSource('road-route-source', {
+          type: 'geojson',
+          data: geojson,
+        });
+
+        // Glow background layer
+        map.addLayer({
+          id: 'road-route-glow',
+          type: 'line',
+          source: 'road-route-source',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#00BDC3',
+            'line-width': 10,
+            'line-opacity': 0.35,
+          },
+        });
+
+        // Crisp road line layer
+        map.addLayer({
+          id: 'road-route-line',
+          type: 'line',
+          source: 'road-route-source',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#00C4D6',
+            'line-width': 5,
+            'line-opacity': 0.95,
+          },
+        });
+      }
     }
 
     const pts = [pickup, dropoff, driver].filter(Boolean) as MapPoint[];

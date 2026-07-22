@@ -45,11 +45,22 @@ export default function Drivers() {
     let t: ReturnType<typeof setTimeout> | null = null;
     const refresh = () => {
       if (t) clearTimeout(t);
-      t = setTimeout(() => load(), 400);
+      t = setTimeout(() => load(), 300);
     };
-    const events = ['ride:status', 'ride:accepted', 'ride:completed', 'ride:cancelled', 'coupon:low', 'coupon:empty'] as const;
+    const events = [
+      'driver:location',
+      'driver:status',
+      'ride:status',
+      'ride:accepted',
+      'ride:arrived',
+      'ride:started',
+      'ride:completed',
+      'ride:cancelled',
+      'coupon:low',
+      'coupon:empty',
+    ] as const;
     events.forEach((ev) => socket.on(ev, refresh));
-    const poll = setInterval(() => load(), 15000);
+    const poll = setInterval(() => load(), 5000);
     return () => {
       if (t) clearTimeout(t);
       events.forEach((ev) => socket.off(ev, refresh));
@@ -125,9 +136,15 @@ export default function Drivers() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">Driver Management</h2>
-        <p className="text-muted-foreground">Manage your driver fleet</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold text-foreground mb-1">Driver Management</h2>
+          <p className="text-muted-foreground">Manage your driver fleet</p>
+        </div>
+        <div className="flex items-center gap-2 bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 rounded-full px-3 py-1 text-xs font-semibold">
+          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping" />
+          <span>Live Auto-Refreshing</span>
+        </div>
       </div>
 
       <div className="bg-card rounded-lg shadow-sm border border-border p-4 mb-6">
