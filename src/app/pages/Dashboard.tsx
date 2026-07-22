@@ -56,12 +56,46 @@ export default function Dashboard() {
   useEffect(() => {
     load();
     const socket = getSocket() ?? connectSocket();
-    const refresh = () => load();
-    socket.on('ride:status', refresh);
-    socket.on('ride:completed', refresh);
+    // Debounce rapid socket bursts into a single refresh.
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => load(), 400);
+    };
+    const events = [
+      'ride:status',
+      'ride:completed',
+      'ride:accepted',
+      'ride:arrived',
+      'ride:started',
+      'ride:cancelled',
+      'coupon:low',
+      'coupon:empty',
+      'system:alert',
+    ] as const;
+    events.forEach((ev) => socket.on(ev, refresh));
+
+    // Live fleet pin updates without a full list reload.
+    const onDriverLocation = (data: any) => {
+      if (!data?.driverId || typeof data.latitude !== 'number' || typeof data.longitude !== 'number') return;
+      setDrivers((prev) =>
+        prev.map((d) =>
+          d.id === data.driverId
+            ? { ...d, currentLocation: { lat: data.latitude, lng: data.longitude } }
+            : d
+        )
+      );
+    };
+    socket.on('driver:location', onDriverLocation);
+
+    // Keep availability fresh even when the room is quiet.
+    const poll = setInterval(() => load(), 10000);
+
     return () => {
-      socket.off('ride:status', refresh);
-      socket.off('ride:completed', refresh);
+      if (t) clearTimeout(t);
+      events.forEach((ev) => socket.off(ev, refresh));
+      socket.off('driver:location', onDriverLocation);
+      clearInterval(poll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -207,7 +241,10 @@ export default function Dashboard() {
       <div className="flex-1 relative">
         <GebetaMapView fleet={fleet} height="100%" zoom={12} className="w-full h-full" />
         <div className="absolute top-4 right-4 bg-card border border-border p-4 rounded-lg shadow-lg z-[400]">
-          <h4 className="font-semibold text-sm mb-2 text-card-foreground">Driver Status</h4>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h4 className="font-semibold text-sm text-card-foreground">Driver Status</h4>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Live</span>
+          </div>
           <div className="space-y-2 text-xs text-card-foreground">
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10B981]" /><span>Available ({drivers.filter((d) => d.status === 'available').length})</span></div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#EF4444]" /><span>Busy ({drivers.filter((d) => d.status === 'busy').length})</span></div>

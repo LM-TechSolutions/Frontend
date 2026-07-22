@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Phone, X, MapPin, Navigation, User, Car, Clock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Phone, X, MapPin, Navigation, User, Car, Clock, Loader2, Route } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { connectSocket, subscribeRide, unsubscribeRide } from '../lib/socket';
 import { rideStatusLabel, formatETB } from '../lib/format';
+import type { RoadRoute } from '../lib/route';
 import GebetaMapView, { type MapPoint } from '../components/GebetaMapView';
 
 const rideStatuses = ['pending', 'dispatched', 'accepted', 'arrived', 'in_progress', 'completed'];
@@ -35,25 +36,30 @@ export default function RideTracking() {
   const [loading, setLoading] = useState(true);
   const [driverPos, setDriverPos] = useState<MapPoint | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
   const rideIdRef = useRef(rideId);
   rideIdRef.current = rideId;
 
-  const fetchRide = async () => {
+  const fetchRide = async (silent = false) => {
     if (!rideId) return;
     try {
       const data = await api.rides.get(rideId);
       setRide(data);
-      if (data?.currentLocation) setDriverPos({ lng: data.currentLocation.lng, lat: data.currentLocation.lat });
+      if (data?.currentLocation) {
+        setDriverPos({ lng: data.currentLocation.lng, lat: data.currentLocation.lat });
+      }
     } catch {
-      setRide(null);
+      if (!silent) setRide(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     setLoading(true);
     fetchRide();
+    const poll = setInterval(() => fetchRide(true), 12000);
+    return () => clearInterval(poll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideId]);
 
@@ -71,12 +77,14 @@ export default function RideTracking() {
     const onStatus = (data: any) => {
       if (data?.rideId !== rideIdRef.current) return;
       setRide((prev: any) => (prev ? { ...prev, status: data.status } : prev));
-      fetchRide();
+      fetchRide(true);
     };
 
     socket.on('ride:progress', onProgress);
     socket.on('ride:status', onStatus);
     socket.on('ride:accepted', onStatus);
+    socket.on('ride:arrived', onStatus);
+    socket.on('ride:started', onStatus);
     socket.on('ride:completed', onStatus);
     socket.on('ride:cancelled', onStatus);
 
@@ -84,6 +92,8 @@ export default function RideTracking() {
       socket.off('ride:progress', onProgress);
       socket.off('ride:status', onStatus);
       socket.off('ride:accepted', onStatus);
+      socket.off('ride:arrived', onStatus);
+      socket.off('ride:started', onStatus);
       socket.off('ride:completed', onStatus);
       socket.off('ride:cancelled', onStatus);
       unsubscribeRide(rideId);
@@ -134,10 +144,12 @@ export default function RideTracking() {
     ? { lng: ride.dropoffCoordinates.lng, lat: ride.dropoffCoordinates.lat }
     : null;
   const hasDriver = !!ride.driverId;
+  const displayDistanceKm =
+    roadRoute?.distanceKm ?? (ride.distance != null ? Number(ride.distance) : null);
+  const displayDurationMin = roadRoute?.durationMinutes ?? null;
 
   return (
     <div className="p-6">
-      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/rides')}>
@@ -153,7 +165,6 @@ export default function RideTracking() {
         </Badge>
       </div>
 
-      {/* Status Timeline */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Ride Progress</CardTitle>
@@ -190,7 +201,6 @@ export default function RideTracking() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Customer */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -226,7 +236,6 @@ export default function RideTracking() {
           </CardContent>
         </Card>
 
-        {/* Driver */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -268,7 +277,6 @@ export default function RideTracking() {
           </CardContent>
         </Card>
 
-        {/* Details */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -290,10 +298,16 @@ export default function RideTracking() {
                 <p className="font-semibold text-card-foreground">{format(new Date(ride.updatedAt), 'MMM dd, HH:mm')}</p>
               </div>
             </div>
-            {ride.distance != null && (
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Distance</p>
-                <p className="font-semibold text-card-foreground">{Number(ride.distance).toFixed(2)} km</p>
+            {displayDistanceKm != null && (
+              <div className="flex items-center gap-2">
+                <Route className="w-4 h-4 text-[#00BDC3]" />
+                <div>
+                  <p className="text-sm text-muted-foreground mb-0.5">Road distance</p>
+                  <p className="font-semibold text-card-foreground">
+                    {Number(displayDistanceKm).toFixed(2)} km
+                    {displayDurationMin != null ? ` · ~${displayDurationMin} min` : ''}
+                  </p>
+                </div>
               </div>
             )}
             <div>
@@ -316,13 +330,19 @@ export default function RideTracking() {
         </Card>
       </div>
 
-      {/* Live Map */}
       <Card>
         <CardHeader>
           <CardTitle>Live Tracking</CardTitle>
         </CardHeader>
         <CardContent>
-          <GebetaMapView pickup={pickup} dropoff={dropoff} driver={driverPos} height={420} />
+          <GebetaMapView
+            pickup={pickup}
+            dropoff={dropoff}
+            driver={driverPos}
+            height={420}
+            autoRoadRoute
+            onRouteResolved={setRoadRoute}
+          />
         </CardContent>
       </Card>
     </div>

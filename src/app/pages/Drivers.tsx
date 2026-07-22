@@ -10,6 +10,7 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
+import { connectSocket, getSocket } from '../lib/socket';
 
 const emptyNew = {
   name: '', phone: '', email: '', vehicleType: 'sedan', vehicleModel: '',
@@ -40,6 +41,20 @@ export default function Drivers() {
 
   useEffect(() => {
     load();
+    const socket = getSocket() ?? connectSocket();
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => load(), 400);
+    };
+    const events = ['ride:status', 'ride:accepted', 'ride:completed', 'ride:cancelled', 'coupon:low', 'coupon:empty'] as const;
+    events.forEach((ev) => socket.on(ev, refresh));
+    const poll = setInterval(() => load(), 15000);
+    return () => {
+      if (t) clearTimeout(t);
+      events.forEach((ev) => socket.off(ev, refresh));
+      clearInterval(poll);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

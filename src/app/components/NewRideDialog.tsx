@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
+import type { RoadRoute } from '../lib/route';
 import RideLocationPicker, { type PlaceValue } from './RideLocationPicker';
 
 interface Props {
@@ -20,6 +21,7 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
   const [customerPhone, setCustomerPhone] = useState('');
   const [pickup, setPickup] = useState<PlaceValue | null>(null);
   const [dropoff, setDropoff] = useState<PlaceValue | null>(null);
+  const [route, setRoute] = useState<RoadRoute | null>(null);
   const [creating, setCreating] = useState(false);
 
   const reset = () => {
@@ -27,6 +29,7 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
     setCustomerPhone('');
     setPickup(null);
     setDropoff(null);
+    setRoute(null);
   };
 
   const handleChange = (which: 'pickup' | 'dropoff', v: PlaceValue) => {
@@ -52,6 +55,9 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
         pickupCoordinates: { lat: pickup.lat, lng: pickup.lng },
         dropoffLocation: dropoff.address,
         dropoffCoordinates: { lat: dropoff.lat, lng: dropoff.lng },
+        // Hint for ops — backend still recomputes via Gebeta on dispatch.
+        estimatedDistanceKm: route?.distanceKm,
+        estimatedDurationMinutes: route?.durationMinutes,
       });
       toast.success('Ride created — dispatching to nearby drivers');
       reset();
@@ -79,7 +85,12 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
             <div className="space-y-2"><Label>Customer Name <span className="text-muted-foreground font-normal">(optional)</span></Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Leave blank for Guest" /></div>
             <div className="space-y-2"><Label>Phone *</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="0911 234567" /></div>
           </div>
-          <RideLocationPicker pickup={pickup} dropoff={dropoff} onChange={handleChange} />
+          <RideLocationPicker
+            pickup={pickup}
+            dropoff={dropoff}
+            onChange={handleChange}
+            onRouteChange={setRoute}
+          />
         </div>
         <div className="flex gap-3 justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

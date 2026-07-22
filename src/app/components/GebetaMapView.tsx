@@ -3,6 +3,7 @@ import GebetaMap, { type GebetaMapRef } from '@gebeta/tiles';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { config, ADDIS_CENTER } from '../lib/config';
+import { fetchRoadRoute, type RoadRoute } from '../lib/route';
 
 export interface MapPoint {
   lng: number;
@@ -15,8 +16,12 @@ interface GebetaMapViewProps {
   driver?: MapPoint | null;
   /** Live fleet markers (e.g. available drivers on the dashboard map). */
   fleet?: Array<MapPoint & { color?: string }>;
-  /** Explicit route as [lng,lat] pairs. If omitted, a path is drawn through the points. */
+  /** Explicit route as [lng,lat] pairs. Wins over auto road fetch. */
   routeCoords?: [number, number][];
+  /** When true (default) and pickup+dropoff exist, fetch Gebeta road geometry. */
+  autoRoadRoute?: boolean;
+  /** Called whenever an auto-fetched (or cleared) road route resolves. */
+  onRouteResolved?: (route: RoadRoute | null) => void;
   height?: number | string;
   zoom?: number;
   onMapClick?: (lng: number, lat: number) => void;
@@ -39,12 +44,19 @@ function makePinElement(color: string, label?: string) {
   return el;
 }
 
+function pointsKey(a?: MapPoint | null, b?: MapPoint | null) {
+  if (!a || !b) return '';
+  return `${a.lat.toFixed(5)},${a.lng.toFixed(5)}→${b.lat.toFixed(5)},${b.lng.toFixed(5)}`;
+}
+
 export default function GebetaMapView({
   pickup,
   dropoff,
   driver,
   fleet,
   routeCoords,
+  autoRoadRoute = true,
+  onRouteResolved,
   height = 400,
   zoom = 12,
   onMapClick,
@@ -55,15 +67,17 @@ export default function GebetaMapView({
   const fleetMarkersRef = useRef<maplibregl.Marker[]>([]);
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
+  const onRouteResolvedRef = useRef(onRouteResolved);
+  onRouteResolvedRef.current = onRouteResolved;
   const [ready, setReady] = useState(false);
+  const [roadCoords, setRoadCoords] = useState<[number, number][] | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const fetchGen = useRef(0);
 
-  // The SDK captures onMapClick once at mount, so we hand it a STABLE callback that
-  // reads the latest handler from a ref — clicks always target the active point.
   const handleMapClick = useCallback((lngLat: [number, number]) => {
     onMapClickRef.current?.(lngLat[0], lngLat[1]);
   }, []);
 
-  // Crosshair cursor when the map is in pick mode, so it's clearly clickable.
   useEffect(() => {
     if (!ready || !onMapClick) return;
     const map = mapRef.current?.getMapInstance();
@@ -75,13 +89,45 @@ export default function GebetaMapView({
     }
   }, [ready, onMapClick]);
 
+  // Auto-fetch Gebeta road geometry whenever pickup/dropoff change.
+  useEffect(() => {
+    if (!autoRoadRoute || routeCoords) {
+      setRoadCoords(null);
+      return;
+    }
+    if (!pickup || !dropoff) {
+      setRoadCoords(null);
+      onRouteResolvedRef.current?.(null);
+      return;
+    }
+
+    const gen = ++fetchGen.current;
+    const key = pointsKey(pickup, dropoff);
+    setRouteLoading(true);
+
+    fetchRoadRoute(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng)
+      .then((route) => {
+        if (fetchGen.current !== gen) return;
+        if (pointsKey(pickup, dropoff) !== key) return;
+        setRoadCoords(route.coords);
+        onRouteResolvedRef.current?.(route);
+      })
+      .catch(() => {
+        if (fetchGen.current !== gen) return;
+        setRoadCoords(null);
+        onRouteResolvedRef.current?.(null);
+      })
+      .finally(() => {
+        if (fetchGen.current === gen) setRouteLoading(false);
+      });
+  }, [pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng, autoRoadRoute, routeCoords]);
+
   const center: [number, number] = pickup
     ? [pickup.lng, pickup.lat]
     : driver
     ? [driver.lng, driver.lat]
     : ADDIS_CENTER;
 
-  // Draw / update markers + route whenever points change.
   useEffect(() => {
     if (!ready) return;
     const map = mapRef.current?.getMapInstance();
@@ -107,7 +153,6 @@ export default function GebetaMapView({
     upsert('dropoff', dropoff, '#EF4444', 'D');
     upsert('driver', driver, '#00BDC3', '🚗');
 
-    // Fleet markers (rebuilt each render).
     fleetMarkersRef.current.forEach((m) => m.remove());
     fleetMarkersRef.current = [];
     (fleet ?? []).forEach((d) => {
@@ -116,11 +161,13 @@ export default function GebetaMapView({
       fleetMarkersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]).addTo(map));
     });
 
-    // Route path: explicit, else connect pickup → driver → dropoff.
-    const path =
+    // Prefer explicit coords → road route → never prefer straight over road when loading finishes.
+    const path: [number, number][] =
       routeCoords && routeCoords.length > 1
         ? routeCoords
-        : ([pickup, driver, dropoff].filter(Boolean) as MapPoint[]).map((p) => [p.lng, p.lat] as [number, number]);
+        : roadCoords && roadCoords.length > 1
+        ? roadCoords
+        : ([pickup, dropoff].filter(Boolean) as MapPoint[]).map((p) => [p.lng, p.lat] as [number, number]);
 
     try {
       mapRef.current?.clearPaths();
@@ -131,16 +178,18 @@ export default function GebetaMapView({
       /* addPath signature differences are non-fatal */
     }
 
-    // Fit the visible points.
     const pts = [pickup, dropoff, driver].filter(Boolean) as MapPoint[];
     if (pts.length === 1) {
       map.easeTo({ center: [pts[0].lng, pts[0].lat], zoom: 14, duration: 600 });
     } else if (pts.length > 1) {
       const bounds = new maplibregl.LngLatBounds();
       pts.forEach((p) => bounds.extend([p.lng, p.lat]));
+      if (path.length > 2) {
+        path.forEach(([lng, lat]) => bounds.extend([lng, lat]));
+      }
       map.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 600 });
     }
-  }, [ready, pickup, dropoff, driver, routeCoords, fleet]);
+  }, [ready, pickup, dropoff, driver, routeCoords, roadCoords, fleet]);
 
   if (!config.gebetaApiKey) {
     return (
@@ -161,6 +210,11 @@ export default function GebetaMapView({
             <div className="w-8 h-8 rounded-full border-4 border-[#00BDC3]/30 border-t-[#00BDC3] animate-spin" />
             <p className="text-xs text-[#6B7280]">Loading map…</p>
           </div>
+        </div>
+      )}
+      {ready && routeLoading && pickup && dropoff && (
+        <div className="absolute top-3 left-3 z-10 rounded-full bg-white/95 border border-[#E5E7EB] px-3 py-1.5 text-xs font-medium text-[#0B5A60] shadow">
+          Calculating road route…
         </div>
       )}
       <GebetaMap

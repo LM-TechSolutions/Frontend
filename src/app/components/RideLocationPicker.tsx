@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search, MapPin, Navigation, Loader2 } from 'lucide-react';
+import { Search, MapPin, Navigation, Loader2, Route } from 'lucide-react';
 import { Input } from './ui/input';
-import { toast } from 'sonner';
 import { api } from '../lib/api';
+import { estimateFareEtb, type RoadRoute } from '../lib/route';
+import { formatETB } from '../lib/format';
 import GebetaMapView, { type MapPoint } from './GebetaMapView';
 
 export interface PlaceValue {
@@ -22,22 +23,24 @@ interface Props {
   pickup: PlaceValue | null;
   dropoff: PlaceValue | null;
   onChange: (which: 'pickup' | 'dropoff', value: PlaceValue) => void;
+  /** Notified when the road route estimate updates (for create dialog summary). */
+  onRouteChange?: (route: RoadRoute | null) => void;
 }
 
 /**
  * Google-Maps-style picker: type to get live Gebeta suggestions, or click the map
- * to drop a pin (reverse-geocoded to an address). Toggle which point you're setting.
+ * to drop a pin. Shows road-accurate distance once both points are set.
  */
-export default function RideLocationPicker({ pickup, dropoff, onChange }: Props) {
+export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteChange }: Props) {
   const [active, setActive] = useState<'pickup' | 'dropoff'>('pickup');
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
+  const [route, setRoute] = useState<RoadRoute | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  // Live (debounced) autocomplete as the user types.
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = query.trim();
@@ -63,7 +66,6 @@ export default function RideLocationPicker({ pickup, dropoff, onChange }: Props)
     };
   }, [query]);
 
-  // Close the dropdown when clicking outside.
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
@@ -79,7 +81,6 @@ export default function RideLocationPicker({ pickup, dropoff, onChange }: Props)
     setOpen(false);
   };
 
-  // Map click → drop the pin instantly (coords), then refine to a real address.
   const setFromMap = (lat: number, lng: number) => {
     const target = active;
     onChange(target, { lat, lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}` });
@@ -94,8 +95,15 @@ export default function RideLocationPicker({ pickup, dropoff, onChange }: Props)
       });
   };
 
+  const handleRoute = (r: RoadRoute | null) => {
+    setRoute(r);
+    onRouteChange?.(r);
+  };
+
   const pickupPoint: MapPoint | null = pickup ? { lat: pickup.lat, lng: pickup.lng } : null;
   const dropoffPoint: MapPoint | null = dropoff ? { lat: dropoff.lat, lng: dropoff.lng } : null;
+  const farePreview =
+    route != null ? estimateFareEtb(route.distanceKm, route.durationMinutes) : null;
 
   return (
     <div className="space-y-3">
@@ -118,7 +126,6 @@ export default function RideLocationPicker({ pickup, dropoff, onChange }: Props)
         </button>
       </div>
 
-      {/* Autocomplete search */}
       <div className="relative" ref={boxRef}>
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
         <Input
@@ -165,7 +172,32 @@ export default function RideLocationPicker({ pickup, dropoff, onChange }: Props)
         Setting <strong>{active === 'pickup' ? 'pickup' : 'destination'}</strong> — pick a suggestion above, or click the map.
       </p>
 
-      <GebetaMapView pickup={pickupPoint} dropoff={dropoffPoint} height={280} onMapClick={(lng, lat) => setFromMap(lat, lng)} />
+      <GebetaMapView
+        pickup={pickupPoint}
+        dropoff={dropoffPoint}
+        height={280}
+        autoRoadRoute
+        onRouteResolved={handleRoute}
+        onMapClick={(lng, lat) => setFromMap(lat, lng)}
+      />
+
+      {route && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#00BDC3]/25 bg-[#00BDC3]/8 px-3 py-2.5 text-sm">
+          <Route className="w-4 h-4 text-[#00BDC3] flex-shrink-0" />
+          <span className="font-semibold text-foreground">{route.distanceKm.toFixed(1)} km</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground">~{route.durationMinutes} min</span>
+          {farePreview != null && (
+            <>
+              <span className="text-muted-foreground">·</span>
+              <span className="font-semibold text-[#00BDC3]">Est. {formatETB(farePreview)}</span>
+            </>
+          )}
+          <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
+            Road route{route.provider ? ` · ${route.provider}` : ''}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

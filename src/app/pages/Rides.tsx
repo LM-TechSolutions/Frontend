@@ -65,12 +65,25 @@ export default function Rides() {
 
   useEffect(() => {
     const socket = getSocket() ?? connectSocket();
-    const refresh = () => load();
-    socket.on('ride:status', refresh);
-    socket.on('ride:completed', refresh);
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => load(), 400);
+    };
+    const events = [
+      'ride:status',
+      'ride:completed',
+      'ride:accepted',
+      'ride:arrived',
+      'ride:started',
+      'ride:cancelled',
+    ] as const;
+    events.forEach((ev) => socket.on(ev, refresh));
+    const poll = setInterval(() => load(), 12000);
     return () => {
-      socket.off('ride:status', refresh);
-      socket.off('ride:completed', refresh);
+      if (t) clearTimeout(t);
+      events.forEach((ev) => socket.off(ev, refresh));
+      clearInterval(poll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
