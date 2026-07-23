@@ -4,15 +4,22 @@ import { connectSocket, disconnectSocket } from '../lib/socket';
 
 const USER_KEY = 'tokuma.user';
 
-/** Normalize backend roles to the two dashboard personas. */
+/**
+ * Normalize backend roles to the two dashboard personas - null for anything
+ * else. The backend now refuses to issue a dashboard token to non-staff
+ * accounts at all, but this stays strict rather than defaulting an unknown
+ * role to 'operator', so a stale/tampered stored session can't grant access.
+ */
 export type DashboardRole = 'admin' | 'operator';
-export function toDashboardRole(role?: string): DashboardRole {
-  return role === 'admin' ? 'admin' : 'operator';
+export function toDashboardRole(role?: string): DashboardRole | null {
+  if (role === 'admin' || role === 'super-admin') return 'admin';
+  if (role === 'agent') return 'operator';
+  return null;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
-  role: DashboardRole;
+  role: DashboardRole | null;
   isAuthenticated: boolean;
   isReady: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
@@ -37,9 +44,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Restore session on first load.
   useEffect(() => {
     const stored = loadStoredUser();
-    if (stored && getToken()) {
+    if (stored && getToken() && toDashboardRole(stored.role)) {
       setUser(stored);
       connectSocket();
+    } else if (stored) {
+      // A stored session with a role that no longer qualifies (e.g. saved
+      // before the server-side restriction existed) - discard it rather
+      // than granting dashboard access on a stale, invalid persona.
+      setToken(null);
+      localStorage.removeItem(USER_KEY);
     }
     setIsReady(true);
   }, []);
@@ -61,16 +74,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const dashboardRole = toDashboardRole(user?.role);
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      role: toDashboardRole(user?.role),
-      isAuthenticated: !!user,
+      role: dashboardRole,
+      isAuthenticated: !!user && !!dashboardRole,
       isReady,
       login,
       logout,
     }),
-    [user, isReady, login, logout]
+    [user, dashboardRole, isReady, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
