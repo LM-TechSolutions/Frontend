@@ -12,6 +12,7 @@ import { connectSocket, subscribeRide, unsubscribeRide } from '../lib/socket';
 import { rideStatusLabel, formatETB } from '../lib/format';
 import type { RoadRoute } from '../lib/route';
 import GebetaMapView, { type MapPoint } from '../components/GebetaMapView';
+import { useAppContext } from '../contexts/AppContext';
 
 const rideStatuses = ['pending', 'dispatched', 'accepted', 'arrived', 'in_progress', 'completed'];
 
@@ -31,6 +32,7 @@ const getStatusColor = (status: string) => {
 export default function RideTracking() {
   const { rideId } = useParams();
   const navigate = useNavigate();
+  const { t } = useAppContext();
 
   const [ride, setRide] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -127,9 +129,9 @@ export default function RideTracking() {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Ride not found</p>
+          <p className="text-muted-foreground">{t('rides.rideNotFound')}</p>
           <Button onClick={() => navigate('/rides')} className="mt-4 bg-[#00BDC3] hover:bg-[#009EA3] text-white">
-            Back to Rides
+            {t('rides.backToDashboard')}
           </Button>
         </div>
       </div>
@@ -167,7 +169,7 @@ export default function RideTracking() {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Ride Progress</CardTitle>
+          <CardTitle>{t('rides.rideProgress')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
@@ -239,7 +241,7 @@ export default function RideTracking() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Car className="w-5 h-5 text-[#00BDC3]" /> Driver Information
+              <Car className="w-5 h-5 text-[#00BDC3]" /> {t('rides.driverInformation')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -254,11 +256,11 @@ export default function RideTracking() {
                   <p className="font-semibold text-card-foreground">{ride.driverPhone ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Vehicle</p>
+                  <p className="text-sm text-muted-foreground mb-1">{t('rides.vehicleInfo')}</p>
                   <p className="font-semibold text-card-foreground">{ride.vehicleInfo ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">License Plate</p>
+                  <p className="text-sm text-muted-foreground mb-1">{t('rides.licensePlate')}</p>
                   <p className="font-semibold text-card-foreground">{ride.licensePlate ?? '—'}</p>
                 </div>
                 {ride.driverPhone && (
@@ -271,7 +273,7 @@ export default function RideTracking() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-muted-foreground">No driver assigned yet</p>
+                <p className="text-muted-foreground">{t('rides.noDriverAssigned')}</p>
               </div>
             )}
           </CardContent>
@@ -285,16 +287,16 @@ export default function RideTracking() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Ride ID</p>
+              <p className="text-sm text-muted-foreground mb-1">{t('rides.rideID')}</p>
               <p className="font-semibold text-card-foreground">#{String(ride.id).slice(0, 8)}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Created</p>
+                <p className="text-sm text-muted-foreground mb-1">{t('rides.createdAt')}</p>
                 <p className="font-semibold text-card-foreground">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Updated</p>
+                <p className="text-sm text-muted-foreground mb-1">{t('rides.lastUpdated')}</p>
                 <p className="font-semibold text-card-foreground">{format(new Date(ride.updatedAt), 'MMM dd, HH:mm')}</p>
               </div>
             </div>
@@ -311,7 +313,7 @@ export default function RideTracking() {
               </div>
             )}
             <div>
-              <p className="text-sm text-muted-foreground mb-1">{ride.status === 'completed' ? 'Final Fare' : 'Fare'}</p>
+              <p className="text-sm text-muted-foreground mb-1">{ride.status === 'completed' ? 'Final Fare' : t('rides.estimatedFare')}</p>
               <p className="text-2xl font-bold text-[#00BDC3]">{formatETB(ride.fare)}</p>
             </div>
             <Separator />
@@ -323,7 +325,7 @@ export default function RideTracking() {
                 className="w-full border-[#EF4444] text-[#EF4444] hover:bg-[#EF4444] hover:text-white"
               >
                 {cancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <X className="w-4 h-4 mr-2" />}
-                Cancel Ride
+                {t('rides.cancelRide')}
               </Button>
             )}
           </CardContent>

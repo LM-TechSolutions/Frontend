@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { connectSocket, getSocket } from '../lib/socket';
 import GebetaMapView from '../components/GebetaMapView';
+import { useAppContext } from '../contexts/AppContext';
 
 const statusColor = (s: string) =>
   s === 'available' ? '#10B981' : s === 'busy' ? '#EF4444' : '#6B7280';
@@ -23,6 +24,7 @@ const emptyNew = {
 
 export default function Drivers() {
   const navigate = useNavigate();
+  const { t } = useAppContext();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -170,8 +172,8 @@ export default function Drivers() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground mb-1">Driver Management</h2>
-          <p className="text-muted-foreground">Manage your driver fleet</p>
+          <h2 className="text-2xl font-semibold text-foreground mb-1">{t('drivers.title')}</h2>
+          <p className="text-muted-foreground">{t('drivers.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30 rounded-full px-3 py-1 text-xs font-semibold">
           <span className="w-2 h-2 rounded-full bg-[#10B981] animate-ping" />
@@ -183,16 +185,16 @@ export default function Drivers() {
         <div className="flex gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search by name, phone, vehicle, plate…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+            <Input placeholder={t('drivers.searchPlaceholder')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
           </div>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
               <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white">
-                <UserPlus className="w-4 h-4 mr-2" /> Add New Driver
+                <UserPlus className="w-4 h-4 mr-2" /> {t('drivers.addButton')}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader><DialogTitle>Add New Driver</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t('drivers.addTitle')}</DialogTitle></DialogHeader>
               <div className="space-y-3 py-4">
                 <div className="space-y-2"><Label>Full Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
@@ -221,9 +223,9 @@ export default function Drivers() {
                 <div className="space-y-2"><Label>Initial Coupon Balance</Label><Input type="number" value={form.couponBalance} onChange={(e) => setForm({ ...form, couponBalance: parseInt(e.target.value) || 0 })} /></div>
               </div>
               <div className="flex gap-3 justify-end">
-                <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setAddOpen(false)}>{t('common.cancel')}</Button>
                 <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleAdd} disabled={saving}>
-                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Add Driver
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('drivers.save')}
                 </Button>
               </div>
             </DialogContent>
@@ -232,9 +234,9 @@ export default function Drivers() {
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">Total Drivers</p><p className="text-3xl font-semibold text-foreground">{drivers.length}</p></div>
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">Available</p><p className="text-3xl font-semibold text-[#10B981]">{drivers.filter((d) => d.status === 'available').length}</p></div>
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">Busy</p><p className="text-3xl font-semibold text-[#EF4444]">{drivers.filter((d) => d.status === 'busy').length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.totalDrivers')}</p><p className="text-3xl font-semibold text-foreground">{drivers.length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.available')}</p><p className="text-3xl font-semibold text-[#10B981]">{drivers.filter((d) => d.status === 'available').length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.busy')}</p><p className="text-3xl font-semibold text-[#EF4444]">{drivers.filter((d) => d.status === 'busy').length}</p></div>
       </div>
 
       <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden mb-6">
@@ -260,10 +262,10 @@ export default function Drivers() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted">
-                <TableHead className="font-semibold">Driver Name</TableHead>
-                <TableHead className="font-semibold">Phone</TableHead>
-                <TableHead className="font-semibold">Vehicle</TableHead>
-                <TableHead className="font-semibold">License Plate</TableHead>
+                <TableHead className="font-semibold">{t('drivers.driverName')}</TableHead>
+                <TableHead className="font-semibold">{t('drivers.phone')}</TableHead>
+                <TableHead className="font-semibold">{t('drivers.vehicle')}</TableHead>
+                <TableHead className="font-semibold">{t('drivers.licensePlate')}</TableHead>
                 <TableHead className="font-semibold">Coupon Balance</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="font-semibold">Actions</TableHead>
@@ -289,13 +291,13 @@ export default function Drivers() {
             </TableBody>
           </Table>
         )}
-        {!loading && visible.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground">No drivers found</p></div>}
+        {!loading && visible.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground">{t('drivers.noDrivers')}</p></div>}
       </div>
 
       {/* Edit dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader><DialogTitle>Edit Driver</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('drivers.edit')}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-4">
             <div className="space-y-2"><Label>Full Name</Label><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
             <div className="space-y-2"><Label>Phone</Label><Input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>
@@ -304,9 +306,9 @@ export default function Drivers() {
             <div className="space-y-2"><Label>Tokuma Commission (%)</Label><Input type="number" value={edit.commissionPercent} onChange={(e) => setEdit({ ...edit, commissionPercent: parseFloat(e.target.value) || 0 })} /></div>
           </div>
           <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditing(null)}>{t('common.cancel')}</Button>
             <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleEdit} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Update Driver
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('drivers.update')}
             </Button>
           </div>
         </DialogContent>

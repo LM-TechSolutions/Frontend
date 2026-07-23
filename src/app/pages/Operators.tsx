@@ -9,10 +9,12 @@ import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
+import { useAppContext } from '../contexts/AppContext';
 
 const statusColor = (active: boolean) => (active ? 'bg-[#10B981] text-white' : 'bg-[#6B7280] text-white');
 
 export default function Operators() {
+  const { t } = useAppContext();
   const [operators, setOperators] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,8 +54,8 @@ export default function Operators() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Operators Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage call center operators and track performance</p>
+          <h1 className="text-2xl font-semibold text-foreground">{t('operators.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('operators.subtitle')}</p>
         </div>
         <AddOperatorDialog onCreated={load} />
       </div>
@@ -80,7 +82,7 @@ export default function Operators() {
         <CardContent className="p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search by name, email, or phone…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
+            <Input placeholder={t('operators.searchPlaceholder')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
           </div>
         </CardContent>
       </Card>
@@ -116,13 +118,14 @@ export default function Operators() {
       )}
 
       {!loading && visible.length === 0 && (
-        <div className="text-center py-12"><Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">No operators found</p></div>
+        <div className="text-center py-12"><Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">{t('operators.noOperators')}</p></div>
       )}
     </div>
   );
 }
 
 function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
+  const { t } = useAppContext();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', shift: 'morning' });
@@ -150,7 +153,7 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white"><Plus className="w-4 h-4 mr-2" /> Add Operator</Button>
+        <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white"><Plus className="w-4 h-4 mr-2" /> {t('operators.addButton')}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader><DialogTitle>Add New Operator</DialogTitle><DialogDescription>Add a new call center operator to the system</DialogDescription></DialogHeader>
@@ -171,9 +174,9 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
             </Select>
           </div>
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">{t('common.cancel')}</Button>
             <Button type="submit" className="flex-1 bg-[#00BDC3] hover:bg-[#009EA3] text-white" disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Add Operator
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('operators.addButton')}
             </Button>
           </div>
         </form>

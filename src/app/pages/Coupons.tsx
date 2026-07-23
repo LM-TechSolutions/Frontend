@@ -8,6 +8,7 @@ import { Phone, Car, Search, Wallet, Plus, Loader2, AlertTriangle } from 'lucide
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
+import { useAppContext } from '../contexts/AppContext';
 
 const couponBadge = (b: number) =>
   b < 15
@@ -21,6 +22,7 @@ const statusBadge = (s: string) =>
   'bg-gray-500 text-white';
 
 export default function Coupons() {
+  const { t } = useAppContext();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,7 +58,7 @@ export default function Coupons() {
 
   const handleRefill = async () => {
     const amount = parseInt(refillAmount);
-    if (!amount || amount <= 0) return toast.error('Please enter a valid amount');
+    if (!amount || amount <= 0) return toast.error(t('coupons.validAmount'));
     if (!refillDriver) return;
     setSaving(true);
     try {
@@ -93,8 +95,8 @@ export default function Coupons() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Coupon Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage driver coupon balances</p>
+          <h1 className="text-2xl font-semibold text-foreground">{t('coupons.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('coupons.subtitle')}</p>
         </div>
       </div>
 
@@ -172,7 +174,7 @@ export default function Coupons() {
                   <div className="pt-3 border-t border-border">
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Coupon Balance</p>
+                        <p className="text-xs text-muted-foreground mb-1">{t('coupons.currentBalance')}</p>
                         <div className="flex items-center gap-2">
                           <span className="text-2xl font-bold text-foreground">{balance}</span>
                           <Badge className={couponBadge(balance)}>
@@ -186,7 +188,7 @@ export default function Coupons() {
                       size="sm"
                       onClick={() => setRefillDriver(d)}
                     >
-                      <Plus className="w-4 h-4 mr-2" /> Refill Coupons
+                      <Plus className="w-4 h-4 mr-2" /> {t('coupons.refill')}
                     </Button>
                   </div>
                 </CardContent>
@@ -218,7 +220,7 @@ export default function Coupons() {
                 <p className="font-medium text-foreground">{refillDriver?.licensePlate}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Current Balance</p>
+                <p className="text-muted-foreground">{t('coupons.currentBalance')}</p>
                 <p className="text-xl font-bold text-foreground">{refillDriver?.couponBalance ?? 0}</p>
               </div>
               <div>
@@ -233,7 +235,7 @@ export default function Coupons() {
                 type="number"
                 value={refillAmount}
                 onChange={(e) => setRefillAmount(e.target.value)}
-                placeholder="Enter number of coupons"
+                placeholder={t('coupons.enterAmount')}
                 min="1"
                 autoFocus
               />
@@ -249,9 +251,9 @@ export default function Coupons() {
             )}
           </div>
           <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={closeRefill}>Cancel</Button>
+            <Button variant="outline" onClick={closeRefill}>{t('common.cancel')}</Button>
             <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleRefill} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Confirm Refill
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('coupons.confirmRefill')}
             </Button>
           </div>
         </DialogContent>

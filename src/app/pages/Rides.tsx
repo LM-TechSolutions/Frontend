@@ -12,6 +12,7 @@ import { api } from '../lib/api';
 import { connectSocket, getSocket } from '../lib/socket';
 import { rideStatusLabel, formatETB } from '../lib/format';
 import NewRideDialog from '../components/NewRideDialog';
+import { useAppContext } from '../contexts/AppContext';
 
 const PENDING_STATES = ['pending', 'unassigned', 'dispatched'];
 
@@ -32,6 +33,7 @@ const PAGE_SIZE = 20;
 
 export default function Rides() {
   const navigate = useNavigate();
+  const { t } = useAppContext();
   const [rides, setRides] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -117,19 +119,19 @@ export default function Rides() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">Ride History</h2>
-        <p className="text-muted-foreground">View and manage all ride records</p>
+        <h2 className="text-2xl font-semibold text-foreground mb-1">{t('rides.title')}</h2>
+        <p className="text-muted-foreground">{t('rides.subtitle')}</p>
       </div>
 
       <div className="bg-card rounded-lg shadow-sm border border-border p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
           <div className="flex-1 relative min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search by Ride ID, Customer, Driver…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="pl-10" />
+            <Input placeholder={t('rides.searchPlaceholder')} value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="pl-10" />
           </div>
           <div className="flex items-center gap-3">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[200px]"><Filter className="w-4 h-4 mr-2" /><SelectValue placeholder="Filter by Status" /></SelectTrigger>
+              <SelectTrigger className="w-[200px]"><Filter className="w-4 h-4 mr-2" /><SelectValue placeholder={t('rides.filterStatus')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
@@ -142,7 +144,7 @@ export default function Rides() {
                 <SelectItem value="expired">Expired</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}><Plus className="w-4 h-4 mr-2" /> New Ride</Button>
+            <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}><Plus className="w-4 h-4 mr-2" /> {t('rides.addRide')}</Button>
           </div>
         </div>
       </div>
@@ -156,7 +158,7 @@ export default function Rides() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted">
-                {['Ride ID', 'Customer', 'Pickup', 'Dropoff', 'Driver', 'Status', 'Time', 'Fare', 'Actions'].map((h) => (
+                {[t('rides.rideID'), 'Customer', t('rides.pickupLocation'), t('rides.dropoffLocation'), 'Driver', 'Status', 'Time', 'Fare', 'Actions'].map((h) => (
                   <TableHead key={h} className="font-semibold">{h}</TableHead>
                 ))}
               </TableRow>
@@ -168,7 +170,7 @@ export default function Rides() {
                   <TableCell><div><p className="font-medium text-foreground">{ride.customerName}</p><p className="text-xs text-muted-foreground">{ride.customerPhone}</p></div></TableCell>
                   <TableCell className="max-w-[200px]"><p className="text-sm text-muted-foreground truncate">{ride.pickupLocation}</p></TableCell>
                   <TableCell className="max-w-[200px]"><p className="text-sm text-muted-foreground truncate">{ride.dropoffLocation}</p></TableCell>
-                  <TableCell>{ride.driverName ? <p className="text-sm text-foreground">{ride.driverName}</p> : <p className="text-sm text-muted-foreground italic">Not assigned</p>}</TableCell>
+                  <TableCell>{ride.driverName ? <p className="text-sm text-foreground">{ride.driverName}</p> : <p className="text-sm text-muted-foreground italic">{t('rides.noDriverAssigned')}</p>}</TableCell>
                   <TableCell><Badge className={statusBadge(ride.status)}>{rideStatusLabel(ride.status)}</Badge></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</TableCell>
                   <TableCell className="font-medium text-foreground">{ride.fare != null ? formatETB(ride.fare) : '-'}</TableCell>

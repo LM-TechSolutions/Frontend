@@ -17,12 +17,14 @@ export function toDashboardRole(role?: string): DashboardRole | null {
   return null;
 }
 
+export type LoginResult = { twoFactorRequired: true } | { twoFactorRequired: false; user: AuthUser };
+
 interface AuthContextValue {
   user: AuthUser | null;
   role: DashboardRole | null;
   isAuthenticated: boolean;
   isReady: boolean;
-  login: (email: string, password: string) => Promise<AuthUser>;
+  login: (email: string, password: string, code?: string) => Promise<LoginResult>;
   logout: () => void;
 }
 
@@ -57,13 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsReady(true);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { token, user: loggedIn } = await api.auth.login(email, password);
-    setToken(token);
-    localStorage.setItem(USER_KEY, JSON.stringify(loggedIn));
-    setUser(loggedIn);
+  const login = useCallback(async (email: string, password: string, code?: string): Promise<LoginResult> => {
+    const result = await api.auth.login(email, password, code);
+    if (result.twoFactorRequired || !result.token || !result.user) {
+      return { twoFactorRequired: true };
+    }
+    setToken(result.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+    setUser(result.user);
     connectSocket();
-    return loggedIn;
+    return { twoFactorRequired: false, user: result.user };
   }, []);
 
   const logout = useCallback(() => {
