@@ -128,7 +128,7 @@ export default function DashboardLayout() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm text-sidebar-foreground truncate">{userName}</p>
-              <p className="text-xs text-muted-foreground">{userRole === 'admin' ? 'Administrator' : 'Call Center'}</p>
+              <p className="text-xs text-muted-foreground">{userRole === 'admin' ? t('auth.admin', 'Administrator') : t('common.callCenter', 'Call Center')}</p>
             </div>
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function DashboardLayout() {
             {userRole === 'admin' && (
               <Badge className="bg-[#00BDC3] text-white hover:bg-[#00BDC3]">
                 <Shield className="w-3 h-3 mr-1" />
-                Admin
+                {t('common.adminBadge', 'Admin')}
               </Badge>
             )}
           </div>
@@ -203,20 +203,20 @@ export default function DashboardLayout() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('common.account', 'My Account')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <User className="w-4 h-4 mr-2" />
-                  Profile
+                  {t('common.profile', 'Profile')}
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Settings className="w-4 h-4 mr-2" />
-                  Settings
+                  {t('nav.settings', 'Settings')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
-                  Logout
+                  {t('common.logout', 'Logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

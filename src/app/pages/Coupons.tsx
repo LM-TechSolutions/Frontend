@@ -8,6 +8,7 @@ import { Phone, Car, Search, Wallet, Plus, Loader2, AlertTriangle } from 'lucide
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
+import { useAppContext } from '../contexts/AppContext';
 
 const couponBadge = (b: number) =>
   b < 15
@@ -21,6 +22,7 @@ const statusBadge = (s: string) =>
   'bg-gray-500 text-white';
 
 export default function Coupons() {
+  const { t } = useAppContext();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,17 +95,17 @@ export default function Coupons() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Coupon Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage driver coupon balances</p>
+          <h1 className="text-2xl font-semibold text-foreground">{t('coupons.title', 'Coupon Management')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('coupons.subtitle', 'Manage driver coupon balances')}</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total Drivers', value: drivers.length, color: '#00BDC3', icon: Car },
-          { label: 'Total Coupons', value: totalCoupons, color: '#10B981', icon: Wallet },
-          { label: 'Low Balance', value: lowBalance, color: '#EF4444', icon: AlertTriangle },
+          { label: t('coupons.totalDrivers', 'Total Drivers'), value: drivers.length, color: '#00BDC3', icon: Car },
+          { label: t('coupons.totalCoupons', 'Total Coupons'), value: totalCoupons, color: '#10B981', icon: Wallet },
+          { label: t('coupons.lowBalanceCount', 'Low Balance'), value: lowBalance, color: '#EF4444', icon: AlertTriangle },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-6">
@@ -127,7 +129,7 @@ export default function Coupons() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name, plate number, or phone…"
+              placeholder={t('coupons.searchPlaceholder', 'Search by name, plate number, or phone…')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-10"
@@ -172,11 +174,11 @@ export default function Coupons() {
                   <div className="pt-3 border-t border-border">
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Coupon Balance</p>
+                        <p className="text-xs text-muted-foreground mb-1">{t('coupons.couponBalance', 'Coupon Balance')}</p>
                         <div className="flex items-center gap-2">
                           <span className="text-2xl font-bold text-foreground">{balance}</span>
                           <Badge className={couponBadge(balance)}>
-                            {balance < 15 ? 'Low' : balance < 30 ? 'Moderate' : 'Good'}
+                            {balance < 15 ? t('coupons.low', 'Low') : balance < 30 ? t('coupons.moderate', 'Moderate') : t('coupons.good', 'Good')}
                           </Badge>
                         </div>
                       </div>
@@ -186,7 +188,7 @@ export default function Coupons() {
                       size="sm"
                       onClick={() => setRefillDriver(d)}
                     >
-                      <Plus className="w-4 h-4 mr-2" /> Refill Coupons
+                      <Plus className="w-4 h-4 mr-2" /> {t('coupons.refill', 'Refill Coupons')}
                     </Button>
                   </div>
                 </CardContent>
@@ -197,7 +199,7 @@ export default function Coupons() {
       ) : (
         <div className="text-center py-12">
           <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No drivers found</p>
+          <p className="text-muted-foreground">{t('coupons.noDrivers', 'No drivers found')}</p>
         </div>
       )}
 
@@ -205,35 +207,35 @@ export default function Coupons() {
       <Dialog open={!!refillDriver} onOpenChange={(open) => !open && closeRefill()}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Refill Coupons — {refillDriver?.name}</DialogTitle>
+            <DialogTitle>{t('coupons.refillTitle', 'Refill Coupons — {0}', { 0: refillDriver?.name ?? '' })}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="bg-muted rounded-lg p-4 grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-muted-foreground">Phone</p>
+                <p className="text-muted-foreground">{t('coupons.phone', 'Phone')}</p>
                 <p className="font-medium text-foreground">{refillDriver?.phone}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Plate</p>
+                <p className="text-muted-foreground">{t('coupons.plate', 'Plate')}</p>
                 <p className="font-medium text-foreground">{refillDriver?.licensePlate}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Current Balance</p>
+                <p className="text-muted-foreground">{t('coupons.currentBalance', 'Current Balance')}</p>
                 <p className="text-xl font-bold text-foreground">{refillDriver?.couponBalance ?? 0}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Status</p>
+                <p className="text-muted-foreground">{t('coupons.status', 'Status')}</p>
                 <Badge className={statusBadge(refillDriver?.status ?? '')}>{refillDriver?.status}</Badge>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Amount to Add</Label>
+              <Label>{t('coupons.amountToAdd', 'Amount to Add')}</Label>
               <Input
                 type="number"
                 value={refillAmount}
                 onChange={(e) => setRefillAmount(e.target.value)}
-                placeholder="Enter number of coupons"
+                placeholder={t('coupons.placeholder', 'Enter number of coupons')}
                 min="1"
                 autoFocus
               />
@@ -241,7 +243,7 @@ export default function Coupons() {
 
             {refillAmount && parseInt(refillAmount) > 0 && (
               <div className="bg-[#00BDC3]/10 border border-[#00BDC3]/30 rounded-lg p-3">
-                <p className="text-sm text-muted-foreground mb-1">New Balance</p>
+                <p className="text-sm text-muted-foreground mb-1">{t('coupons.newBalance', 'New Balance')}</p>
                 <p className="text-xl font-bold text-[#00BDC3]">
                   {(refillDriver?.couponBalance ?? 0) + parseInt(refillAmount)} coupons
                 </p>
@@ -249,9 +251,9 @@ export default function Coupons() {
             )}
           </div>
           <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={closeRefill}>Cancel</Button>
+            <Button variant="outline" onClick={closeRefill}>{t('common.cancel', 'Cancel')}</Button>
             <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleRefill} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Confirm Refill
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('coupons.confirmRefill', 'Confirm Refill')}
             </Button>
           </div>
         </DialogContent>

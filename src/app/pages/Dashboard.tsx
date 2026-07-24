@@ -12,6 +12,7 @@ import { rideStatusLabel } from '../lib/format';
 import GebetaMapView from '../components/GebetaMapView';
 import LogCallDialog from '../components/LogCallDialog';
 import NewRideDialog from '../components/NewRideDialog';
+import { useAppContext } from '../contexts/AppContext';
 
 const ACTIVE_STATUSES = ['dispatched', 'accepted', 'arrived', 'in_progress'];
 
@@ -31,6 +32,7 @@ const statusBadge = (status: string) => {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useAppContext();
   const [rides, setRides] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,7 +150,7 @@ export default function Dashboard() {
         <div className="p-6">
           <div className="mb-6 grid grid-cols-2 gap-3">
             <Button className="h-12 bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}>
-              <Plus className="w-5 h-5 mr-2" /> NEW RIDE
+              <Plus className="w-5 h-5 mr-2" /> {t('dashboard.newRide', 'NEW RIDE')}
             </Button>
             <LogCallDialog onLogged={load} className="h-12 w-full" />
           </div>
@@ -160,7 +162,7 @@ export default function Dashboard() {
             <>
               {/* Pending */}
               <div className="mb-6">
-                <h3 className="font-semibold text-foreground mb-3">Pending Rides ({pendingRides.length})</h3>
+                <h3 className="font-semibold text-foreground mb-3">{t('dashboard.pendingRides', 'Pending Rides')} ({pendingRides.length})</h3>
                 <div className="space-y-3">
                   {pendingRides.map((ride) => (
                     <Card key={ride.id} className="hover:shadow-md transition-shadow">
@@ -186,10 +188,10 @@ export default function Dashboard() {
                         </div>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/rides/${ride.id}`)}>
-                            <Eye className="w-4 h-4 mr-2" /> Track
+                            <Eye className="w-4 h-4 mr-2" /> {t('dashboard.track', 'Track')}
                           </Button>
                           <Button className="flex-1 bg-[#00BDC3] hover:bg-[#009EA3] text-white" size="sm" onClick={() => setAssignFor(ride)}>
-                            Assign
+                            {t('dashboard.assign', 'Assign')}
                           </Button>
                         </div>
                         <Button
@@ -200,18 +202,18 @@ export default function Dashboard() {
                           disabled={redispatchingId === ride.id}
                         >
                           {redispatchingId === ride.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Bell className="w-4 h-4 mr-2" />}
-                          Re-notify Drivers
+                          {t('dashboard.reNotifyDrivers', 'Re-notify Drivers')}
                         </Button>
                       </CardContent>
                     </Card>
                   ))}
-                  {pendingRides.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No pending rides</p>}
+                  {pendingRides.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">{t('dashboard.noPendingRides', 'No pending rides')}</p>}
                 </div>
               </div>
 
               {/* Active */}
               <div>
-                <h3 className="font-semibold text-foreground mb-3">Active Rides ({activeRides.length})</h3>
+                <h3 className="font-semibold text-foreground mb-3">{t('dashboard.activeRides', 'Active Rides')} ({activeRides.length})</h3>
                 <div className="space-y-3">
                   {activeRides.map((ride) => (
                     <Card key={ride.id} className="hover:shadow-md transition-shadow">
@@ -224,12 +226,12 @@ export default function Dashboard() {
                           <Badge className={statusBadge(ride.status)}>{rideStatusLabel(ride.status)}</Badge>
                         </div>
                         <Button variant="outline" size="sm" className="w-full" onClick={() => navigate(`/rides/${ride.id}`)}>
-                          <Eye className="w-4 h-4 mr-2" /> View Details
+                          <Eye className="w-4 h-4 mr-2" /> {t('dashboard.viewDetails', 'View Details')}
                         </Button>
                       </CardContent>
                     </Card>
                   ))}
-                  {activeRides.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No active rides</p>}
+                  {activeRides.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">{t('dashboard.noActiveRides', 'No active rides')}</p>}
                 </div>
               </div>
             </>
@@ -242,13 +244,13 @@ export default function Dashboard() {
         <GebetaMapView fleet={fleet} height="100%" zoom={12} className="w-full h-full" />
         <div className="absolute top-4 right-4 bg-card border border-border p-4 rounded-lg shadow-lg z-[400]">
           <div className="flex items-center justify-between gap-3 mb-2">
-            <h4 className="font-semibold text-sm text-card-foreground">Driver Status</h4>
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Live</span>
+            <h4 className="font-semibold text-sm text-card-foreground">{t('dashboard.driverStatus', 'Driver Status')}</h4>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('dashboard.live', 'Live')}</span>
           </div>
           <div className="space-y-2 text-xs text-card-foreground">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10B981]" /><span>Available ({drivers.filter((d) => d.status === 'available').length})</span></div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#EF4444]" /><span>Busy ({drivers.filter((d) => d.status === 'busy').length})</span></div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#6B7280]" /><span>Offline ({drivers.filter((d) => d.status === 'offline').length})</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10B981]" /><span>{t('dashboard.available', 'Available')} ({drivers.filter((d) => d.status === 'available').length})</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#EF4444]" /><span>{t('dashboard.busy', 'Busy')} ({drivers.filter((d) => d.status === 'busy').length})</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#6B7280]" /><span>{t('dashboard.offline', 'Offline')} ({drivers.filter((d) => d.status === 'offline').length})</span></div>
           </div>
         </div>
       </div>
@@ -257,7 +259,7 @@ export default function Dashboard() {
       <Dialog open={!!assignFor} onOpenChange={(open) => !open && setAssignFor(null)}>
         <DialogContent className="sm:max-w-[800px] max-h-[600px]">
           <DialogHeader>
-            <DialogTitle>Assign Driver to {assignFor?.customerName}</DialogTitle>
+            <DialogTitle>{t('dashboard.assignDriverTo', 'Assign Driver to {0}', { 0: assignFor?.customerName ?? '' })}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-3 py-4 max-h-[400px] overflow-auto">
             {availableDrivers.map((driver) => (
@@ -282,7 +284,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             ))}
-            {availableDrivers.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No available drivers</p>}
+            {availableDrivers.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">{t('dashboard.noAvailableDrivers', 'No available drivers')}</p>}
           </div>
         </DialogContent>
       </Dialog>

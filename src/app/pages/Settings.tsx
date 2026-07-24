@@ -7,23 +7,25 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppContext } from '../contexts/AppContext';
 
 // The configurable Tokuma business settings surfaced for editing.
-const EDITABLE: { key: string; label: string; hint?: string }[] = [
-  { key: 'fare.baseFare', label: 'Base Fare (ETB)' },
-  { key: 'fare.perKm', label: 'Per Kilometre (ETB)' },
-  { key: 'fare.timeBlockCharge', label: 'Time Block Charge (ETB)' },
-  { key: 'fare.timeBlockMinutes', label: 'Time Block (minutes)' },
-  { key: 'fare.minimumFare', label: 'Minimum Fare (ETB)' },
-  { key: 'dispatch.radiusKm', label: 'Dispatch Radius (km)' },
-  { key: 'dispatch.maxDrivers', label: 'Max Drivers Notified' },
-  { key: 'dispatch.offerTtlSeconds', label: 'Offer Timeout (seconds)' },
-  { key: 'coupon.minBalanceThreshold', label: 'Min Coupon Balance' },
-  { key: 'commission.defaultPercent', label: 'Default Commission (%)' },
+const EDITABLE: { key: string; labelKey: string }[] = [
+  { key: 'fare.baseFare', labelKey: 'settings.baseFare' },
+  { key: 'fare.perKm', labelKey: 'settings.perKm' },
+  { key: 'fare.timeBlockCharge', labelKey: 'settings.timeBlockCharge' },
+  { key: 'fare.timeBlockMinutes', labelKey: 'settings.timeBlockMinutes' },
+  { key: 'fare.minimumFare', labelKey: 'settings.minimumFare' },
+  { key: 'dispatch.radiusKm', labelKey: 'settings.dispatchRadius' },
+  { key: 'dispatch.maxDrivers', labelKey: 'settings.maxDriversNotified' },
+  { key: 'dispatch.offerTtlSeconds', labelKey: 'settings.offerTimeout' },
+  { key: 'coupon.minBalanceThreshold', labelKey: 'settings.minCouponBalance' },
+  { key: 'commission.defaultPercent', labelKey: 'settings.defaultCommission' },
 ];
 
 export default function Settings() {
   const { user, role } = useAuth();
+  const { t } = useAppContext();
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,32 +61,32 @@ export default function Settings() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">Settings</h2>
-        <p className="text-muted-foreground">Manage your account and Tokuma system configuration</p>
+        <h2 className="text-2xl font-semibold text-foreground mb-1">{t('settings.title', 'Settings')}</h2>
+        <p className="text-muted-foreground">{t('settings.subtitle', 'Manage your account and Tokuma system configuration')}</p>
       </div>
 
       <div className="max-w-4xl space-y-6">
         {/* Profile */}
         <Card>
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Your account information</CardDescription>
+            <CardTitle>{t('settings.profile', 'Profile')}</CardTitle>
+            <CardDescription>{t('settings.yourAccountInfo', 'Your account information')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Name</Label><Input defaultValue={user?.name ?? ''} readOnly /></div>
-              <div className="space-y-2"><Label>Role</Label><Input value={role === 'admin' ? 'Administrator' : 'Call Center'} readOnly /></div>
+              <div className="space-y-2"><Label>{t('settings.name', 'Name')}</Label><Input defaultValue={user?.name ?? ''} readOnly /></div>
+              <div className="space-y-2"><Label>{t('settings.role', 'Role')}</Label><Input value={role === 'admin' ? t('settings.administrator', 'Administrator') : t('settings.callCenter', 'Call Center')} readOnly /></div>
             </div>
-            <div className="space-y-2"><Label>Email</Label><Input defaultValue={user?.email ?? ''} readOnly /></div>
+            <div className="space-y-2"><Label>{t('settings.email', 'Email')}</Label><Input defaultValue={user?.email ?? ''} readOnly /></div>
           </CardContent>
         </Card>
 
         {/* System (Pricing / Dispatch / Commission) */}
         <Card>
           <CardHeader>
-            <CardTitle>Pricing, Dispatch &amp; Commission</CardTitle>
+            <CardTitle>{t('settings.pricingDispatchCommission', 'Pricing, Dispatch & Commission')}</CardTitle>
             <CardDescription>
-              Live Tokuma business rules{role !== 'admin' ? ' (read-only — admin access required to edit)' : ''}.
+              {t('settings.businessRules', 'Live Tokuma business rules')}{role !== 'admin' ? ` (${t('settings.readOnly', 'read-only — admin access required to edit')})` : ''}.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -93,9 +95,9 @@ export default function Settings() {
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  {EDITABLE.map(({ key, label }) => (
+                  {EDITABLE.map(({ key, labelKey }) => (
                     <div className="space-y-2" key={key}>
-                      <Label>{label}</Label>
+                      <Label>{t(labelKey)}</Label>
                       <Input
                         type="number"
                         value={values[key] ?? ''}
@@ -107,7 +109,7 @@ export default function Settings() {
                 </div>
                 {role === 'admin' && (
                   <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Save System Settings
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('settings.saveSettings', 'Save System Settings')}
                   </Button>
                 )}
               </>

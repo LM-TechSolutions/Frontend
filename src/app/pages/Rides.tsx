@@ -12,6 +12,7 @@ import { api } from '../lib/api';
 import { connectSocket, getSocket } from '../lib/socket';
 import { rideStatusLabel, formatETB } from '../lib/format';
 import NewRideDialog from '../components/NewRideDialog';
+import { useAppContext } from '../contexts/AppContext';
 
 const PENDING_STATES = ['pending', 'unassigned', 'dispatched'];
 
@@ -32,6 +33,7 @@ const PAGE_SIZE = 20;
 
 export default function Rides() {
   const navigate = useNavigate();
+  const { t } = useAppContext();
   const [rides, setRides] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -117,32 +119,32 @@ export default function Rides() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">Ride History</h2>
-        <p className="text-muted-foreground">View and manage all ride records</p>
+        <h2 className="text-2xl font-semibold text-foreground mb-1">{t('rides.title', 'Ride History')}</h2>
+        <p className="text-muted-foreground">{t('rides.subtitle', 'View and manage all ride records')}</p>
       </div>
 
       <div className="bg-card rounded-lg shadow-sm border border-border p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
           <div className="flex-1 relative min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search by Ride ID, Customer, Driver…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="pl-10" />
+            <Input placeholder={t('rides.searchPlaceholder', 'Search by Ride ID, Customer, Driver…')} value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="pl-10" />
           </div>
           <div className="flex items-center gap-3">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[200px]"><Filter className="w-4 h-4 mr-2" /><SelectValue placeholder="Filter by Status" /></SelectTrigger>
+              <SelectTrigger className="w-[200px]"><Filter className="w-4 h-4 mr-2" /><SelectValue placeholder={t('rides.filterStatus', 'Filter by Status')} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="dispatched">Assigned</SelectItem>
-                <SelectItem value="accepted">Accepted</SelectItem>
-                <SelectItem value="arrived">Driver Arriving</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
+                <SelectItem value="all">{t('rides.allStatus', 'All Status')}</SelectItem>
+                <SelectItem value="pending">{t('rides.pendingStatus', 'Pending')}</SelectItem>
+                <SelectItem value="dispatched">{t('rides.assignedStatus', 'Assigned')}</SelectItem>
+                <SelectItem value="accepted">{t('rides.acceptedStatus', 'Accepted')}</SelectItem>
+                <SelectItem value="arrived">{t('rides.driverArrivingStatus', 'Driver Arriving')}</SelectItem>
+                <SelectItem value="in_progress">{t('rides.inProgressStatus', 'In Progress')}</SelectItem>
+                <SelectItem value="completed">{t('rides.completedStatus', 'Completed')}</SelectItem>
+                <SelectItem value="cancelled">{t('rides.cancelledStatus', 'Cancelled')}</SelectItem>
+                <SelectItem value="expired">{t('rides.expiredStatus', 'Expired')}</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}><Plus className="w-4 h-4 mr-2" /> New Ride</Button>
+            <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}><Plus className="w-4 h-4 mr-2" /> {t('rides.addRide', 'New Ride')}</Button>
           </div>
         </div>
       </div>
@@ -156,7 +158,7 @@ export default function Rides() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted">
-                {['Ride ID', 'Customer', 'Pickup', 'Dropoff', 'Driver', 'Status', 'Time', 'Fare', 'Actions'].map((h) => (
+                {[t('rides.rideId', 'Ride ID'), t('rides.customer', 'Customer'), t('rides.pickup', 'Pickup'), t('rides.dropoff', 'Dropoff'), t('rides.driver', 'Driver'), t('rides.status', 'Status'), t('rides.time', 'Time'), t('rides.fare', 'Fare'), t('rides.actions', 'Actions')].map((h) => (
                   <TableHead key={h} className="font-semibold">{h}</TableHead>
                 ))}
               </TableRow>
@@ -168,13 +170,13 @@ export default function Rides() {
                   <TableCell><div><p className="font-medium text-foreground">{ride.customerName}</p><p className="text-xs text-muted-foreground">{ride.customerPhone}</p></div></TableCell>
                   <TableCell className="max-w-[200px]"><p className="text-sm text-muted-foreground truncate">{ride.pickupLocation}</p></TableCell>
                   <TableCell className="max-w-[200px]"><p className="text-sm text-muted-foreground truncate">{ride.dropoffLocation}</p></TableCell>
-                  <TableCell>{ride.driverName ? <p className="text-sm text-foreground">{ride.driverName}</p> : <p className="text-sm text-muted-foreground italic">Not assigned</p>}</TableCell>
+                  <TableCell>{ride.driverName ? <p className="text-sm text-foreground">{ride.driverName}</p> : <p className="text-sm text-muted-foreground italic">{t('rides.notAssigned', 'Not assigned')}</p>}</TableCell>
                   <TableCell><Badge className={statusBadge(ride.status)}>{rideStatusLabel(ride.status)}</Badge></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</TableCell>
                   <TableCell className="font-medium text-foreground">{ride.fare != null ? formatETB(ride.fare) : '-'}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/rides/${ride.id}`)} title="Track"><Eye className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/rides/${ride.id}`)} title={t('rides.track', 'Track')}><Eye className="w-4 h-4" /></Button>
                       {PENDING_STATES.includes(ride.status) && (
                         <Button
                           variant="outline"
@@ -194,15 +196,15 @@ export default function Rides() {
             </TableBody>
           </Table>
         )}
-        {!loading && visible.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground">No rides found</p></div>}
+        {!loading && visible.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground">{t('rides.noRides', 'No rides found')}</p></div>}
       </div>
 
       <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Showing {visible.length} of {pagination.total} rides</p>
+        <p className="text-sm text-muted-foreground">{t('rides.showingCount', 'Showing {0} of {1} rides', { 0: visible.length, 1: pagination.total })}</p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{t('rides.previous', 'Previous')}</Button>
           <Button variant="outline" size="sm" className="bg-[#00BDC3] text-white hover:bg-[#009EA3]">{page}</Button>
-          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>{t('rides.next', 'Next')}</Button>
         </div>
       </div>
     </div>

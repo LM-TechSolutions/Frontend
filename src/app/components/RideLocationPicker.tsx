@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { estimateFareEtb, type RoadRoute } from '../lib/route';
 import { formatETB } from '../lib/format';
 import GebetaMapView, { type MapPoint } from './GebetaMapView';
+import { useAppContext } from '../contexts/AppContext';
 
 export interface PlaceValue {
   lat: number;
@@ -32,6 +33,7 @@ interface Props {
  * to drop a pin. Shows road-accurate distance once both points are set.
  */
 export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteChange }: Props) {
+  const { t } = useAppContext();
   const [active, setActive] = useState<'pickup' | 'dropoff'>('pickup');
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -114,7 +116,7 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
           className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm transition-colors ${active === 'pickup' ? 'border-[#10B981] bg-[#10B981]/5' : 'border-border hover:border-muted-foreground'}`}
         >
           <MapPin className="w-4 h-4 text-[#10B981] flex-shrink-0" />
-          <span className="truncate text-left text-foreground">{pickup ? pickup.address : 'Set Pickup'}</span>
+          <span className="truncate text-left text-foreground">{pickup ? pickup.address : t('dashboard.setPickup', 'Set Pickup')}</span>
         </button>
         <button
           type="button"
@@ -122,7 +124,7 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
           className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm transition-colors ${active === 'dropoff' ? 'border-[#EF4444] bg-[#EF4444]/5' : 'border-border hover:border-muted-foreground'}`}
         >
           <Navigation className="w-4 h-4 text-[#EF4444] flex-shrink-0" />
-          <span className="truncate text-left text-foreground">{dropoff ? dropoff.address : 'Set Destination'}</span>
+          <span className="truncate text-left text-foreground">{dropoff ? dropoff.address : t('dashboard.setDestination', 'Set Destination')}</span>
         </button>
       </div>
 
@@ -138,7 +140,7 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
               pick(suggestions[0]);
             }
           }}
-          placeholder={`Search ${active === 'pickup' ? 'pickup' : 'destination'}…`}
+          placeholder={active === 'pickup' ? t('dashboard.searchPickup', 'Search pickup...') : t('dashboard.searchDestination', 'Search destination...')}
           className="pl-10 pr-9"
         />
         {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00BDC3] animate-spin" />}
@@ -169,7 +171,7 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Setting <strong>{active === 'pickup' ? 'pickup' : 'destination'}</strong> — pick a suggestion above, or click the map.
+        {active === 'pickup' ? t('dashboard.settingPickup', 'Setting pickup') : t('dashboard.settingDestination', 'Setting destination')} — pick a suggestion above, or click the map.
       </p>
 
       <GebetaMapView
