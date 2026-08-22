@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client';
 import { config } from './config';
-import { getToken } from './api';
 
 let socket: Socket | null = null;
 let mapSubs = 0;
@@ -16,7 +15,6 @@ export function connectSocket(): Socket {
   }
 
   socket = io(`${config.socketUrl}/admin`, {
-    auth: { token: getToken() ?? undefined },
     withCredentials: true,
     transports: ['websocket', 'polling'],
     reconnection: true,

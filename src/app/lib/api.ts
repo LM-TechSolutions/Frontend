@@ -51,7 +51,7 @@ async function request<T>(base: string, path: string, options: RequestOptions = 
   const res = await fetch(buildUrl(base, path, options.query), {
     method: options.method ?? 'GET',
     headers,
-    credentials: 'include', // send the session cookie (same-origin via proxy)
+    credentials: 'include',
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     signal: options.signal,
   });
@@ -68,8 +68,11 @@ async function request<T>(base: string, path: string, options: RequestOptions = 
 
   if (!res.ok) {
     const message = payload?.error?.message || payload?.message || `Request failed (${res.status})`;
-    const isAuthAttempt = path.includes('/auth/login') || path.includes('/auth/forgot-password') || path.includes('/auth/reset-password');
-    if (res.status === 401 && !options.skipAuthClear && !isAuthAttempt) setToken(null);
+    const isAuthAttempt = path.includes('/auth/login') || path.includes('/auth/forgot-password') || path.includes('/auth/reset-password') || path.includes('/auth/me');
+    if (res.status === 401 && !options.skipAuthClear && !isAuthAttempt) {
+      setToken(null);
+      window.dispatchEvent(new Event('tokuma:unauthorized'));
+    }
     throw new ApiError(message, res.status, payload?.error?.code, payload?.error?.details);
   }
 
@@ -319,7 +322,6 @@ export const api = {
       extras?: { deviceId?: string; deviceName?: string; rememberDevice?: boolean }
     ) =>
       cc<{
-        token?: string;
         user?: AuthUser;
         twoFactorRequired?: boolean;
         twoFactorEnrollmentRequired?: boolean;
@@ -334,6 +336,12 @@ export const api = {
         },
       }),
     logout: () => cc<null>('/auth/logout', { method: 'POST' }).catch(() => null),
+    me: () =>
+      cc<{
+        user: AuthUser;
+        twoFactorEnrollmentRequired?: boolean;
+        idleTimeoutMinutes?: number;
+      }>('/auth/me'),
     changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
       cc<null>('/settings/password', { method: 'POST', body: { currentPassword, newPassword, confirmPassword } }),
     forgotPassword: (email: string) =>

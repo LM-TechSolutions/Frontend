@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { api, AuthUser, MyPermissions, setToken, getToken } from '../lib/api';
+import { api, AuthUser, MyPermissions, setToken } from '../lib/api';
 import { connectSocket, disconnectSocket } from '../lib/socket';
 import { getDeviceId, getDeviceName } from '../lib/device';
 
@@ -82,23 +82,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const stored = loadStoredUser();
-    if (stored && getToken() && toDashboardRole(stored.role)) {
-      setUser(stored);
-      connectSocket();
-      refreshPermissions();
-      api.settings
-        .securityPolicy()
-        .then((policy) => {
-          setIdleTimeoutMinutes(policy.idleTimeoutMinutes);
-          localStorage.setItem(IDLE_KEY, String(policy.idleTimeoutMinutes));
-        })
-        .catch(() => undefined);
-    } else if (stored) {
-      setToken(null);
-      persistUser(null);
-    }
-    setIsReady(true);
+
+    const hydrate = async () => {
+      if (!stored || !toDashboardRole(stored.role)) {
+        if (stored) {
+          setToken(null);
+          persistUser(null);
+        }
+        if (!cancelled) setIsReady(true);
+        return;
+      }
+
+      try {
+        const session = await api.auth.me();
+        if (cancelled) return;
+        const nextUser: AuthUser = {
+          ...session.user,
+          twoFactorEnrollmentRequired: !!(
+            session.twoFactorEnrollmentRequired || session.user.twoFactorEnrollmentRequired
+          ),
+        };
+        persistUser(nextUser);
+        setUser(nextUser);
+        setToken(null);
+        if (session.idleTimeoutMinutes) {
+          setIdleTimeoutMinutes(session.idleTimeoutMinutes);
+          localStorage.setItem(IDLE_KEY, String(session.idleTimeoutMinutes));
+        }
+        connectSocket();
+        await refreshPermissions();
+      } catch {
+        if (cancelled) return;
+        setToken(null);
+        persistUser(null);
+        setUser(null);
+      } finally {
+        if (!cancelled) setIsReady(true);
+      }
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, [refreshPermissions]);
 
   const login = useCallback(
@@ -113,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         deviceName: getDeviceName(),
         rememberDevice: !!options?.rememberDevice,
       });
-      if (result.twoFactorRequired || !result.token || !result.user) {
+      if (result.twoFactorRequired || !result.user) {
         return { twoFactorRequired: true };
       }
       const enrollment = !!(result.twoFactorEnrollmentRequired || result.user.twoFactorEnrollmentRequired);
@@ -121,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...result.user,
         twoFactorEnrollmentRequired: enrollment,
       };
-      setToken(result.token);
+      setToken(null);
       persistUser(nextUser);
       setUser(nextUser);
       if (result.idleTimeoutMinutes) {
@@ -134,6 +162,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [refreshPermissions]
   );
+
+  useEffect(() => {
+    const onUnauthorized = () => {
+      disconnectSocket();
+      setToken(null);
+      persistUser(null);
+      setUser(null);
+      setCapabilities(null);
+    };
+    window.addEventListener('tokuma:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('tokuma:unauthorized', onUnauthorized);
+  }, []);
 
   const completeTwoFactorEnrollment = useCallback(() => {
     setUser((current) => {
