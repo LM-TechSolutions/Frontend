@@ -806,6 +806,7 @@ const translations = {
       backToDrivers: "Gara Draayivarootti Deebi'i",
     },
   },
+};
 
 type TranslationKey = keyof typeof translations['en'];
 
