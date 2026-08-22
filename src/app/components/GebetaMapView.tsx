@@ -4,18 +4,42 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { config, ADDIS_CENTER } from '../lib/config';
 import { fetchRoadRoute, type RoadRoute } from '../lib/route';
+import { api } from '../lib/api';
 
 export interface MapPoint {
   lng: number;
   lat: number;
 }
 
+// Reverse-geocoded address cache, shared by every map instance on the page -
+// driver dots move constantly but rarely leave the same street, so rounding
+// to ~11m and caching avoids re-hitting the geocoder on every click/reopen.
+const addressCache = new Map<string, string>();
+function addressCacheKey(lat: number, lng: number) {
+  return `${lat.toFixed(4)},${lng.toFixed(4)}`;
+}
+async function resolveAddress(lat: number, lng: number): Promise<string> {
+  const key = addressCacheKey(lat, lng);
+  const cached = addressCache.get(key);
+  if (cached) return cached;
+  try {
+    const res = await api.map.reverseGeocode(lat, lng);
+    const address = res?.formattedAddress || res?.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    addressCache.set(key, address);
+    return address;
+  } catch {
+    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  }
+}
+
 interface GebetaMapViewProps {
   pickup?: MapPoint | null;
   dropoff?: MapPoint | null;
   driver?: MapPoint | null;
-  /** Live fleet markers (e.g. available drivers on the dashboard map). */
-  fleet?: Array<MapPoint & { color?: string }>;
+  /** Shown in the live-address popup for the single `driver` marker, if provided. */
+  driverName?: string | null;
+  /** Live fleet markers (e.g. available drivers on the dashboard map). Click any dot for its name/status + live address. */
+  fleet?: Array<MapPoint & { id?: string; name?: string; status?: string; color?: string }>;
   /** Explicit route as [lng,lat] pairs. Wins over auto road fetch. */
   routeCoords?: [number, number][];
   /** When true (default) and pickup+dropoff exist, fetch Gebeta road geometry. */
@@ -26,6 +50,14 @@ interface GebetaMapViewProps {
   zoom?: number;
   onMapClick?: (lng: number, lat: number) => void;
   className?: string;
+}
+
+// Popup content goes through setHTML (raw innerHTML) - driver names and
+// reverse-geocoded addresses are untrusted data, so escape before injecting.
+function escapeHtml(s: string) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
 }
 
 function makePinElement(color: string, label?: string) {
@@ -53,6 +85,7 @@ export default function GebetaMapView({
   pickup,
   dropoff,
   driver,
+  driverName,
   fleet,
   routeCoords,
   autoRoadRoute = true,
@@ -133,6 +166,27 @@ export default function GebetaMapView({
     const map = mapRef.current?.getMapInstance();
     if (!map) return;
 
+    // The wrapper's onMapLoaded can fire before MapLibre's own style is
+    // actually done parsing (isStyleLoaded() still false) - addSource/
+    // addLayer throw "Style is not done loading" in that window. Defer this
+    // whole update until the style genuinely settles, retrying on 'idle'
+    // until it does (usually just one extra tick, if any).
+    let cancelled = false;
+    const run = () => {
+      if (cancelled) return;
+      if (!map.isStyleLoaded()) {
+        map.once('idle', run);
+        return;
+      }
+      applyUpdate(map);
+    };
+    run();
+    return () => {
+      cancelled = true;
+      map.off('idle', run);
+    };
+
+    function applyUpdate(map: maplibregl.Map) {
     const upsert = (key: string, point: MapPoint | null | undefined, color: string, label: string) => {
       if (!point) {
         markersRef.current[key]?.remove();
@@ -153,12 +207,39 @@ export default function GebetaMapView({
     upsert('dropoff', dropoff, '#EF4444', 'D');
     upsert('driver', driver, '#00BDC3', '🚗');
 
+    // The single "driver" marker (ride tracking / driver detail) is at most
+    // one instance, so it's cheap to eagerly resolve+refresh its address on
+    // every live position update rather than waiting for a click.
+    const driverMarker = markersRef.current['driver'];
+    if (driverMarker && driver) {
+      const popup = driverMarker.getPopup() ?? new maplibregl.Popup({ offset: 20, closeButton: false });
+      const title = driverName ? `<strong>${escapeHtml(driverName)}</strong><br/>` : '';
+      popup.setHTML(`${title}<span class="text-xs text-muted-foreground">Locating…</span>`);
+      driverMarker.setPopup(popup);
+      resolveAddress(driver.lat, driver.lng).then((address) => {
+        popup.setHTML(`${title}${escapeHtml(address)}`);
+      });
+    }
+
     fleetMarkersRef.current.forEach((m) => m.remove());
     fleetMarkersRef.current = [];
     (fleet ?? []).forEach((d) => {
       const el = document.createElement('div');
-      el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${d.color ?? '#00BDC3'};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);`;
-      fleetMarkersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]).addTo(map));
+      el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${d.color ?? '#00BDC3'};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;`;
+      const title = d.name ? `<strong>${escapeHtml(d.name)}</strong>${d.status ? ` · ${escapeHtml(d.status)}` : ''}<br/>` : '';
+      const popup = new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(
+        `${title}<span class="text-xs text-muted-foreground">Locating…</span>`
+      );
+      // Lazy: only spend a reverse-geocode call once this specific driver's
+      // popup is actually opened, not on every location tick for the whole fleet.
+      popup.on('open', () => {
+        resolveAddress(d.lat, d.lng).then((address) => {
+          popup.setHTML(`${title}${escapeHtml(address)}`);
+        });
+      });
+      fleetMarkersRef.current.push(
+        new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]).setPopup(popup).addTo(map)
+      );
     });
 
     // Render route using MapLibre GL native GeoJSON line layers for smooth, road-accurate polylines
@@ -239,7 +320,8 @@ export default function GebetaMapView({
       }
       map.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 600 });
     }
-  }, [ready, pickup, dropoff, driver, routeCoords, roadCoords, fleet]);
+    }
+  }, [ready, pickup, dropoff, driver, driverName, routeCoords, roadCoords, fleet]);
 
   if (!config.gebetaApiKey) {
     return (

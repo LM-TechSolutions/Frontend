@@ -58,7 +58,7 @@ export default function Coupons() {
 
   const handleRefill = async () => {
     const amount = parseInt(refillAmount);
-    if (!amount || amount <= 0) return toast.error('Please enter a valid amount');
+    if (!amount || amount <= 0) return toast.error(t('coupons.validAmount'));
     if (!refillDriver) return;
     setSaving(true);
     try {

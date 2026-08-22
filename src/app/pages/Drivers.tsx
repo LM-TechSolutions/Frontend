@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Search, UserPlus, Edit, Eye, Loader2 } from 'lucide-react';
 import { Input } from '../components/ui/input';
@@ -11,7 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { connectSocket, getSocket } from '../lib/socket';
+import GebetaMapView from '../components/GebetaMapView';
 import { useAppContext } from '../contexts/AppContext';
+
+const statusColor = (s: string) =>
+  s === 'available' ? '#10B981' : s === 'busy' ? '#EF4444' : '#6B7280';
 
 const emptyNew = {
   name: '', phone: '', email: '', vehicleType: 'sedan', vehicleModel: '',
@@ -50,7 +54,6 @@ export default function Drivers() {
       t = setTimeout(() => load(), 300);
     };
     const events = [
-      'driver:location',
       'driver:status',
       'ride:status',
       'ride:accepted',
@@ -62,14 +65,43 @@ export default function Drivers() {
       'coupon:empty',
     ] as const;
     events.forEach((ev) => socket.on(ev, refresh));
+
+    // Live map pin movement without a full table reload (table rows don't
+    // need to re-render on every GPS tick, just the driver's dot on the map).
+    const onDriverLocation = (data: any) => {
+      if (!data?.driverId || typeof data.latitude !== 'number' || typeof data.longitude !== 'number') return;
+      setDrivers((prev) =>
+        prev.map((d) =>
+          d.id === data.driverId ? { ...d, currentLocation: { lat: data.latitude, lng: data.longitude } } : d
+        )
+      );
+    };
+    socket.on('driver:location', onDriverLocation);
+
     const poll = setInterval(() => load(), 5000);
     return () => {
       if (t) clearTimeout(t);
       events.forEach((ev) => socket.off(ev, refresh));
+      socket.off('driver:location', onDriverLocation);
       clearInterval(poll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const fleet = useMemo(
+    () =>
+      drivers
+        .filter((d) => d.currentLocation)
+        .map((d) => ({
+          id: d.id,
+          name: d.name,
+          status: d.status,
+          lng: d.currentLocation.lng,
+          lat: d.currentLocation.lat,
+          color: statusColor(d.status),
+        })),
+    [drivers]
+  );
 
   // Client-side filter by name, phone, and license plate
   const visible = drivers.filter((d) => {
@@ -202,9 +234,25 @@ export default function Drivers() {
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.totalDrivers', 'Total Drivers')}</p><p className="text-3xl font-semibold text-foreground">{drivers.length}</p></div>
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.available', 'Available')}</p><p className="text-3xl font-semibold text-[#10B981]">{drivers.filter((d) => d.status === 'available').length}</p></div>
-        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.busy', 'Busy')}</p><p className="text-3xl font-semibold text-[#EF4444]">{drivers.filter((d) => d.status === 'busy').length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.totalDrivers')}</p><p className="text-3xl font-semibold text-foreground">{drivers.length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.available')}</p><p className="text-3xl font-semibold text-[#10B981]">{drivers.filter((d) => d.status === 'available').length}</p></div>
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4"><p className="text-sm text-muted-foreground mb-1">{t('drivers.busy')}</p><p className="text-3xl font-semibold text-[#EF4444]">{drivers.filter((d) => d.status === 'busy').length}</p></div>
+      </div>
+
+      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden mb-6">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h4 className="font-semibold text-sm text-card-foreground">Live Fleet Map</h4>
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+            Live · click a driver for their address
+          </div>
+        </div>
+        <GebetaMapView fleet={fleet} height={320} zoom={12} className="w-full" />
+        {fleet.length === 0 && !loading && (
+          <p className="text-center text-xs text-muted-foreground py-2 border-t border-border">
+            No drivers currently reporting a location.
+          </p>
+        )}
       </div>
 
       <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">

@@ -81,15 +81,31 @@ export interface AuthUser {
   name: string;
   email: string;
   role: 'admin' | 'agent' | 'driver' | 'user' | string;
+  twoFactorEnabled?: boolean;
   createdAt?: string;
 }
 
 // ---- Centralized API surface ----
 export const api = {
   auth: {
-    login: (email: string, password: string) =>
-      cc<{ token: string; user: AuthUser }>('/auth/login', { method: 'POST', body: { email, password } }),
+    login: (email: string, password: string, code?: string) =>
+      cc<{ token?: string; user?: AuthUser; twoFactorRequired?: boolean }>('/auth/login', {
+        method: 'POST',
+        body: code ? { email, password, code } : { email, password },
+      }),
     logout: () => cc<null>('/auth/logout', { method: 'POST' }).catch(() => null),
+    changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
+      cc<null>('/settings/password', { method: 'POST', body: { currentPassword, newPassword, confirmPassword } }),
+  },
+
+  twoFactor: {
+    enable: (password: string) =>
+      v1<{ totpURI: string; backupCodes: string[]; qrCodeDataUrl: string | null }>('/auth/two-factor/enable', {
+        method: 'POST',
+        body: { password },
+      }),
+    verify: (code: string) => v1<{ verified: boolean }>('/auth/two-factor/verify', { method: 'POST', body: { code } }),
+    disable: (password: string) => v1<null>('/auth/two-factor/disable', { method: 'POST', body: { password } }),
   },
 
   dashboard: {

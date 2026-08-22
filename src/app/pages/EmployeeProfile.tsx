@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { api } from '../lib/api';
 import { formatETB } from '../lib/format';
+import { connectSocket, getSocket } from '../lib/socket';
+import GebetaMapView from '../components/GebetaMapView';
 
 const statusBadge = (s: string) =>
   ({ available: 'bg-[#10B981] text-white', busy: 'bg-[#EF4444] text-white', offline: 'bg-[#6B7280] text-white' } as any)[s] ||
@@ -24,6 +26,27 @@ export default function EmployeeProfile() {
       .then(setDriver)
       .catch(() => setDriver(null))
       .finally(() => setLoading(false));
+  }, [employeeId]);
+
+  // Live position updates so the map (and status) reflect this driver in
+  // real time, not just a snapshot from when the page first loaded.
+  useEffect(() => {
+    if (!employeeId) return;
+    const socket = getSocket() ?? connectSocket();
+    const onDriverLocation = (data: any) => {
+      if (data?.driverId !== employeeId || typeof data.latitude !== 'number' || typeof data.longitude !== 'number') return;
+      setDriver((prev: any) => (prev ? { ...prev, currentLocation: { lat: data.latitude, lng: data.longitude } } : prev));
+    };
+    const onDriverStatus = (data: any) => {
+      if (data?.driverId !== employeeId) return;
+      setDriver((prev: any) => (prev ? { ...prev, status: data.status ?? prev.status } : prev));
+    };
+    socket.on('driver:location', onDriverLocation);
+    socket.on('driver:status', onDriverStatus);
+    return () => {
+      socket.off('driver:location', onDriverLocation);
+      socket.off('driver:status', onDriverStatus);
+    };
   }, [employeeId]);
 
   if (loading) {
@@ -109,12 +132,6 @@ export default function EmployeeProfile() {
                 <p className="text-sm text-muted-foreground">Completed Rides</p>
                 <p className="font-semibold text-card-foreground">{driver.completedRides ?? driver.totalRides ?? 0}</p>
               </div>
-              {driver.currentLocation && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Last Location</p>
-                  <p className="font-semibold text-card-foreground">{driver.currentLocation.lat.toFixed(3)}, {driver.currentLocation.lng.toFixed(3)}</p>
-                </div>
-              )}
               <div>
                 <p className="text-sm text-muted-foreground">Tokuma Commission</p>
                 <p className="font-semibold text-card-foreground">{driver.commissionPercent ?? 10}%</p>
@@ -123,6 +140,33 @@ export default function EmployeeProfile() {
             <div className="mt-6">
               <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => navigate('/coupons')}>Manage Coupons</Button>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm xl:col-span-3">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle>Live Location</CardTitle>
+            {driver.currentLocation && (
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                Live · click the pin for the current address
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            {driver.currentLocation ? (
+              <GebetaMapView
+                driver={driver.currentLocation}
+                driverName={driver.name}
+                height={320}
+                zoom={14}
+                className="w-full"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No location reported yet - this driver hasn't gone online with GPS on.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
