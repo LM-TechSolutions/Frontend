@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { api, AuthUser, setToken, getToken } from '../lib/api';
+import { api, AuthUser, MyPermissions, setToken, getToken } from '../lib/api';
 import { connectSocket, disconnectSocket } from '../lib/socket';
 
 const USER_KEY = 'tokuma.user';
@@ -24,6 +24,14 @@ interface AuthContextValue {
   role: DashboardRole | null;
   isAuthenticated: boolean;
   isReady: boolean;
+  /** Effective capabilities from the server, e.g. `coupons:allocate`. */
+  permissions: string[];
+  isSuperAdmin: boolean;
+  /** This account's AgentProfile id, when they are a call-centre operator. */
+  operatorId: string | null;
+  /** Gate UI on a capability rather than a role: `can('coupons', 'allocate')`. */
+  can: (resource: string, action: string) => boolean;
+  refreshPermissions: () => Promise<void>;
   login: (email: string, password: string, code?: string) => Promise<LoginResult>;
   logout: () => void;
 }
@@ -42,6 +50,17 @@ function loadStoredUser(): AuthUser | null {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [capabilities, setCapabilities] = useState<MyPermissions | null>(null);
+
+  const refreshPermissions = useCallback(async () => {
+    try {
+      setCapabilities(await api.admins.myPermissions());
+    } catch {
+      // Permissions are an enhancement over the role check, never a gate on
+      // rendering — an older backend simply leaves the UI role-driven.
+      setCapabilities(null);
+    }
+  }, []);
 
   // Restore session on first load.
   useEffect(() => {
@@ -49,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (stored && getToken() && toDashboardRole(stored.role)) {
       setUser(stored);
       connectSocket();
+      refreshPermissions();
     } else if (stored) {
       // A stored session with a role that no longer qualifies (e.g. saved
       // before the server-side restriction existed) - discard it rather
@@ -57,19 +77,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(USER_KEY);
     }
     setIsReady(true);
-  }, []);
+  }, [refreshPermissions]);
 
-  const login = useCallback(async (email: string, password: string, code?: string): Promise<LoginResult> => {
-    const result = await api.auth.login(email, password, code);
-    if (result.twoFactorRequired || !result.token || !result.user) {
-      return { twoFactorRequired: true };
-    }
-    setToken(result.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(result.user));
-    setUser(result.user);
-    connectSocket();
-    return { twoFactorRequired: false, user: result.user };
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string, code?: string): Promise<LoginResult> => {
+      const result = await api.auth.login(email, password, code);
+      if (result.twoFactorRequired || !result.token || !result.user) {
+        return { twoFactorRequired: true };
+      }
+      setToken(result.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+      setUser(result.user);
+      connectSocket();
+      await refreshPermissions();
+      return { twoFactorRequired: false, user: result.user };
+    },
+    [refreshPermissions]
+  );
 
   const logout = useCallback(() => {
     api.auth.logout();
@@ -77,19 +101,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     localStorage.removeItem(USER_KEY);
     setUser(null);
+    setCapabilities(null);
   }, []);
 
   const dashboardRole = toDashboardRole(user?.role);
+
+  const can = useCallback(
+    (resource: string, action: string) => {
+      if (capabilities?.isSuperAdmin) return true;
+      if (capabilities?.permissions?.length) {
+        return capabilities.permissions.includes(`${resource}:${action}`);
+      }
+      // No permission data yet (still loading, or an older backend): fall back
+      // to the role personas the dashboard has always used.
+      return dashboardRole === 'admin';
+    },
+    [capabilities, dashboardRole]
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       role: dashboardRole,
       isAuthenticated: !!user && !!dashboardRole,
       isReady,
+      permissions: capabilities?.permissions ?? [],
+      isSuperAdmin: capabilities?.isSuperAdmin ?? false,
+      operatorId: capabilities?.operatorId ?? null,
+      can,
+      refreshPermissions,
       login,
       logout,
     }),
-    [user, dashboardRole, isReady, login, logout]
+    [user, dashboardRole, isReady, capabilities, can, refreshPermissions, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

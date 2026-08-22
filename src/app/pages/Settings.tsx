@@ -5,7 +5,8 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Loader2, ShieldCheck, ShieldOff, KeyRound, Copy, Languages } from 'lucide-react';
+import { Switch } from '../components/ui/switch';
+import { Loader2, ShieldCheck, ShieldOff, KeyRound, Copy, Languages, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +24,63 @@ const EDITABLE: { key: string; labelKey: string }[] = [
   { key: 'dispatch.offerTtlSeconds', labelKey: 'settings.offerTimeout' },
   { key: 'coupon.minBalanceThreshold', labelKey: 'settings.minCouponBalance' },
   { key: 'commission.defaultPercent', labelKey: 'settings.defaultCommission' },
+];
+
+/**
+ * Coupon economy controls.
+ *
+ * The deduction mode is the consequential one: it decides whether a completed
+ * ride costs the driver a fixed number of coupons, a percentage of the fare, or
+ * both — so it gets an explanation rather than a bare dropdown.
+ */
+const DEDUCTION_MODES = [
+  {
+    value: 'flat',
+    title: 'Fixed coupons',
+    description: 'Every completed ride costs the same number of coupons, whatever the fare.',
+  },
+  {
+    value: 'commission',
+    title: 'Commission only',
+    description: 'Each ride charges the Tokuma commission percentage of the fare instead.',
+  },
+  {
+    value: 'both',
+    title: 'Both',
+    description: 'The fixed coupons come off first, then the commission on top.',
+  },
+];
+
+const COUPON_NUMERIC: { key: string; label: string; hint: string }[] = [
+  {
+    key: 'coupon.perRideDeduction',
+    label: 'Coupons per completed ride',
+    hint: 'Deducted automatically when a driver ends a trip.',
+  },
+  {
+    key: 'coupon.operatorLowBalanceThreshold',
+    label: 'Operator low-stock warning',
+    hint: 'Inventory level at which an operator is prompted to restock.',
+  },
+];
+
+const COUPON_TOGGLES: { key: string; label: string; hint: string }[] = [
+  {
+    key: 'coupon.blockAcceptBelowMinimum',
+    label: 'Block accepting when underfunded',
+    hint: 'A driver who cannot cover the minimum plus the ride deduction is stopped from accepting.',
+  },
+  {
+    key: 'coupon.driverRequestEnabled',
+    label: 'Let drivers request refills',
+    hint: 'Drivers can ask an operator for coupons from the mobile app, and a request is raised automatically when they run dry.',
+  },
+];
+
+const COUPON_KEYS = [
+  'coupon.deductionMode',
+  ...COUPON_NUMERIC.map((f) => f.key),
+  ...COUPON_TOGGLES.map((f) => f.key),
 ];
 
 export default function Settings() {
@@ -48,7 +106,7 @@ export default function Settings() {
     setSaving(true);
     try {
       const payload: Record<string, string> = {};
-      EDITABLE.forEach(({ key }) => {
+      [...EDITABLE.map((f) => f.key), ...COUPON_KEYS].forEach((key) => {
         if (values[key] !== undefined) payload[key] = values[key];
       });
       await api.settings.updateSystem(payload);
@@ -143,9 +201,131 @@ export default function Settings() {
             )}
           </CardContent>
         </Card>
+
+        {/* Coupon economy — how a completed ride is charged. */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-[#00BDC3]" /> Coupon economy
+            </CardTitle>
+            <CardDescription>
+              What every completed ride costs a driver, and how they get more coupons
+              {role !== 'admin' ? ' (read-only — admin access required to edit)' : ''}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Deduction mode</Label>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {DEDUCTION_MODES.map((mode) => {
+                      const selected = (values['coupon.deductionMode'] ?? 'flat') === mode.value;
+                      return (
+                        <button
+                          key={mode.value}
+                          type="button"
+                          disabled={role !== 'admin'}
+                          onClick={() => setValues({ ...values, 'coupon.deductionMode': mode.value })}
+                          className={`rounded-xl border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
+                            selected
+                              ? 'border-[#00BDC3] bg-[#00BDC3]/10 ring-2 ring-[#00BDC3]/25'
+                              : 'border-border hover:border-[#00BDC3]/50 hover:bg-muted/50'
+                          }`}
+                        >
+                          <p className="text-sm font-medium text-foreground">{mode.title}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{mode.description}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {COUPON_NUMERIC.map((field) => (
+                    <div className="space-y-2" key={field.key}>
+                      <Label>{field.label}</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        className="tabular-nums"
+                        value={values[field.key] ?? ''}
+                        disabled={role !== 'admin'}
+                        onChange={(e) => setValues({ ...values, [field.key]: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">{field.hint}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3">
+                  {COUPON_TOGGLES.map((field) => {
+                    const on = values[field.key] === 'true';
+                    return (
+                      <div
+                        key={field.key}
+                        className="flex items-start justify-between gap-4 rounded-xl border border-border/70 p-4"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground">{field.label}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{field.hint}</p>
+                        </div>
+                        <Switch
+                          checked={on}
+                          disabled={role !== 'admin'}
+                          onCheckedChange={(checked) =>
+                            setValues({ ...values, [field.key]: checked ? 'true' : 'false' })
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Resolve the settings into the sentence they actually mean. */}
+                <div className="rounded-xl border border-[#00BDC3]/30 bg-[#00BDC3]/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">Effect on a completed ride</p>
+                  <p className="mt-1.5 text-sm text-foreground">{describeDeduction(values)}</p>
+                </div>
+
+                {role === 'admin' && (
+                  <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleSave} disabled={saving}>
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Save coupon settings
+                  </Button>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
+}
+
+/** Turn the coupon settings into the sentence an administrator can check. */
+function describeDeduction(values: Record<string, string>): string {
+  const mode = values['coupon.deductionMode'] ?? 'flat';
+  const perRide = Number(values['coupon.perRideDeduction'] ?? 1);
+  const commission = Number(values['commission.defaultPercent'] ?? 10);
+  const minBalance = Number(values['coupon.minBalanceThreshold'] ?? 10);
+  const blocks = values['coupon.blockAcceptBelowMinimum'] !== 'false';
+
+  const charge =
+    mode === 'commission'
+      ? `${commission}% of the fare is deducted as commission`
+      : mode === 'both'
+      ? `${perRide} coupon${perRide === 1 ? '' : 's'} plus ${commission}% of the fare are deducted`
+      : `${perRide} coupon${perRide === 1 ? '' : 's'} ${perRide === 1 ? 'is' : 'are'} deducted`;
+
+  const gate = blocks
+    ? ` Drivers below ${minBalance + (mode === 'commission' ? 0 : perRide)} coupons cannot accept a new ride.`
+    : ' Drivers are not blocked from accepting when underfunded.';
+
+  return `${charge} from the driver's wallet.${gate}`;
 }
 
 function SecurityCard() {

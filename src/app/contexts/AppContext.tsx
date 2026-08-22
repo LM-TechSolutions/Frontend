@@ -13,6 +13,7 @@ const translations = {
       rides: 'Rides',
       drivers: 'Drivers',
       coupons: 'Coupons',
+      admins: 'Administrators',
       settings: 'Settings',
     },
     auth: {
@@ -267,6 +268,7 @@ const translations = {
       rides: 'ጉዞዎች',
       drivers: 'አሽከርካሪዎች',
       coupons: 'ኩፖኖች',
+      admins: 'አስተዳዳሪዎች',
       settings: 'ቅንብሮች',
     },
     auth: {
@@ -518,6 +520,7 @@ const translations = {
       rides: 'Imala',
       drivers: 'Draayivaroota',
       coupons: 'Kuuponoota',
+      admins: 'Bulchitoota',
       settings: "Qindaa'inaa",
     },
     auth: {
@@ -806,6 +809,7 @@ const translations = {
       backToDrivers: "Gara Draayivarootti Deebi'i",
     },
   },
+};
 
 type TranslationKey = keyof typeof translations['en'];
 

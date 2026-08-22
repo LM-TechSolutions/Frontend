@@ -39,7 +39,17 @@ interface GebetaMapViewProps {
   /** Shown in the live-address popup for the single `driver` marker, if provided. */
   driverName?: string | null;
   /** Live fleet markers (e.g. available drivers on the dashboard map). Click any dot for its name/status + live address. */
-  fleet?: Array<MapPoint & { id?: string; name?: string; status?: string; color?: string }>;
+  fleet?: Array<MapPoint & { id?: string; name?: string; status?: string; color?: string; label?: string }>;
+  /**
+   * Makes fleet markers selectable rather than merely informational — clicking
+   * one calls back with its id. Used by map-based ride assignment, where the
+   * pin *is* the control.
+   */
+  onFleetSelect?: (id: string) => void;
+  /** The currently selected fleet marker, drawn larger with a halo. */
+  selectedFleetId?: string | null;
+  /** Draws a translucent radius ring around `pickup` (kilometres). */
+  radiusKm?: number | null;
   /** Explicit route as [lng,lat] pairs. Wins over auto road fetch. */
   routeCoords?: [number, number][];
   /** When true (default) and pickup+dropoff exist, fetch Gebeta road geometry. */
@@ -81,12 +91,58 @@ function pointsKey(a?: MapPoint | null, b?: MapPoint | null) {
   return `${a.lat.toFixed(5)},${a.lng.toFixed(5)}→${b.lat.toFixed(5)},${b.lng.toFixed(5)}`;
 }
 
+/**
+ * Fleet dot. Selected markers grow, gain a halo and a rank label, and sit above
+ * their neighbours, so the pin the operator picked stays findable in a cluster.
+ */
+function makeFleetElement(
+  d: { color?: string; label?: string; name?: string; status?: string },
+  isSelected: boolean,
+  interactive: boolean
+) {
+  const el = document.createElement('div');
+  const color = d.color ?? '#00BDC3';
+  const size = isSelected ? 30 : d.label ? 22 : 14;
+
+  el.style.cssText = `
+    width:${size}px; height:${size}px; border-radius:50%;
+    background:${color};
+    border:${isSelected ? 3 : 2}px solid #fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.3)${isSelected ? `, 0 0 0 6px ${color}33` : ''};
+    cursor:${interactive ? 'pointer' : 'default'};
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:${isSelected ? 13 : 11}px; font-weight:600;
+    line-height:1; transition:width .15s ease, height .15s ease;
+    z-index:${isSelected ? 5 : 1};`;
+
+  if (d.label) el.textContent = d.label;
+  if (d.name) el.title = d.status ? `${d.name} · ${d.status}` : d.name;
+  return el;
+}
+
+/** Approximate circle as a GeoJSON polygon, for the pickup radius ring. */
+function circlePolygon(lat: number, lng: number, radiusKm: number, steps = 64): GeoJSON.Feature<GeoJSON.Polygon> {
+  const coords: [number, number][] = [];
+  const latRadius = radiusKm / 110.574;
+  const lngRadius = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+
+  for (let i = 0; i <= steps; i++) {
+    const theta = (i / steps) * 2 * Math.PI;
+    coords.push([lng + lngRadius * Math.cos(theta), lat + latRadius * Math.sin(theta)]);
+  }
+
+  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coords] } };
+}
+
 export default function GebetaMapView({
   pickup,
   dropoff,
   driver,
   driverName,
   fleet,
+  onFleetSelect,
+  selectedFleetId,
+  radiusKm,
   routeCoords,
   autoRoadRoute = true,
   onRouteResolved,
@@ -100,6 +156,8 @@ export default function GebetaMapView({
   const fleetMarkersRef = useRef<maplibregl.Marker[]>([]);
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
+  const onFleetSelectRef = useRef(onFleetSelect);
+  onFleetSelectRef.current = onFleetSelect;
   const onRouteResolvedRef = useRef(onRouteResolved);
   onRouteResolvedRef.current = onRouteResolved;
   const [ready, setReady] = useState(false);
@@ -224,23 +282,65 @@ export default function GebetaMapView({
     fleetMarkersRef.current.forEach((m) => m.remove());
     fleetMarkersRef.current = [];
     (fleet ?? []).forEach((d) => {
-      const el = document.createElement('div');
-      el.style.cssText = `width:14px;height:14px;border-radius:50%;background:${d.color ?? '#00BDC3'};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;`;
-      const title = d.name ? `<strong>${escapeHtml(d.name)}</strong>${d.status ? ` · ${escapeHtml(d.status)}` : ''}<br/>` : '';
-      const popup = new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(
-        `${title}<span class="text-xs text-muted-foreground">Locating…</span>`
-      );
-      // Lazy: only spend a reverse-geocode call once this specific driver's
-      // popup is actually opened, not on every location tick for the whole fleet.
-      popup.on('open', () => {
-        resolveAddress(d.lat, d.lng).then((address) => {
-          popup.setHTML(`${title}${escapeHtml(address)}`);
+      const isSelected = Boolean(d.id && selectedFleetId && d.id === selectedFleetId);
+      const el = makeFleetElement(d, isSelected, Boolean(onFleetSelectRef.current));
+
+      const marker = new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]);
+
+      if (onFleetSelectRef.current && d.id) {
+        // The pin is the control: selecting is the click's whole job, so no
+        // popup competes with it for the same gesture.
+        el.addEventListener('click', (event) => {
+          event.stopPropagation();
+          onFleetSelectRef.current?.(d.id!);
         });
-      });
-      fleetMarkersRef.current.push(
-        new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]).setPopup(popup).addTo(map)
-      );
+      } else {
+        const title = d.name
+          ? `<strong>${escapeHtml(d.name)}</strong>${d.status ? ` · ${escapeHtml(d.status)}` : ''}<br/>`
+          : '';
+        const popup = new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(
+          `${title}<span class="text-xs text-muted-foreground">Locating…</span>`
+        );
+        // Lazy: only spend a reverse-geocode call once this specific driver's
+        // popup is actually opened, not on every location tick for the whole fleet.
+        popup.on('open', () => {
+          resolveAddress(d.lat, d.lng).then((address) => {
+            popup.setHTML(`${title}${escapeHtml(address)}`);
+          });
+        });
+        marker.setPopup(popup);
+      }
+
+      marker.addTo(map);
+      fleetMarkersRef.current.push(marker);
     });
+
+    // Radius ring around the pickup, so an operator can see at a glance which
+    // drivers fall inside the dispatch radius.
+    const ringId = 'pickup-radius';
+    const existingRing = map.getSource(ringId) as maplibregl.GeoJSONSource | undefined;
+    if (pickup && radiusKm && radiusKm > 0) {
+      const ring = circlePolygon(pickup.lat, pickup.lng, radiusKm);
+      if (existingRing) {
+        existingRing.setData(ring);
+      } else {
+        map.addSource(ringId, { type: 'geojson', data: ring });
+        map.addLayer({
+          id: `${ringId}-fill`,
+          type: 'fill',
+          source: ringId,
+          paint: { 'fill-color': '#00BDC3', 'fill-opacity': 0.07 },
+        });
+        map.addLayer({
+          id: `${ringId}-line`,
+          type: 'line',
+          source: ringId,
+          paint: { 'line-color': '#00BDC3', 'line-width': 1.5, 'line-opacity': 0.5, 'line-dasharray': [2, 2] },
+        });
+      }
+    } else if (existingRing) {
+      existingRing.setData({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[]] } });
+    }
 
     // Render route using MapLibre GL native GeoJSON line layers for smooth, road-accurate polylines
     const path: [number, number][] =
@@ -321,7 +421,7 @@ export default function GebetaMapView({
       map.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 600 });
     }
     }
-  }, [ready, pickup, dropoff, driver, driverName, routeCoords, roadCoords, fleet]);
+  }, [ready, pickup, dropoff, driver, driverName, routeCoords, roadCoords, fleet, selectedFleetId, radiusKm]);
 
   if (!config.gebetaApiKey) {
     return (

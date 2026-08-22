@@ -85,6 +85,176 @@ export interface AuthUser {
   createdAt?: string;
 }
 
+// ---- Coupon hierarchy ----------------------------------------------------
+
+export interface OperatorWallet {
+  id: string;
+  operatorId: string;
+  operator?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    employeeId: string;
+    shift?: string | null;
+    user?: { email: string; phoneNumber: string | null; isActive: boolean };
+  };
+  balance: number;
+  lowBalanceThreshold: number;
+  totalAllocated: number;
+  totalSold: number;
+  isLowBalance: boolean;
+  updatedAt: string;
+}
+
+export interface CouponPackage {
+  id: string;
+  name: string;
+  couponCount: number;
+  price: number | null;
+  description: string | null;
+  isActive: boolean;
+}
+
+export interface CouponRequest {
+  id: string;
+  requesterType: 'driver' | 'operator';
+  driverId: string | null;
+  operatorId: string | null;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  note: string | null;
+  autoCreated: boolean;
+  resolutionNote: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  driver?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    vehiclePlate: string;
+    vehicleType: string;
+    couponWallet?: { balance: number } | null;
+    user?: { phoneNumber: string | null; email: string };
+  } | null;
+  operator?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    employeeId: string;
+    couponWallet?: { balance: number } | null;
+    user?: { phoneNumber: string | null; email: string };
+  } | null;
+}
+
+export interface AssignmentCandidate {
+  driverId: string;
+  name: string;
+  phoneNumber: string | null;
+  vehicleType: string;
+  vehiclePlate: string;
+  vehicleModel: string | null;
+  rating: number;
+  totalRides: number;
+  couponBalance: number;
+  isOnline: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  distanceKm: number | null;
+  etaMinutes: number | null;
+  isEligible: boolean;
+  blockedReason: string | null;
+}
+
+export interface NearbyDriversResponse {
+  rideId: string;
+  pickup: { latitude: number; longitude: number; address: string };
+  dropoff: { latitude: number; longitude: number; address: string };
+  assignedDriverId: string | null;
+  minCouponBalance: number;
+  eligibleCount: number;
+  candidates: AssignmentCandidate[];
+}
+
+export interface MyPermissions {
+  userId: string;
+  role: string;
+  actorType: 'super_admin' | 'admin' | 'operator' | 'driver' | 'user';
+  isSuperAdmin: boolean;
+  isAdmin: boolean;
+  operatorId: string | null;
+  roles: string[];
+  permissions: string[];
+}
+
+export interface AdminAccount {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  department: string | null;
+  isSuperAdmin: boolean;
+  isActive: boolean;
+  roles: string[];
+  permissions: string[];
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export interface DriverPerformanceReport {
+  driver: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    rating: number;
+    totalRides: number;
+    vehiclePlate: string;
+    vehicleType: string;
+    commissionPercent: number;
+    couponWallet?: { balance: number } | null;
+  } | null;
+  range: { startDate: string; endDate: string };
+  summary: {
+    completedRides: number;
+    cancelledRides: number;
+    offeredRides: number;
+    acceptedRides: number;
+    acceptanceRate: number | null;
+    totalFare: number;
+    totalEarnings: number;
+    totalCommission: number;
+    couponsDeducted: number;
+    couponsRefunded: number;
+    netCouponsSpent: number;
+    distanceKm: number;
+    drivingHours: number;
+    onlineHours: number;
+    averageCustomerRating: number | null;
+    currentRating: number | null;
+    currentCouponBalance: number;
+  };
+  dailySeries: Array<{ date: string; rides: number; fare: number; earnings: number }>;
+  rides: Array<{
+    id: string;
+    status: string;
+    customerName: string;
+    customerPhone: string;
+    pickupAddress: string;
+    dropoffAddress: string;
+    fare: number | null;
+    driverEarnings: number | null;
+    commissionAmount: number | null;
+    distance: number | null;
+    duration: number | null;
+    currency: string | null;
+    createdAt: string;
+    completedAt: string | null;
+    cancelledAt: string | null;
+    customerRating: number | null;
+  }>;
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
 // ---- Centralized API surface ----
 export const api = {
   auth: {
@@ -127,6 +297,8 @@ export const api = {
       cc<{ rideId: string; dispatched: boolean; candidates: number }>(`/rides/${rideId}/redispatch`, { method: 'POST' }),
     location: (rideId: string) => cc<any>(`/rides/${rideId}/location`),
     history: (rideId: string) => v1<any>(`/rides/${rideId}/history`),
+    /** Nearest assignable drivers for this ride, ranked by distance from pickup. */
+    nearbyDrivers: (rideId: string) => v1<NearbyDriversResponse>(`/rides/${rideId}/nearby-drivers`),
   },
 
   drivers: {
@@ -136,15 +308,82 @@ export const api = {
     update: (driverId: string, body: any) => cc<any>(`/drivers/${driverId}`, { method: 'PATCH', body }),
     remove: (driverId: string) => cc<any>(`/drivers/${driverId}`, { method: 'DELETE' }),
     locationHistory: (driverId: string) => cc<any>(`/drivers/${driverId}/location-history`),
+    /** Activity report for a custom date range (inclusive of both days). */
+    performance: (driverId: string, query: { startDate?: string; endDate?: string; page?: number; limit?: number }) =>
+      v1<DriverPerformanceReport>(`/drivers/${driverId}/performance`, { query }),
   },
 
   coupons: {
     list: (query?: Record<string, any>) => cc<any>('/coupons', { query }),
     balance: (driverId: string) => cc<any>(`/coupons/balance/${driverId}`),
+    /**
+     * Refill a driver. An operator's refill debits their own inventory and is
+     * rejected when they are out of stock; an admin mints directly.
+     */
     refill: (driverId: string, amount: number, notes?: string) =>
       cc<any>('/coupons/refill', { method: 'POST', body: { driverId, amount, notes } }),
     deduct: (driverId: string, amount: number, notes?: string) =>
       cc<any>('/coupons/deduct', { method: 'POST', body: { driverId, amount, notes } }),
+    transactions: (driverId: string, limit = 50) =>
+      v1<any[]>(`/coupons/${driverId}/transactions`, { query: { limit } }),
+  },
+
+  /** Operator coupon inventory — the middle tier of the distribution hierarchy. */
+  operatorCoupons: {
+    listWallets: () => cc<{ wallets: OperatorWallet[] }>('/operator-coupons'),
+    wallet: (operatorId = 'me') => cc<OperatorWallet>(`/operator-coupons/${operatorId}`),
+    transactions: (operatorId = 'me', limit = 50) =>
+      cc<{ transactions: any[] }>(`/operator-coupons/${operatorId}/transactions`, { query: { limit } }),
+    allocate: (operatorId: string, body: { packageId?: string; amount?: number; reason?: string }) =>
+      cc<any>(`/operator-coupons/${operatorId}/allocate`, { method: 'POST', body }),
+    adjust: (operatorId: string, amount: number, reason: string) =>
+      cc<any>(`/operator-coupons/${operatorId}/adjust`, { method: 'POST', body: { amount, reason } }),
+    /** Transfer coupons into a driver's wallet. */
+    sell: (body: { driverId: string; amount: number; reason?: string; operatorId?: string }) =>
+      cc<any>('/coupon-sales', { method: 'POST', body }),
+  },
+
+  couponPackages: {
+    list: (includeInactive = false) =>
+      cc<{ packages: CouponPackage[] }>('/coupon-packages', { query: { includeInactive } }),
+    create: (body: { name: string; couponCount: number; price?: number; description?: string }) =>
+      cc<CouponPackage>('/coupon-packages', { method: 'POST', body }),
+    update: (packageId: string, body: Partial<CouponPackage>) =>
+      cc<CouponPackage>(`/coupon-packages/${packageId}`, { method: 'PATCH', body }),
+  },
+
+  couponRequests: {
+    list: (query?: { status?: string; requesterType?: string; limit?: number }) =>
+      cc<{ requests: CouponRequest[]; pendingCount: number }>('/coupon-requests', { query }),
+    mine: () => cc<{ requests: CouponRequest[] }>('/coupon-requests/mine'),
+    create: (body: { amount: number; note?: string; operatorId?: string }) =>
+      cc<CouponRequest>('/coupon-requests', { method: 'POST', body }),
+    approve: (requestId: string, body?: { amount?: number; resolutionNote?: string; operatorId?: string; packageId?: string }) =>
+      cc<CouponRequest>(`/coupon-requests/${requestId}/approve`, { method: 'POST', body: body ?? {} }),
+    reject: (requestId: string, resolutionNote?: string) =>
+      cc<CouponRequest>(`/coupon-requests/${requestId}/reject`, { method: 'POST', body: { resolutionNote } }),
+    cancel: (requestId: string) =>
+      cc<CouponRequest>(`/coupon-requests/${requestId}/cancel`, { method: 'POST' }),
+  },
+
+  /** Administrator accounts, permission sets, and the Super Admin role. */
+  admins: {
+    myPermissions: () => cc<MyPermissions>('/me/permissions'),
+    catalog: () =>
+      cc<{
+        permissions: Array<{ key: string; resource: string; action: string; description: string }>;
+        roles: Array<{ name: string; description: string | null; permissions: string[] }>;
+        presets: Array<{ name: string; description: string; permissions: string[] }>;
+      }>('/permission-catalog'),
+    list: () => cc<{ admins: AdminAccount[] }>('/admins'),
+    create: (body: { name: string; email: string; password: string; phone?: string; department?: string; roles?: string[] }) =>
+      cc<AdminAccount>('/admins', { method: 'POST', body }),
+    update: (adminId: string, body: { name?: string; phone?: string; department?: string; isActive?: boolean }) =>
+      cc<AdminAccount>(`/admins/${adminId}`, { method: 'PATCH', body }),
+    setRoles: (adminId: string, roles: string[]) =>
+      cc<AdminAccount>(`/admins/${adminId}/permissions`, { method: 'PUT', body: { roles } }),
+    transferSuperAdmin: (adminId: string) =>
+      cc<AdminAccount>(`/admins/${adminId}/transfer-super-admin`, { method: 'POST' }),
   },
 
   operators: {

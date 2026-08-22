@@ -11,7 +11,8 @@ import RideTracking from "./pages/RideTracking";
 import Operators from "./pages/Operators";
 import Analytics from "./pages/Analytics";
 import CallLogs from "./pages/CallLogs";
-import EmployeeProfile from "./pages/EmployeeProfile";
+import DriverReport from "./pages/DriverReport";
+import Admins from "./pages/Admins";
 
 export const router = createBrowserRouter([
   {
@@ -62,8 +63,14 @@ export const router = createBrowserRouter([
         element: <Settings />,
       },
       {
+        // The driver detail view is now a full activity report with a
+        // date-range filter; the path is unchanged so existing links still work.
         path: "employees/:employeeId",
-        element: <EmployeeProfile />,
+        element: <DriverReport />,
+      },
+      {
+        path: "admins",
+        element: <Admins />,
       },
     ],
       },

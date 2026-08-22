@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useAppContext } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,7 +61,7 @@ export interface WebNotificationItem {
 export default function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role: userRole, logout } = useAuth();
+  const { user, role: userRole, logout, isSuperAdmin } = useAuth();
   const userName = user?.name ?? 'User';
   const { t, language, setLanguage, theme, setTheme } = useAppContext();
   const [notifications, setNotifications] = useState<WebNotificationItem[]>([]);
@@ -183,7 +183,20 @@ export default function DashboardLayout() {
     setNotifications([]);
   };
 
-  const navigation = userRole === 'admin' ? adminNavigation : operatorNavigation;
+  // Administrators is Super-Admin-only: it is the one screen that can create
+  // other administrators, so it appears only for the account that may use it.
+  const navigation = useMemo(() => {
+    const base = userRole === 'admin' ? adminNavigation : operatorNavigation;
+    if (!isSuperAdmin) return base;
+    const settingsIndex = base.findIndex((item) => item.href === '/settings');
+    const withAdmins = [...base];
+    withAdmins.splice(settingsIndex === -1 ? base.length : settingsIndex, 0, {
+      nameKey: 'nav.admins',
+      href: '/admins',
+      icon: Shield,
+    });
+    return withAdmins;
+  }, [userRole, isSuperAdmin]);
 
   const handleLogout = () => {
     logout();

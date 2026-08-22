@@ -12,6 +12,7 @@ import { rideStatusLabel } from '../lib/format';
 import GebetaMapView from '../components/GebetaMapView';
 import LogCallDialog from '../components/LogCallDialog';
 import NewRideDialog from '../components/NewRideDialog';
+import AssignFromMapDialog from '../components/AssignFromMapDialog';
 import { useAppContext } from '../contexts/AppContext';
 
 const ACTIVE_STATUSES = ['dispatched', 'accepted', 'arrived', 'in_progress'];
@@ -132,17 +133,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleAssign = async (driver: any, ride: any) => {
-    try {
-      await api.rides.assign(ride.id, driver.id);
-      toast.success(`Ride assigned to ${driver.name}`);
-      setAssignFor(null);
-      load();
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to assign driver');
-    }
-  };
-
   return (
     <div className="h-full flex">
       {/* Left Panel */}
@@ -255,39 +245,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Assign driver dialog */}
-      <Dialog open={!!assignFor} onOpenChange={(open) => !open && setAssignFor(null)}>
-        <DialogContent className="sm:max-w-[800px] max-h-[600px]">
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.assignDriverTo', 'Assign Driver to {0}', { 0: assignFor?.customerName ?? '' })}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-1 gap-3 py-4 max-h-[400px] overflow-auto">
-            {availableDrivers.map((driver) => (
-              <Card key={driver.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="font-semibold text-card-foreground">{driver.name}</p>
-                        <Badge className={statusBadge(driver.status)}>{driver.status}</Badge>
-                      </div>
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <p>{driver.vehicleType} - {driver.licensePlate}</p>
-                        <p className="flex items-center gap-1"><Phone className="w-3 h-3" /> {driver.phone}</p>
-                        <p className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> Coupon: {driver.couponBalance}</p>
-                      </div>
-                    </div>
-                    <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => assignFor && handleAssign(driver, assignFor)}>
-                      Assign
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {availableDrivers.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">{t('dashboard.noAvailableDrivers', 'No available drivers')}</p>}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Map-based assignment: pick the nearest driver off the pickup point. */}
+      <AssignFromMapDialog ride={assignFor} onClose={() => setAssignFor(null)} onAssigned={load} />
     </div>
   );
 }
