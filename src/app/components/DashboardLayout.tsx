@@ -194,7 +194,6 @@ export default function DashboardLayout() {
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
       <aside className="w-[260px] bg-sidebar border-r border-sidebar-border flex flex-col">
-        {/* Logo */}
         <div className="h-16 flex items-center justify-center border-b border-sidebar-border">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-full bg-[#00BDC3] flex items-center justify-center">
@@ -204,7 +203,6 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
@@ -225,7 +223,6 @@ export default function DashboardLayout() {
           })}
         </nav>
 
-        {/* User Profile at Bottom */}
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-2">
             <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center">
@@ -237,7 +234,9 @@ export default function DashboardLayout() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm text-sidebar-foreground truncate">{userName}</p>
-              <p className="text-xs text-muted-foreground">{userRole === 'admin' ? 'Administrator' : 'Call Center'}</p>
+              <p className="text-xs text-muted-foreground">
+                {userRole === 'admin' ? t('auth.admin', 'Administrator') : t('common.callCenter', 'Call Center')}
+              </p>
             </div>
           </div>
         </div>
@@ -254,7 +253,7 @@ export default function DashboardLayout() {
             {userRole === 'admin' && (
               <Badge className="bg-[#00BDC3] text-white hover:bg-[#00BDC3]">
                 <Shield className="w-3 h-3 mr-1" />
-                Admin
+                {t('common.adminBadge', 'Admin')}
               </Badge>
             )}
           </div>
@@ -383,20 +382,20 @@ export default function DashboardLayout() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>{t('common.account', 'My Account')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <User className="w-4 h-4 mr-2" />
-                  Profile
+                  {t('common.profile', 'Profile')}
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <Settings className="w-4 h-4 mr-2" />
-                  Settings
+                  {t('nav.settings', 'Settings')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
-                  Logout
+                  {t('common.logout', 'Logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

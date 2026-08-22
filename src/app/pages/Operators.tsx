@@ -54,18 +54,18 @@ export default function Operators() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('operators.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('operators.subtitle')}</p>
+          <h1 className="text-2xl font-semibold text-foreground">{t('operators.title', 'Operators Management')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('operators.subtitle', 'Manage call center operators and track performance')}</p>
         </div>
         <AddOperatorDialog onCreated={load} />
       </div>
 
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: 'Total Operators', value: operators.length, icon: UserCog, color: '#00BDC3' },
-          { label: 'Online Now', value: onlineCount, icon: Users, color: '#10B981' },
-          { label: 'Total Rides Created', value: totalCustomers, icon: Users, color: '#00BDC3' },
-          { label: 'Total Calls', value: totalCalls, icon: PhoneCall, color: '#00BDC3' },
+          { label: t('operators.totalOperators', 'Total Operators'), value: operators.length, icon: UserCog, color: '#00BDC3' },
+          { label: t('operators.onlineNow', 'Online Now'), value: onlineCount, icon: Users, color: '#10B981' },
+          { label: t('operators.totalRidesCreated', 'Total Rides Created'), value: totalCustomers, icon: Users, color: '#00BDC3' },
+          { label: t('operators.totalCalls', 'Total Calls'), value: totalCalls, icon: PhoneCall, color: '#00BDC3' },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-6">
@@ -82,7 +82,7 @@ export default function Operators() {
         <CardContent className="p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder={t('operators.searchPlaceholder')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
+            <Input placeholder={t('operators.searchPlaceholder', 'Search by name, email, or phone…')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
           </div>
         </CardContent>
       </Card>
@@ -101,15 +101,15 @@ export default function Operators() {
                     </div>
                     <div><CardTitle className="text-base">{op.name}</CardTitle><p className="text-xs text-muted-foreground mt-1 capitalize">{op.shift}</p></div>
                   </div>
-                  <Badge className={statusColor(op.status === 'active')}>{op.status === 'active' ? 'Active' : 'Inactive'}</Badge>
+                  <Badge className={statusColor(op.status === 'active')}>{op.status === 'active' ? t('operators.active', 'Active') : t('operators.inactive', 'Inactive')}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Mail className="w-4 h-4" /><span>{op.email}</span></div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Phone className="w-4 h-4" /><span>{op.phone}</span></div>
                 <div className="pt-3 border-t border-border grid grid-cols-2 gap-4 text-sm">
-                  <div><p className="text-muted-foreground">Total Calls</p><p className="font-semibold text-foreground">{(op.totalCalls ?? 0).toLocaleString()}</p></div>
-                  <div><p className="text-muted-foreground">Rides Created</p><p className="font-semibold text-foreground">{(op.totalRidesCreated ?? 0).toLocaleString()}</p></div>
+                  <div><p className="text-muted-foreground">{t('operators.totalCalls', 'Total Calls')}</p><p className="font-semibold text-foreground">{(op.totalCalls ?? 0).toLocaleString()}</p></div>
+                  <div><p className="text-muted-foreground">{t('operators.totalRidesCreated', 'Total Rides Created')}</p><p className="font-semibold text-foreground">{(op.totalRidesCreated ?? 0).toLocaleString()}</p></div>
                 </div>
               </CardContent>
             </Card>
@@ -118,7 +118,7 @@ export default function Operators() {
       )}
 
       {!loading && visible.length === 0 && (
-        <div className="text-center py-12"><Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">{t('operators.noOperators')}</p></div>
+        <div className="text-center py-12"><Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">{t('operators.noOperators', 'No operators found')}</p></div>
       )}
     </div>
   );
@@ -153,30 +153,30 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white"><Plus className="w-4 h-4 mr-2" /> {t('operators.addButton')}</Button>
+        <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white"><Plus className="w-4 h-4 mr-2" /> {t('operators.addButton', 'Add Operator')}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader><DialogTitle>Add New Operator</DialogTitle><DialogDescription>Add a new call center operator to the system</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{t('operators.addNewTitle', 'Add New Operator')}</DialogTitle><DialogDescription>{t('operators.addNewDescription', 'Add a new call center operator to the system')}</DialogDescription></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="space-y-2"><Label>Full Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" required /></div>
-          <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@tokuma.et" required /></div>
-          <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0911 123456" required /></div>
-          <div className="space-y-2"><Label>Password</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" required /></div>
+          <div className="space-y-2"><Label>{t('operators.fullName', 'Full Name')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" required /></div>
+          <div className="space-y-2"><Label>{t('operators.email', 'Email')}</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@tokuma.et" required /></div>
+          <div className="space-y-2"><Label>{t('operators.phone', 'Phone')}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0911 123456" required /></div>
+          <div className="space-y-2"><Label>{t('operators.password', 'Password')}</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" required /></div>
           <div className="space-y-2">
-            <Label>Shift</Label>
+            <Label>{t('operators.shift', 'Shift')}</Label>
             <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="morning">Morning</SelectItem>
+                <SelectItem value="morning">{t('operators.morning', 'Morning')}</SelectItem>
                 <SelectItem value="afternoon">Afternoon</SelectItem>
                 <SelectItem value="night">Night</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">{t('common.cancel')}</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">{t('operators.cancel', 'Cancel')}</Button>
             <Button type="submit" className="flex-1 bg-[#00BDC3] hover:bg-[#009EA3] text-white" disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('operators.addButton')}
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('operators.addOperator', 'Add Operator')}
             </Button>
           </div>
         </form>

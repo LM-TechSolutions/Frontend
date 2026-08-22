@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/api';
 import type { RoadRoute } from '../lib/route';
 import RideLocationPicker, { type PlaceValue } from './RideLocationPicker';
+import { useAppContext } from '../contexts/AppContext';
 
 interface Props {
   open: boolean;
@@ -17,6 +18,7 @@ interface Props {
 
 /** Shared "Create New Ride" dialog with map-based pickup/destination selection. */
 export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) {
+  const { t } = useAppContext();
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [pickup, setPickup] = useState<PlaceValue | null>(null);
@@ -79,11 +81,11 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
       }}
     >
       <DialogContent className="sm:max-w-[640px] max-h-[92vh] overflow-auto">
-        <DialogHeader><DialogTitle>Create New Ride</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t('rides.createRide', 'Create New Ride')}</DialogTitle></DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label>Customer Name <span className="text-muted-foreground font-normal">(optional)</span></Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Leave blank for Guest" /></div>
-            <div className="space-y-2"><Label>Phone *</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="0911 234567" /></div>
+            <div className="space-y-2"><Label>{t('rides.customerName', 'Customer Name')} <span className="text-muted-foreground font-normal">({t('common.optional', 'optional')})</span></Label><Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={t('dashboard.leaveBlankForGuest', 'Leave blank for Guest')} /></div>
+            <div className="space-y-2"><Label>{t('rides.customerPhone', 'Phone *')}</Label><Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="0911 234567" /></div>
           </div>
           <RideLocationPicker
             pickup={pickup}
@@ -93,9 +95,9 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
           />
         </div>
         <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel', 'Cancel')}</Button>
           <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={submit} disabled={creating}>
-            {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Create Ride
+            {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('rides.createRide', 'Create Ride')}
           </Button>
         </div>
       </DialogContent>
