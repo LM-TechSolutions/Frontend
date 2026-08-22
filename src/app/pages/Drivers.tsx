@@ -40,6 +40,7 @@ export default function Drivers() {
   const [form, setForm] = useState(emptyNew);
   const [edit, setEdit] = useState({ name: '', phone: '', vehicleModel: '', licensePlate: '', commissionPercent: 10 });
   const [minCouponBalance, setMinCouponBalance] = useState(10);
+  const [mapFilter, setMapFilter] = useState<'all' | 'available' | 'busy' | 'offline'>('all');
 
   const fetchDrivers = useCallback(async () => {
     const [res, ops] = await Promise.all([
@@ -88,6 +89,7 @@ export default function Drivers() {
     () =>
       drivers
         .filter((d) => d.currentLocation)
+        .filter((d) => mapFilter === 'all' || d.status === mapFilter)
         .map((d) => ({
           id: d.id,
           name: d.name,
@@ -95,8 +97,9 @@ export default function Drivers() {
           lng: d.currentLocation.lng,
           lat: d.currentLocation.lat,
           color: statusColor(d.status),
+          photoUrl: d.profilePicture ?? null,
         })),
-    [drivers]
+    [drivers, mapFilter]
   );
 
   const vehicles = useMemo(
@@ -290,7 +293,56 @@ export default function Drivers() {
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h4 className="text-sm font-semibold">Live fleet map</h4>
         </div>
-        <GebetaMapView fleet={fleet} height={320} zoom={12} className="w-full" />
+        <GebetaMapView
+          fleet={fleet}
+          height={320}
+          zoom={12}
+          className="w-full"
+          onFleetSelect={(id) => navigate(`/employees/${id}`)}
+          overlay={
+            <div className="pointer-events-auto absolute left-3 top-3 w-[220px] rounded-2xl border border-border/80 bg-card/95 p-3 text-xs shadow-md backdrop-blur">
+              <p className="mb-2 font-semibold">Live fleet</p>
+              <div className="mb-2 grid grid-cols-2 gap-1">
+                {(
+                  [
+                    ['all', 'All'],
+                    ['available', 'Online'],
+                    ['busy', 'Busy'],
+                    ['offline', 'Off'],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setMapFilter(id)}
+                    className={`rounded-lg px-2 py-1 text-left font-medium ${
+                      mapFilter === id ? 'bg-primary/12 text-primary' : 'hover:bg-muted'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="space-y-1.5 text-muted-foreground">
+                <p className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#0B7A55]" />
+                  {drivers.filter((d) => d.status === 'available').length} available
+                </p>
+                <p className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#AE2E2D]" />
+                  {drivers.filter((d) => d.status === 'busy').length} busy
+                </p>
+                <p className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#6B7280]" />
+                  {drivers.filter((d) => d.status === 'offline').length} offline
+                </p>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {fleet.length} with GPS · tap a pin to open the report
+              </p>
+            </div>
+          }
+        />
       </Surface>
 
       <Surface>

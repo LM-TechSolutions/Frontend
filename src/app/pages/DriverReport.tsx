@@ -3,12 +3,12 @@ import { useNavigate, useParams } from 'react-router';
 import { format, subDays } from 'date-fns';
 import {
   ArrowLeft,
-  Ban,
   CheckCircle2,
   Clock,
   Download,
   Gauge,
   Loader2,
+  Phone,
   Star,
   Ticket,
   TrendingUp,
@@ -28,12 +28,13 @@ import { Button } from '../components/ui/button';
 import { StatusBadge } from '../components/layout/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { toast } from 'sonner';
-import { api, type DriverPerformanceReport } from '../lib/api';
+import { api, ApiError, type DriverPerformanceReport } from '../lib/api';
 import { formatETB, rideStatusLabel } from '../lib/format';
 import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import GebetaMapView from '../components/GebetaMapView';
 import { EmptyState, Initials, StatTile } from '../components/coupons/CouponAtoms';
 import { connectSocket, getSocket } from '../lib/socket';
+import { ErrorPage } from './ErrorPage';
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 
@@ -54,6 +55,7 @@ export default function DriverReport() {
   const [driver, setDriver] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!employeeId) return;
@@ -70,8 +72,11 @@ export default function DriverReport() {
       ]);
       setReport(reportRes);
       if (driverRes) setDriver(driverRes);
+      setErrorStatus(null);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not load the driver report');
+      const status = e instanceof ApiError ? e.status : 500;
+      setErrorStatus(status);
+      if (status !== 404) toast.error(e?.message ?? 'Could not load the driver report');
     } finally {
       setLoading(false);
     }
@@ -151,19 +156,7 @@ export default function DriverReport() {
   }
 
   if (!report?.driver && !driver) {
-    return (
-      <div className="p-6">
-        <EmptyState
-          icon={Ban}
-          title="Driver not found"
-          action={
-            <Button onClick={() => navigate('/drivers')}>
-              Back to drivers
-            </Button>
-          }
-        />
-      </div>
-    );
+    return <ErrorPage status={errorStatus && errorStatus >= 400 ? errorStatus : 404} />;
   }
 
   return (
@@ -455,9 +448,30 @@ export default function DriverReport() {
             <GebetaMapView
               driver={driver.currentLocation}
               driverName={name}
+              driverPhoto={driver?.profilePicture ?? null}
               height={300}
               zoom={14}
               className="w-full"
+              overlay={
+                <div className="pointer-events-auto absolute left-3 top-3 max-w-[min(100%-4.5rem,20rem)] rounded-2xl border border-border/80 bg-card/95 px-3 py-2.5 shadow-md backdrop-blur">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10B981]" />
+                    <p className="truncate text-sm font-semibold">{name}</p>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Live</span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {(report?.driver?.vehicleType ?? driver?.vehicleType ?? 'Vehicle')}
+                    {(report?.driver?.vehiclePlate ?? driver?.licensePlate) ? ` · ${report?.driver?.vehiclePlate ?? driver?.licensePlate}` : ''}
+                  </p>
+                  {(driver?.phone ?? driver?.user?.phoneNumber) && (
+                    <Button size="sm" variant="outline" className="mt-2" asChild>
+                      <a href={`tel:${driver.phone ?? driver.user?.phoneNumber}`}>
+                        <Phone className="mr-1.5 h-3.5 w-3.5" /> Call driver
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              }
             />
           ) : (
             <p className="py-10 text-center text-sm text-muted-foreground">

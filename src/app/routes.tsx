@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Outlet } from "react-router";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import EnrollTwoFactor from "./pages/EnrollTwoFactor";
@@ -17,81 +17,44 @@ import DriverReport from "./pages/DriverReport";
 import Admins from "./pages/Admins";
 import AuditLog from "./pages/AuditLog";
 import Notifications from "./pages/Notifications";
+import RouteError, { ErrorPage } from "./pages/ErrorPage";
 
 export const router = createBrowserRouter([
   {
-    path: "/",
-    element: <Login />,
-  },
-  {
-    path: "/reset-password",
-    element: <ResetPassword />,
-  },
-  {
-    element: <ProtectedRoute />,
+    element: <Outlet />,
+    errorElement: <RouteError />,
     children: [
+      { path: "/", element: <Login /> },
+      { path: "/reset-password", element: <ResetPassword /> },
       {
-        path: "/enroll-2fa",
-        element: <EnrollTwoFactor />,
-      },
-      {
-        path: "/",
-        element: <DashboardLayout />,
+        element: <ProtectedRoute />,
+        errorElement: <RouteError />,
         children: [
+          { path: "/enroll-2fa", element: <EnrollTwoFactor /> },
           {
-            path: "dashboard",
-            element: <Dashboard />,
-          },
-          {
-            path: "analytics",
-            element: <Analytics />,
-          },
-          {
-            path: "operators",
-            element: <Operators />,
-          },
-          {
-            path: "call-logs",
-            element: <CallLogs />,
-          },
-          {
-            path: "rides",
-            element: <Rides />,
-          },
-          {
-            path: "rides/:rideId",
-            element: <RideTracking />,
-          },
-          {
-            path: "drivers",
-            element: <Drivers />,
-          },
-          {
-            path: "coupons",
-            element: <Coupons />,
-          },
-          {
-            path: "settings",
-            element: <Settings />,
-          },
-          {
-            path: "notifications",
-            element: <Notifications />,
-          },
-          {
-            path: "audit-log",
-            element: <AuditLog />,
-          },
-          {
-            path: "employees/:employeeId",
-            element: <DriverReport />,
-          },
-          {
-            path: "admins",
-            element: <Admins />,
+            path: "/",
+            element: <DashboardLayout />,
+            errorElement: <RouteError />,
+            children: [
+              { path: "dashboard", element: <Dashboard /> },
+              { path: "analytics", element: <Analytics /> },
+              { path: "operators", element: <Operators /> },
+              { path: "call-logs", element: <CallLogs /> },
+              { path: "rides", element: <Rides /> },
+              { path: "rides/:rideId", element: <RideTracking /> },
+              { path: "drivers", element: <Drivers /> },
+              { path: "coupons", element: <Coupons /> },
+              { path: "settings", element: <Settings /> },
+              { path: "notifications", element: <Notifications /> },
+              { path: "audit-log", element: <AuditLog /> },
+              { path: "employees/:employeeId", element: <DriverReport /> },
+              { path: "admins", element: <Admins /> },
+              { path: "*", element: <ErrorPage status={404} /> },
+            ],
           },
         ],
       },
+      { path: "*", element: <ErrorPage status={404} /> },
     ],
   },
 ]);

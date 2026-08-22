@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
+import { cn } from './ui/utils';
 import GebetaMap, { type GebetaMapRef } from '@gebeta/tiles';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -38,8 +40,10 @@ interface GebetaMapViewProps {
   driver?: MapPoint | null;
   /** Shown in the live-address popup for the single `driver` marker, if provided. */
   driverName?: string | null;
-  /** Live fleet markers (e.g. available drivers on the dashboard map). Click any dot for its name/status + live address. */
-  fleet?: Array<MapPoint & { id?: string; name?: string; status?: string; color?: string; label?: string }>;
+  /** Profile photo for the live driver pin. Initials are used when this is missing. */
+  driverPhoto?: string | null;
+  /** Live fleet markers (e.g. available drivers on the dashboard map). Click any pin for its name/status + live address. */
+  fleet?: Array<MapPoint & { id?: string; name?: string; status?: string; color?: string; label?: string; photoUrl?: string | null }>;
   /**
    * Makes fleet markers selectable rather than merely informational - clicking
    * one calls back with its id. Used by map-based ride assignment, where the
@@ -60,6 +64,13 @@ interface GebetaMapViewProps {
   zoom?: number;
   onMapClick?: (lng: number, lat: number) => void;
   className?: string;
+  /** Extra chrome that stays on the map in fullscreen. Position it with absolute classes. */
+  overlay?: ReactNode;
+  /** Hide the expand control. Default shows it. */
+  allowFullscreen?: boolean;
+  /** Controlled fullscreen. Omit to let the map manage its own state. */
+  fullscreen?: boolean;
+  onFullscreenChange?: (open: boolean) => void;
 }
 
 // Popup content goes through setHTML (raw innerHTML) - driver names and
@@ -91,33 +102,106 @@ function pointsKey(a?: MapPoint | null, b?: MapPoint | null) {
   return `${a.lat.toFixed(5)},${a.lng.toFixed(5)}→${b.lat.toFixed(5)},${b.lng.toFixed(5)}`;
 }
 
+function nameInitials(name?: string | null) {
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
 /**
- * Fleet dot. Selected markers grow, gain a halo and a rank label, and sit above
- * their neighbours, so the pin the operator picked stays findable in a cluster.
+ * Location pin with a face: photo when we have one, otherwise the start of the name.
+ * Rank badges (assign-from-map) sit on the corner so the person stays readable.
  */
-function makeFleetElement(
-  d: { color?: string; label?: string; name?: string; status?: string },
+function makePersonPinElement(
+  d: { color?: string; label?: string; name?: string | null; status?: string; photoUrl?: string | null },
   isSelected: boolean,
   interactive: boolean
 ) {
-  const el = document.createElement('div');
   const color = d.color ?? '#00BDC3';
-  const size = isSelected ? 30 : d.label ? 22 : 14;
+  const size = isSelected ? 40 : 34;
 
-  el.style.cssText = `
-    width:${size}px; height:${size}px; border-radius:50%;
+  const wrap = document.createElement('div');
+  wrap.style.cssText = `
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:${size + 8}px;
+    cursor:${interactive ? 'pointer' : 'default'};
+    filter:drop-shadow(0 3px 8px rgba(0,0,0,.35));
+    z-index:${isSelected ? 5 : 1};`;
+  if (d.name) wrap.title = d.status ? `${d.name} · ${d.status}` : d.name;
+
+  const head = document.createElement('div');
+  head.style.cssText = `
+    width:${size}px;
+    height:${size}px;
+    border-radius:50%;
     background:${color};
     border:${isSelected ? 3 : 2}px solid #fff;
-    box-shadow:0 1px 4px rgba(0,0,0,.3)${isSelected ? `, 0 0 0 6px ${color}33` : ''};
-    cursor:${interactive ? 'pointer' : 'default'};
-    display:flex; align-items:center; justify-content:center;
-    color:#fff; font-size:${isSelected ? 13 : 11}px; font-weight:600;
-    line-height:1; transition:width .15s ease, height .15s ease;
-    z-index:${isSelected ? 5 : 1};`;
+    box-shadow:${isSelected ? `0 0 0 4px ${color}55` : 'none'};
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-weight:700;
+    font-size:${size > 36 ? 14 : 12}px;
+    line-height:1;
+    letter-spacing:.02em;
+    position:relative;`;
+  head.textContent = nameInitials(d.name);
 
-  if (d.label) el.textContent = d.label;
-  if (d.name) el.title = d.status ? `${d.name} · ${d.status}` : d.name;
-  return el;
+  if (d.photoUrl) {
+    const img = document.createElement('img');
+    img.src = d.photoUrl;
+    img.alt = d.name || '';
+    img.referrerPolicy = 'no-referrer';
+    img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+    img.addEventListener('error', () => img.remove());
+    head.appendChild(img);
+  }
+
+  const tip = document.createElement('div');
+  tip.style.cssText = `
+    width:0;
+    height:0;
+    border-left:7px solid transparent;
+    border-right:7px solid transparent;
+    border-top:10px solid ${color};
+    margin-top:-1px;`;
+
+  wrap.appendChild(head);
+  wrap.appendChild(tip);
+
+  if (d.label) {
+    const badge = document.createElement('span');
+    badge.textContent = d.label;
+    badge.style.cssText = `
+      position:absolute;
+      top:-4px;
+      right:0;
+      min-width:16px;
+      height:16px;
+      padding:0 4px;
+      border-radius:999px;
+      background:#042f32;
+      color:#fff;
+      font-size:10px;
+      font-weight:700;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:2px solid #fff;
+      line-height:1;`;
+    wrap.appendChild(badge);
+  }
+
+  return wrap;
 }
 
 /** Approximate circle as a GeoJSON polygon, for the pickup radius ring. */
@@ -139,6 +223,7 @@ export default function GebetaMapView({
   dropoff,
   driver,
   driverName,
+  driverPhoto,
   fleet,
   onFleetSelect,
   selectedFleetId,
@@ -150,10 +235,18 @@ export default function GebetaMapView({
   zoom = 12,
   onMapClick,
   className,
+  overlay,
+  allowFullscreen = true,
+  fullscreen: fullscreenProp,
+  onFullscreenChange,
 }: GebetaMapViewProps) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [internalFs, setInternalFs] = useState(false);
+  const fullscreen = fullscreenProp ?? internalFs;
   const mapRef = useRef<GebetaMapRef>(null);
   const markersRef = useRef<Record<string, maplibregl.Marker>>({});
   const fleetMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const driverFaceRef = useRef('');
   const onMapClickRef = useRef(onMapClick);
   onMapClickRef.current = onMapClick;
   const onFleetSelectRef = useRef(onFleetSelect);
@@ -164,6 +257,49 @@ export default function GebetaMapView({
   const [roadCoords, setRoadCoords] = useState<[number, number][] | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const fetchGen = useRef(0);
+  const onFullscreenChangeRef = useRef(onFullscreenChange);
+  onFullscreenChangeRef.current = onFullscreenChange;
+
+  const setFullscreen = useCallback(
+    (next: boolean) => {
+      if (fullscreenProp === undefined) setInternalFs(next);
+      onFullscreenChangeRef.current?.(next);
+    },
+    [fullscreenProp]
+  );
+
+  const toggleFullscreen = useCallback(() => {
+    setFullscreen(!fullscreen);
+  }, [fullscreen, setFullscreen]);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setFullscreen(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [fullscreen, setFullscreen]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      try {
+        mapRef.current?.getMapInstance()?.resize();
+      } catch {
+        /* ignore */
+      }
+      window.dispatchEvent(new Event('resize'));
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [fullscreen]);
 
   const handleMapClick = useCallback((lngLat: [number, number]) => {
     onMapClickRef.current?.(lngLat[0], lngLat[1]);
@@ -263,7 +399,27 @@ export default function GebetaMapView({
 
     upsert('pickup', pickup, '#10B981', 'P');
     upsert('dropoff', dropoff, '#EF4444', 'D');
-    upsert('driver', driver, '#00BDC3', '🚗');
+
+    const driverFace = `${driverName ?? ''}|${driverPhoto ?? ''}`;
+    const existingDriver = markersRef.current['driver'];
+    if (!driver) {
+      existingDriver?.remove();
+      delete markersRef.current['driver'];
+      driverFaceRef.current = '';
+    } else if (existingDriver && driverFaceRef.current === driverFace) {
+      existingDriver.setLngLat([driver.lng, driver.lat]);
+    } else {
+      existingDriver?.remove();
+      const el = makePersonPinElement(
+        { name: driverName, photoUrl: driverPhoto, color: '#00BDC3' },
+        false,
+        false
+      );
+      markersRef.current['driver'] = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([driver.lng, driver.lat])
+        .addTo(map);
+      driverFaceRef.current = driverFace;
+    }
 
     // The single "driver" marker (ride tracking / driver detail) is at most
     // one instance, so it's cheap to eagerly resolve+refresh its address on
@@ -283,9 +439,9 @@ export default function GebetaMapView({
     fleetMarkersRef.current = [];
     (fleet ?? []).forEach((d) => {
       const isSelected = Boolean(d.id && selectedFleetId && d.id === selectedFleetId);
-      const el = makeFleetElement(d, isSelected, Boolean(onFleetSelectRef.current));
+      const el = makePersonPinElement(d, isSelected, Boolean(onFleetSelectRef.current));
 
-      const marker = new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]);
+      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([d.lng, d.lat]);
 
       if (onFleetSelectRef.current && d.id) {
         // The pin is the control: selecting is the click's whole job, so no
@@ -421,7 +577,7 @@ export default function GebetaMapView({
       map.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 600 });
     }
     }
-  }, [ready, pickup, dropoff, driver, driverName, routeCoords, roadCoords, fleet, selectedFleetId, radiusKm]);
+  }, [ready, pickup, dropoff, driver, driverName, driverPhoto, routeCoords, roadCoords, fleet, selectedFleetId, radiusKm]);
 
   if (!config.gebetaApiKey) {
     return (
@@ -435,7 +591,17 @@ export default function GebetaMapView({
   }
 
   return (
-    <div className={className} style={{ position: 'relative', height, borderRadius: 12, overflow: 'hidden' }}>
+    <div
+      ref={wrapRef}
+      className={cn(className, fullscreen && 'fixed inset-0 z-[220] rounded-none')}
+      style={{
+        position: fullscreen ? 'fixed' : 'relative',
+        height: fullscreen ? '100svh' : height,
+        width: fullscreen ? '100vw' : undefined,
+        borderRadius: fullscreen ? 0 : 12,
+        overflow: 'hidden',
+      }}
+    >
       {!ready && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#F3F4F6]">
           <div className="flex flex-col items-center gap-2">
@@ -445,7 +611,7 @@ export default function GebetaMapView({
         </div>
       )}
       {ready && routeLoading && pickup && dropoff && (
-        <div className="absolute top-3 left-3 z-10 rounded-full bg-white/95 border border-[#E5E7EB] px-3 py-1.5 text-xs font-medium text-[#0B5A60] shadow">
+        <div className="pointer-events-none absolute bottom-3 right-14 z-10 rounded-full border border-border/80 bg-card/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur">
           Calculating road route…
         </div>
       )}
@@ -458,6 +624,17 @@ export default function GebetaMapView({
         onMapLoaded={() => setReady(true)}
         onMapClick={onMapClick ? handleMapClick : undefined}
       />
+      {overlay && <div className="pointer-events-none absolute inset-0 z-[20]">{overlay}</div>}
+      {allowFullscreen && (
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className="absolute right-3 top-3 z-[30] flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-card/95 text-foreground shadow-md backdrop-blur hover:bg-card"
+          aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen map'}
+        >
+          {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </button>
+      )}
     </div>
   );
 }

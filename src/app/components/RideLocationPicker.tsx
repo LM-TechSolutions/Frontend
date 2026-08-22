@@ -26,15 +26,25 @@ interface Props {
   onChange: (which: 'pickup' | 'dropoff', value: PlaceValue) => void;
   /** Notified when the road route estimate updates (for create dialog summary). */
   onRouteChange?: (route: RoadRoute | null) => void;
+  hideMap?: boolean;
+  active: 'pickup' | 'dropoff';
+  onActiveChange: (which: 'pickup' | 'dropoff') => void;
 }
 
 /**
  * Google-Maps-style picker: type to get live Gebeta suggestions, or click the map
  * to drop a pin. Shows road-accurate distance once both points are set.
  */
-export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteChange }: Props) {
+export default function RideLocationPicker({
+  pickup,
+  dropoff,
+  onChange,
+  onRouteChange,
+  hideMap = false,
+  active,
+  onActiveChange,
+}: Props) {
   const { t } = useAppContext();
-  const [active, setActive] = useState<'pickup' | 'dropoff'>('pickup');
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [searching, setSearching] = useState(false);
@@ -112,19 +122,19 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
-          onClick={() => setActive('pickup')}
-          className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm transition-colors ${active === 'pickup' ? 'border-[#10B981] bg-[#10B981]/5' : 'border-border hover:border-muted-foreground'}`}
+          onClick={() => onActiveChange('pickup')}
+          className={`flex items-center gap-2 rounded-2xl border-2 p-2.5 text-sm transition-colors ${active === 'pickup' ? 'border-[#10B981] bg-[#10B981]/8' : 'border-border hover:border-muted-foreground'}`}
         >
-          <MapPin className="w-4 h-4 text-[#10B981] flex-shrink-0" />
-          <span className="truncate text-left text-foreground">{pickup ? pickup.address : t('dashboard.setPickup', 'Set Pickup')}</span>
+          <MapPin className="h-4 w-4 shrink-0 text-[#10B981]" />
+          <span className="truncate text-left text-foreground">{pickup ? pickup.address : t('dashboard.setPickup', 'Set pickup')}</span>
         </button>
         <button
           type="button"
-          onClick={() => setActive('dropoff')}
-          className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm transition-colors ${active === 'dropoff' ? 'border-[#EF4444] bg-[#EF4444]/5' : 'border-border hover:border-muted-foreground'}`}
+          onClick={() => onActiveChange('dropoff')}
+          className={`flex items-center gap-2 rounded-2xl border-2 p-2.5 text-sm transition-colors ${active === 'dropoff' ? 'border-[#EF4444] bg-[#EF4444]/8' : 'border-border hover:border-muted-foreground'}`}
         >
-          <Navigation className="w-4 h-4 text-[#EF4444] flex-shrink-0" />
-          <span className="truncate text-left text-foreground">{dropoff ? dropoff.address : t('dashboard.setDestination', 'Set Destination')}</span>
+          <Navigation className="h-4 w-4 shrink-0 text-[#EF4444]" />
+          <span className="truncate text-left text-foreground">{dropoff ? dropoff.address : t('dashboard.setDestination', 'Set destination')}</span>
         </button>
       </div>
 
@@ -174,16 +184,18 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
         {active === 'pickup' ? t('dashboard.settingPickup', 'Setting pickup') : t('dashboard.settingDestination', 'Setting destination')} - pick a suggestion above, or click the map.
       </p>
 
-      <GebetaMapView
-        pickup={pickupPoint}
-        dropoff={dropoffPoint}
-        height={280}
-        autoRoadRoute
-        onRouteResolved={handleRoute}
-        onMapClick={(lng, lat) => setFromMap(lat, lng)}
-      />
+      {!hideMap && (
+        <GebetaMapView
+          pickup={pickupPoint}
+          dropoff={dropoffPoint}
+          height={280}
+          autoRoadRoute
+          onRouteResolved={handleRoute}
+          onMapClick={(lng, lat) => setFromMap(lat, lng)}
+        />
+      )}
 
-      {route && (
+      {route && !hideMap && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/25 bg-primary/8 px-3 py-2.5 text-sm">
           <Route className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="font-semibold text-foreground">{route.distanceKm.toFixed(1)} km</span>

@@ -276,7 +276,7 @@ export default function DashboardLayout() {
       <div className="flex h-svh overflow-hidden">
         <aside
           className={cn(
-            'relative hidden h-svh shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out lg:flex',
+            'relative z-40 hidden h-svh shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out lg:flex',
             collapsed ? 'w-[80px]' : 'w-[264px]'
           )}
         >
@@ -284,17 +284,17 @@ export default function DashboardLayout() {
             <div className="ambient-blob absolute -left-10 top-10 h-40 w-40 rounded-full bg-sidebar-primary/20 blur-3xl" />
             <div className="absolute -right-8 bottom-24 h-32 w-32 rounded-full bg-[#e08a14]/10 blur-3xl" />
           </div>
-          <div className="relative flex h-full min-h-0 flex-col">
+          <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
             <SidebarBody compact={collapsed} />
-            <button
-              type="button"
-              onClick={() => setCollapsedPersist(!collapsed)}
-              className="absolute -right-3 top-[4.75rem] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-md hover:bg-sidebar-accent"
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setCollapsedPersist(!collapsed)}
+            className="absolute -right-3 top-[4.75rem] z-50 flex h-7 w-7 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+          </button>
         </aside>
 
         <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
@@ -308,7 +308,7 @@ export default function DashboardLayout() {
           </SheetContent>
         </Sheet>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="z-20 flex h-[4.25rem] shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/75 px-4 backdrop-blur-xl sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setDrawerOpen(true)}>

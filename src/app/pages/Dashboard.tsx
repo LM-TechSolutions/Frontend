@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [newRideOpen, setNewRideOpen] = useState(false);
   const [assignFor, setAssignFor] = useState<any | null>(null);
   const [redispatchingId, setRedispatchingId] = useState<string | null>(null);
+  const [mapFs, setMapFs] = useState(false);
 
   const load = useCallback(async () => {
     const [ridesRes, driversRes] = await Promise.all([
@@ -104,12 +105,33 @@ export default function Dashboard() {
       drivers
         .filter((d) => d.currentLocation)
         .map((d) => ({
+          id: d.id,
+          name: d.name,
+          status: d.status,
           lng: d.currentLocation.lng,
           lat: d.currentLocation.lat,
           color: d.status === 'available' ? '#0B7A55' : d.status === 'busy' ? '#AE2E2D' : '#6B7280',
+          photoUrl: d.profilePicture ?? null,
         })),
     [drivers]
   );
+
+  const ridePins = useMemo(
+    () =>
+      [...pendingRides, ...activeRides]
+        .filter((r) => r.pickupCoordinates?.lat != null && r.pickupCoordinates?.lng != null)
+        .map((r) => ({
+          id: r.id,
+          name: r.customerName,
+          status: rideStatusLabel(r.status),
+          lng: r.pickupCoordinates.lng,
+          lat: r.pickupCoordinates.lat,
+          color: ACTIVE_STATUSES.includes(r.status) ? '#00BDC3' : '#e08a14',
+        })),
+    [pendingRides, activeRides]
+  );
+
+  const mapPeople = useMemo(() => [...fleet, ...ridePins], [fleet, ridePins]);
 
   const handleRedispatch = async (ride: any) => {
     setRedispatchingId(ride.id);
@@ -293,33 +315,69 @@ export default function Dashboard() {
         </div>
 
         <div className="relative min-h-[320px] flex-1">
-          <GebetaMapView fleet={fleet} height="100%" zoom={12} className="h-full w-full" />
-          <div className="absolute right-4 top-4 z-[400] rounded-2xl border border-border bg-card/95 p-4 shadow-lg backdrop-blur">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <h4 className="text-sm font-semibold text-card-foreground">{t('dashboard.driverStatus', 'Driver status')}</h4>
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('dashboard.live', 'Live')}</span>
-            </div>
-            <div className="space-y-2 text-xs text-card-foreground">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-[#0B7A55]" />
-                <span>
-                  {t('dashboard.available', 'Available')} ({drivers.filter((d) => d.status === 'available').length})
-                </span>
+          <GebetaMapView
+            fleet={mapPeople}
+            height="100%"
+            zoom={12}
+            className="h-full w-full"
+            fullscreen={mapFs}
+            onFullscreenChange={setMapFs}
+            onFleetSelect={(id) => {
+              setMapFs(false);
+              if (ridePins.some((r) => r.id === id)) navigate(`/rides/${id}`);
+              else navigate(`/employees/${id}`);
+            }}
+            overlay={
+              <div className="pointer-events-auto absolute left-3 top-3 flex w-[220px] flex-col gap-2">
+                <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-lg backdrop-blur">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <h4 className="text-sm font-semibold text-card-foreground">{t('dashboard.driverStatus', 'Driver status')}</h4>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('dashboard.live', 'Live')}</span>
+                  </div>
+                  <div className="space-y-2 text-xs text-card-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-[#0B7A55]" />
+                      <span>
+                        {t('dashboard.available', 'Available')} ({drivers.filter((d) => d.status === 'available').length})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-[#AE2E2D]" />
+                      <span>
+                        {t('dashboard.busy', 'Busy')} ({drivers.filter((d) => d.status === 'busy').length})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-[#6B7280]" />
+                      <span>
+                        {t('dashboard.offline', 'Offline')} ({drivers.filter((d) => d.status === 'offline').length})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-[#e08a14]" />
+                      <span>Waiting rides ({pendingRides.length})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-[#00BDC3]" />
+                      <span>Active pickups ({activeRides.length})</span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] text-muted-foreground">Tap a driver pin for their report, or a ride pin for tracking</p>
+                </div>
+                {mapFs && (
+                  <Button
+                    className="shadow-md"
+                    onClick={() => {
+                      setMapFs(false);
+                      setNewRideOpen(true);
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> {t('dashboard.newRide', 'New ride')}
+                  </Button>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-[#AE2E2D]" />
-                <span>
-                  {t('dashboard.busy', 'Busy')} ({drivers.filter((d) => d.status === 'busy').length})
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-[#6B7280]" />
-                <span>
-                  {t('dashboard.offline', 'Offline')} ({drivers.filter((d) => d.status === 'offline').length})
-                </span>
-              </div>
-            </div>
-          </div>
+            }
+          />
         </div>
       </div>
 

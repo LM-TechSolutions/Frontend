@@ -5,7 +5,6 @@ import {
   Phone,
   MapPin,
   Navigation,
-  Car,
   Loader2,
   Ticket,
   Copy,
@@ -14,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { connectSocket, subscribeRide, unsubscribeRide, subscribeMap, unsubscribeMap } from '../lib/socket';
 import { rideStatusLabel, formatETB, formatDateTime, shortId } from '../lib/format';
 import type { RoadRoute } from '../lib/route';
@@ -22,9 +21,10 @@ import GebetaMapView, { type MapPoint } from '../components/GebetaMapView';
 import AssignFromMapDialog from '../components/AssignFromMapDialog';
 import { useAppContext } from '../contexts/AppContext';
 import { StatusBadge, waitTone } from '../components/layout/StatusBadge';
-import { EmptyState, Initials } from '../components/coupons/CouponAtoms';
+import { Initials } from '../components/coupons/CouponAtoms';
 import { Surface } from '../components/layout/PageHeader';
 import { cn } from '../components/ui/utils';
+import { ErrorPage } from './ErrorPage';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,6 +71,8 @@ export default function RideTracking() {
   const [redispatching, setRedispatching] = useState(false);
   const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [mapFs, setMapFs] = useState(false);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const rideIdRef = useRef(rideId);
   rideIdRef.current = rideId;
 
@@ -94,12 +96,16 @@ export default function RideTracking() {
     try {
       const data = await api.rides.get(rideId);
       setRide(data);
+      setErrorStatus(null);
       if (data?.currentLocation) {
         setDriverPos({ lng: data.currentLocation.lng, lat: data.currentLocation.lat });
       }
       if (!silent) await fetchHistory();
-    } catch {
-      if (!silent) setRide(null);
+    } catch (e) {
+      if (!silent) {
+        setRide(null);
+        setErrorStatus(e instanceof ApiError ? e.status : 500);
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -215,17 +221,7 @@ export default function RideTracking() {
   }
 
   if (!ride) {
-    return (
-      <div className="p-6">
-        <EmptyState
-          icon={Car}
-          title={t('rides.rideNotFound', 'Ride not found')}
-          action={
-            <Button onClick={() => navigate('/rides')}>{t('rides.backToDashboard', 'Back to rides')}</Button>
-          }
-        />
-      </div>
-    );
+    return <ErrorPage status={errorStatus && errorStatus >= 400 ? errorStatus : 404} />;
   }
 
   return (
@@ -288,28 +284,85 @@ export default function RideTracking() {
             dropoff={dropoff}
             driver={driverPos}
             driverName={ride.driverName}
+            driverPhoto={ride.driverPhoto}
             height="100%"
             autoRoadRoute
             onRouteResolved={setRoadRoute}
             className="h-full w-full !rounded-none"
+            fullscreen={mapFs}
+            onFullscreenChange={setMapFs}
+            overlay={
+              <>
+                <div className="pointer-events-none absolute bottom-3 left-3 right-14 flex items-end justify-between gap-2">
+                  <span
+                    className={cn(
+                      'rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-sm backdrop-blur',
+                      pingLabel === 'Live' ? 'text-primary' : 'text-muted-foreground'
+                    )}
+                  >
+                    {pingLabel ?? (hasDriver ? 'Waiting for GPS' : 'No driver yet')}
+                  </span>
+                  {(displayDistanceKm != null || displayDurationMin != null) && (
+                    <span className="rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur">
+                      {displayDistanceKm != null ? `${Number(displayDistanceKm).toFixed(1)} km` : ''}
+                      {displayDistanceKm != null && displayDurationMin != null ? ' · ' : ''}
+                      {displayDurationMin != null ? `~${displayDurationMin} min` : ''}
+                    </span>
+                  )}
+                </div>
+                {mapFs && (
+                  <div className="pointer-events-auto absolute left-3 top-3 flex max-w-[min(100%-4.5rem,36rem)] flex-wrap items-center gap-2 rounded-2xl border border-border/80 bg-card/95 px-3 py-2 shadow-md backdrop-blur">
+                    <p className="truncate text-sm font-semibold">{ride.customerName}</p>
+                    <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
+                    {ride.customerPhone && (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={`tel:${ride.customerPhone}`}>
+                          <Phone className="mr-1.5 h-3.5 w-3.5" /> Call
+                        </a>
+                      </Button>
+                    )}
+                    {ride.driverPhone && (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={`tel:${ride.driverPhone}`}>
+                          <Phone className="mr-1.5 h-3.5 w-3.5" /> Driver
+                        </a>
+                      </Button>
+                    )}
+                    {canRedispatch && (
+                      <Button size="sm" variant="outline" onClick={() => void handleRedispatch()} disabled={redispatching}>
+                        {redispatching ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Bell className="mr-1.5 h-3.5 w-3.5" />}
+                        Re-notify
+                      </Button>
+                    )}
+                    {canAssign && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setMapFs(false);
+                          setAssignOpen(true);
+                        }}
+                      >
+                        {hasDriver ? 'Reassign' : 'Assign'}
+                      </Button>
+                    )}
+                    {isOpen && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-destructive/40 text-destructive hover:bg-destructive hover:text-white"
+                        onClick={() => {
+                          setMapFs(false);
+                          setCancelOpen(true);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </>
+            }
           />
-          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[400] flex items-end justify-between gap-2">
-            <span
-              className={cn(
-                'pointer-events-none rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-sm backdrop-blur',
-                pingLabel === 'Live' ? 'text-primary' : 'text-muted-foreground'
-              )}
-            >
-              {pingLabel ?? (hasDriver ? 'Waiting for GPS' : 'No driver yet')}
-            </span>
-            {(displayDistanceKm != null || displayDurationMin != null) && (
-              <span className="rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur">
-                {displayDistanceKm != null ? `${Number(displayDistanceKm).toFixed(1)} km` : ''}
-                {displayDistanceKm != null && displayDurationMin != null ? ' · ' : ''}
-                {displayDurationMin != null ? `~${displayDurationMin} min` : ''}
-              </span>
-            )}
-          </div>
         </Surface>
 
         <div className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto">

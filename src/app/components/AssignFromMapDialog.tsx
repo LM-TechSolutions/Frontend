@@ -41,6 +41,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
   const [assigning, setAssigning] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showBlocked, setShowBlocked] = useState(false);
+  const [mapFs, setMapFs] = useState(false);
 
   const load = useCallback(async () => {
     if (!ride) return;
@@ -63,6 +64,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
       setSelectedId(null);
       setShowBlocked(false);
       setLoading(true);
+      setMapFs(false);
       return;
     }
     load();
@@ -110,6 +112,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
           status: c.isEligible ? `${c.distanceKm ?? '?'} km away` : (c.blockedReason ?? 'unavailable'),
           color: c.isEligible ? '#10B981' : '#9CA3AF',
           label: c.isEligible ? String(index + 1) : undefined,
+          photoUrl: c.photoUrl ?? null,
         })),
     [shown]
   );
@@ -157,6 +160,47 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                 height="100%"
                 zoom={13}
                 className="h-full w-full"
+                fullscreen={mapFs}
+                onFullscreenChange={setMapFs}
+                overlay={
+                  <>
+                    <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur">
+                      <div className="flex items-center gap-3 text-[11px] text-card-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#10B981]" /> Assignable
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#9CA3AF]" /> Unavailable
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#10B981] opacity-60" /> Pickup
+                        </span>
+                      </div>
+                    </div>
+                    {mapFs && selected && (
+                      <div className="pointer-events-auto absolute left-3 top-3 max-w-[min(100%-4.5rem,20rem)] rounded-2xl border border-border/80 bg-card/95 p-3 shadow-md backdrop-blur">
+                        <p className="truncate text-sm font-semibold">{selected.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {selected.vehicleType} · {selected.vehiclePlate}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {selected.distanceKm != null ? `${selected.distanceKm} km` : 'Distance unknown'}
+                          {selected.etaMinutes != null ? ` · ~${selected.etaMinutes} min` : ''}
+                          {selected.couponBalance != null ? ` · ${selected.couponBalance} coupons` : ''}
+                        </p>
+                        <Button size="sm" className="mt-2 w-full" disabled={assigning || !selected.isEligible} onClick={() => void assign()}>
+                          {assigning ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
+                          Assign {selected.name.split(' ')[0]}
+                        </Button>
+                      </div>
+                    )}
+                    {mapFs && !selected && (
+                      <div className="pointer-events-none absolute left-3 top-3 rounded-2xl border border-border/80 bg-card/95 px-3 py-2 text-xs shadow-md backdrop-blur">
+                        Tap a numbered pin to pick a driver
+                      </div>
+                    )}
+                  </>
+                }
               />
             )}
             {loading && (
@@ -164,23 +208,8 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
             )}
-
-            <div className="pointer-events-none absolute bottom-3 left-3 z-[400] rounded-lg border border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur">
-              <div className="flex items-center gap-3 text-[11px] text-card-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#10B981]" /> Assignable
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#9CA3AF]" /> Unavailable
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#10B981] opacity-60" /> Pickup
-                </span>
-              </div>
-            </div>
           </div>
 
-          {/* Ranked list */}
           <div className="flex min-h-0 flex-col">
             <div className="flex items-center justify-between gap-2 border-b border-border/70 px-5 py-3">
               <p className="text-sm font-medium text-foreground">

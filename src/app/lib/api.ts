@@ -218,6 +218,7 @@ export interface AssignmentCandidate {
   longitude: number | null;
   distanceKm: number | null;
   etaMinutes: number | null;
+  photoUrl?: string | null;
   isEligible: boolean;
   blockedReason: string | null;
 }
