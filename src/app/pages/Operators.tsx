@@ -86,7 +86,6 @@ export default function Operators() {
       <PageHeader
         eyebrow="Staff"
         title={t('operators.title', 'Operators')}
-        description={t('operators.subtitle', 'Call-centre desks, shifts, and conversion.')}
         actions={<AddOperatorDialog onCreated={load} />}
       />
 
@@ -225,7 +224,7 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{t('operators.addNewTitle', 'Add new operator')}</DialogTitle>
-          <DialogDescription>{t('operators.addNewDescription', 'Add a call-centre operator to the system')}</DialogDescription>
+          <DialogDescription className="sr-only">{t('operators.addNewDescription', 'Add a call-centre operator')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="space-y-2"><Label>{t('operators.fullName', 'Full name')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
@@ -300,7 +299,7 @@ function EditOperatorDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Edit operator</DialogTitle>
-          <DialogDescription>Name, contact, shift, and whether the account is active.</DialogDescription>
+          <DialogDescription className="sr-only">Edit this operator.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="mt-4 space-y-4">
           <div className="space-y-2"><Label>Full name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>

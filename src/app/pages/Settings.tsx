@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -57,24 +57,24 @@ const FIELD_META: Record<string, FieldMeta> = {
   'fare.currency': { label: 'Currency', hint: 'ISO code shown on every receipt and payout.' },
   'commission.defaultPercent': {
     label: 'Default commission for new drivers',
-    hint: 'Stamped when a driver is created. Existing drivers keep their own rate until you apply it to the fleet.',
+    hint: 'Applied to new drivers. Existing rates stay until you apply to fleet.',
     unit: '%',
     min: 0,
     max: 100,
   },
   'dispatch.radiusKm': {
     label: 'Dispatch radius',
-    hint: 'Only drivers inside this ring are offered the ride. If none are found, the ring expands automatically.',
+    hint: 'Offer radius. Expands if empty.',
     unit: 'km',
     min: 0.5,
     max: 50,
   },
-  'dispatch.maxDrivers': { label: 'Max drivers notified', hint: 'Closest N eligible drivers receive the offer.', min: 1, max: 100 },
-  'dispatch.offerTtlSeconds': { label: 'Offer lifetime', hint: 'How long a driver has to accept before the offer expires.', unit: 'sec', min: 15, max: 900 },
-  'dispatch.urbanSpeedKmh': { label: 'Urban speed for ETA', hint: 'Used when routing is unavailable - this is what operators and drivers see as ETA.', unit: 'km/h', min: 5, max: 80 },
-  'dispatch.staleDriverMinutes': { label: 'Stale-driver threshold', hint: 'An online driver with no GPS fix for this long is dropped from dispatch.', unit: 'min', min: 1, max: 60 },
-  'coupon.minBalanceThreshold': { label: 'Minimum coupon balance', hint: 'Drivers at or below this cannot receive new rides. Also the dashboard “low” cutoff.', min: 0, max: 1000 },
-  'coupon.startingBalance': { label: 'New-driver starting coupons', hint: 'Granted when a driver account is created. Zero means they cannot take a ride until someone refills them.', min: 0, max: 1000 },
+  'dispatch.maxDrivers': { label: 'Max drivers notified', hint: 'Closest N eligible drivers.', min: 1, max: 100 },
+  'dispatch.offerTtlSeconds': { label: 'Offer lifetime', hint: 'Seconds to accept.', unit: 'sec', min: 15, max: 900 },
+  'dispatch.urbanSpeedKmh': { label: 'Urban speed for ETA', hint: 'Fallback when routing is unavailable.', unit: 'km/h', min: 5, max: 80 },
+  'dispatch.staleDriverMinutes': { label: 'Stale-driver threshold', hint: 'Drop online drivers with no GPS after this.', unit: 'min', min: 1, max: 60 },
+  'coupon.minBalanceThreshold': { label: 'Minimum coupon balance', hint: 'Drivers at or below this cannot take new rides.', min: 0, max: 1000 },
+  'coupon.startingBalance': { label: 'New-driver starting coupons', hint: 'Granted when a driver is created.', min: 0, max: 1000 },
   'coupon.perRideDeduction': { label: 'Coupons per completed ride', hint: 'Deducted automatically when a driver ends a trip.', min: 0, max: 100 },
   'coupon.operatorLowBalanceThreshold': { label: 'Operator low-stock warning', hint: 'Inventory level at which an operator is prompted to restock.', min: 0, max: 10000 },
 };
@@ -87,21 +87,9 @@ const FIELD_META: Record<string, FieldMeta> = {
  * both - so it gets an explanation rather than a bare dropdown.
  */
 const DEDUCTION_MODES = [
-  {
-    value: 'flat',
-    title: 'Fixed coupons',
-    description: 'Every completed ride costs the same number of coupons, whatever the fare.',
-  },
-  {
-    value: 'commission',
-    title: 'Commission only',
-    description: 'Each ride charges the Tokuma commission percentage of the fare instead.',
-  },
-  {
-    value: 'both',
-    title: 'Both',
-    description: 'The fixed coupons come off first, then the commission on top.',
-  },
+  { value: 'flat', title: 'Fixed coupons' },
+  { value: 'commission', title: 'Commission only' },
+  { value: 'both', title: 'Both' },
 ];
 
 const COUPON_NUMERIC: { key: string; label: string; hint: string }[] = [
@@ -121,12 +109,12 @@ const COUPON_TOGGLES: { key: string; label: string; hint: string }[] = [
   {
     key: 'coupon.blockAcceptBelowMinimum',
     label: 'Block accepting when underfunded',
-    hint: 'A driver who cannot cover the minimum plus the ride deduction is stopped from accepting.',
+    hint: 'Stop underfunded drivers from accepting.',
   },
   {
     key: 'coupon.driverRequestEnabled',
     label: 'Let drivers request refills',
-    hint: 'Drivers can ask an operator for coupons from the mobile app, and a request is raised automatically when they run dry.',
+    hint: 'Drivers can request coupons from the app.',
   },
 ];
 
@@ -143,7 +131,6 @@ export default function Settings() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
   const [defaults, setDefaults] = useState<Record<string, string>>({});
-  const [lastChange, setLastChange] = useState<{ at: string; who: string } | null>(null);
   const [distribution, setDistribution] = useState<Array<{ percent: number; drivers: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -155,9 +142,8 @@ export default function Settings() {
     Promise.all([
       api.settings.getSystem(),
       api.settings.commissionDistribution().catch(() => ({ distribution: [] })),
-      api.auditLogs.list({ resource: 'settings', limit: 1 }).catch(() => ({ logs: [] })),
     ])
-      .then(([rows, dist, audit]) => {
+      .then(([rows, dist]) => {
         const map: Record<string, string> = {};
         const defs: Record<string, string> = {};
         (rows ?? []).forEach((r: any) => {
@@ -168,8 +154,6 @@ export default function Settings() {
         setSaved(map);
         setDefaults(defs);
         setDistribution(dist.distribution ?? []);
-        const log = audit.logs?.[0];
-        if (log) setLastChange({ at: log.createdAt, who: log.user?.email ?? 'system' });
       })
       .catch((e) => toast.error(e?.message ?? 'Failed to load system settings'))
       .finally(() => setLoading(false));
@@ -262,11 +246,6 @@ export default function Settings() {
       <PageHeader
         eyebrow="Workspace"
         title={t('settings.title', 'Settings')}
-        description={
-          lastChange
-            ? `Profile, security, pricing, dispatch, coupons, and language. Last saved ${new Date(lastChange.at).toLocaleString()} by ${lastChange.who}.`
-            : t('settings.subtitle', 'Profile, security, pricing, dispatch, coupons, and language.')
-        }
         actions={saveButton}
       />
       {stale ? (
@@ -300,7 +279,6 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>{t('settings.profile', 'Profile')}</CardTitle>
-              <CardDescription>{t('settings.yourAccountInfo', 'Your account information')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -322,11 +300,6 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Pricing & commission</CardTitle>
-              <CardDescription>
-                Live fare engine - every estimate and receipt uses these numbers
-                {!canWrite ? ' (read-only).' : '.'}
-                {lastChange ? ` Last changed ${new Date(lastChange.at).toLocaleString()} by ${lastChange.who}.` : ''}
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               {loading ? (
@@ -384,9 +357,6 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Dispatch</CardTitle>
-              <CardDescription>
-                Radius and driver cap are enforced on every offer. If the ring is empty it expands automatically.
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               {loading ? (
@@ -396,9 +366,7 @@ export default function Settings() {
                   <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 p-4">
                     <div className="min-w-0">
                       <p className="text-sm font-medium">Enforce dispatch radius</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        On: only drivers inside the radius (expanding if empty). Off: city-wide, still capped by max drivers.
-                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">Off: city-wide, still capped by max drivers.</p>
                     </div>
                     <Switch
                       checked={values['dispatch.enforceRadius'] !== 'false'}
@@ -425,10 +393,6 @@ export default function Settings() {
               <CardTitle className="flex items-center gap-2">
                 <Ticket className="h-4 w-4 text-primary" /> Coupon economy
               </CardTitle>
-              <CardDescription>
-                What every completed ride costs a driver, and how they get more coupons
-                {!canWrite ? ' (read-only).' : '.'}
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {loading ? (
@@ -453,7 +417,6 @@ export default function Settings() {
                             }`}
                           >
                             <p className="text-sm font-medium text-foreground">{mode.title}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{mode.description}</p>
                           </button>
                         );
                       })}
@@ -500,9 +463,6 @@ export default function Settings() {
               <CardTitle className="flex items-center gap-2">
                 <Languages className="h-4 w-4 text-primary" /> {t('common.language')}
               </CardTitle>
-              <CardDescription>
-                {t('settings.languageHint', 'Follows you between terminals. Emails and SMS use this locale too.')}
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
@@ -790,7 +750,6 @@ function SecurityCard() {
     <Card>
       <CardHeader>
         <CardTitle>{t('settings.security')}</CardTitle>
-        <CardDescription>Change your password or add an authenticator-app second factor.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
         {/* Change password */}
@@ -991,7 +950,6 @@ function SessionsCard() {
         <CardTitle className="flex items-center gap-2">
           <MonitorSmartphone className="w-4 h-4 text-primary" /> Active sessions
         </CardTitle>
-        <CardDescription>Every device currently holding a dashboard token. Revoke anything that isn’t this terminal.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? (
@@ -1067,7 +1025,6 @@ function SecurityPolicyCard() {
         <CardTitle className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-primary" /> Security policy
         </CardTitle>
-        <CardDescription>Mandate 2FA per role and set the idle timeout for shared call-centre terminals.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {[

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -122,9 +122,6 @@ export default function Login() {
             The floor stays live.
             <span className="mt-2 block text-[#7ee8ec]">Every ride. Every wallet.</span>
           </p>
-          <p className="text-sm leading-7 text-white/70">
-            Sign in to the same command desk that assigns drivers, watches coupons, and keeps the city moving.
-          </p>
         </div>
         <p className="relative text-xs text-white/45">Operations desk</p>
       </aside>
@@ -185,9 +182,7 @@ export default function Login() {
               <div className="space-y-5">
                 <div>
                   <h1 className="text-2xl font-semibold">Reset your password</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    We’ll email a link to the staff account. The current password stays valid until you finish.
-                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">We’ll email a reset link.</p>
                 </div>
                 {forgotSent ? (
                   <div className="rounded-2xl border border-primary/20 bg-primary/8 p-4 text-sm">
@@ -221,9 +216,9 @@ export default function Login() {
               <>
                 <div className="mb-6">
                   <h1 className="font-display text-2xl font-semibold tracking-tight">{needsCode ? 'Verify it’s you' : t('auth.welcome')}</h1>
-                  <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-                    {needsCode ? t('auth.twoFactorPrompt') : t('auth.description')}
-                  </p>
+                  {needsCode ? (
+                    <p className="mt-1.5 text-sm text-muted-foreground">{t('auth.twoFactorPrompt')}</p>
+                  ) : null}
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -268,14 +263,9 @@ export default function Login() {
                           </button>
                         </div>
                       </div>
-                      <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-sm">
-                        <Checkbox checked={rememberDevice} onCheckedChange={(v) => setRememberDevice(v === true)} className="mt-0.5" />
-                        <span>
-                          <span className="font-medium">Remember this device for 30 days</span>
-                          <span className="block text-xs text-muted-foreground">
-                            Trusted terminals skip the authenticator prompt so 2FA stays on for new devices.
-                          </span>
-                        </span>
+                      <label className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-sm">
+                        <Checkbox checked={rememberDevice} onCheckedChange={(v) => setRememberDevice(v === true)} />
+                        <span className="font-medium">Remember this device for 30 days</span>
                       </label>
                     </>
                   ) : (
@@ -320,12 +310,6 @@ export default function Login() {
               </>
             )}
           </div>
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Need a new password from a reset email?{' '}
-            <Link to="/reset-password" className="text-primary hover:underline">
-              Open reset
-            </Link>
-          </p>
         </div>
       </main>
     </div>

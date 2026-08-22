@@ -198,7 +198,6 @@ export default function Rides() {
       <PageHeader
         eyebrow="Operations"
         title={t('rides.title', 'Rides')}
-        description={t('rides.subtitle', 'Search, filter, and act on every trip - live.')}
         actions={
           <>
             <Button variant="outline" onClick={exportCsv} disabled={!rides.length}>
@@ -260,7 +259,7 @@ export default function Rides() {
           </div>
         ) : rides.length === 0 ? (
           <div className="p-6">
-            <EmptyState icon={Car} title={t('rides.noRides', 'No rides found')} description="Try another status, date range, or search term." />
+            <EmptyState icon={Car} title={t('rides.noRides', 'No rides found')} />
           </div>
         ) : (
           <Table>

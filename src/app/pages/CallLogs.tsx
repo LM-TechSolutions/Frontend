@@ -82,7 +82,6 @@ export default function CallLogs() {
       <PageHeader
         eyebrow="Voice"
         title={t('callLogs.title', 'Call logs')}
-        description={t('callLogs.subtitle', 'Every inbound call, with conversion to a ride.')}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportCsv} disabled={!filtered.length}>

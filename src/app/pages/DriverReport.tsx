@@ -156,7 +156,6 @@ export default function DriverReport() {
         <EmptyState
           icon={Ban}
           title="Driver not found"
-          description="This driver may have been removed."
           action={
             <Button onClick={() => navigate('/drivers')}>
               Back to drivers
@@ -435,7 +434,6 @@ export default function DriverReport() {
             <EmptyState
               icon={Clock}
               title="No rides in this period"
-              description="Try widening the date range, or check that the driver was online."
             />
           )}
         </CardContent>

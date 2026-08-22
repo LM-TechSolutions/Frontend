@@ -209,7 +209,6 @@ export default function Drivers() {
       <PageHeader
         eyebrow="Fleet"
         title={t('drivers.title', 'Drivers')}
-        description={t('drivers.subtitle', 'Availability, coupons, and last seen - live over the socket.')}
         actions={
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>

@@ -258,7 +258,7 @@ export default function Dashboard() {
                       );
                     })}
                     {pendingRides.length === 0 && (
-                      <EmptyState icon={Clock} title={t('dashboard.noPendingRides', 'No pending rides')} description="New calls land here the moment they are created." />
+                      <EmptyState icon={Clock} title={t('dashboard.noPendingRides', 'No pending rides')} />
                     )}
                   </div>
                 </section>

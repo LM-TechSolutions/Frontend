@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -15,6 +15,10 @@ export default function ResetPassword() {
   const [confirm, setConfirm] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!token) navigate('/', { replace: true });
+  }, [token, navigate]);
 
   const strength = useMemo(() => {
     if (password.length >= 12) return 'Strong passphrase';
@@ -48,6 +52,8 @@ export default function ResetPassword() {
     }
   };
 
+  if (!token) return null;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#042f32] p-6">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(0,189,195,0.28),transparent_40%)]" />
@@ -59,9 +65,6 @@ export default function ResetPassword() {
           <ShieldCheck className="h-6 w-6" />
         </div>
         <h1 className="text-2xl font-semibold">Choose a new password</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          You cannot reuse any of your last 5 passwords. Every other session will be signed out.
-        </p>
         <div className="mt-6 space-y-4">
           <div className="space-y-2">
             <Label>New password</Label>

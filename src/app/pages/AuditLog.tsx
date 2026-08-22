@@ -61,7 +61,6 @@ export default function AuditLog() {
       <PageHeader
         eyebrow="Immutable trail"
         title="Audit log"
-        description="Every sensitive action already lands here, including coupon allocations and fare changes."
         actions={<p className="text-sm tabular-nums text-muted-foreground">{total.toLocaleString()} events</p>}
       />
 

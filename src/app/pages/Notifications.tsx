@@ -92,7 +92,6 @@ export default function Notifications() {
       <PageHeader
         eyebrow={t('inbox.eyebrow', 'Inbox')}
         title={t('inbox.title', 'Notifications')}
-        description={t('inbox.description', 'Persisted history - survives a refresh. Unread count comes from the server.')}
         actions={
           <Button variant="outline" onClick={() => api.notifications.markAllRead().then(load)}>
             <Check className="mr-2 h-4 w-4" /> {t('inbox.markAllRead', 'Mark all read')}
@@ -115,7 +114,7 @@ export default function Notifications() {
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : visible.length === 0 ? (
-          <EmptyState icon={Inbox} title={t('inbox.empty', 'Inbox is clear')} description={t('inbox.emptyHint', 'Live alerts land here and in the header bell.')} />
+          <EmptyState icon={Inbox} title={t('inbox.empty', 'Inbox is clear')} />
         ) : (
           <ul className="divide-y divide-border">
             {visible.map((n) => (

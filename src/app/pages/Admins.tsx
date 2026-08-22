@@ -110,7 +110,6 @@ export default function Admins() {
         <EmptyState
           icon={Lock}
           title="Super Admin access required"
-          description="Only the Super Admin can create administrators and change permission sets."
         />
       </div>
     );
@@ -121,7 +120,6 @@ export default function Admins() {
       <PageHeader
         eyebrow="Access"
         title="Administrators"
-        description="Create administrator accounts and choose exactly what each of them can reach."
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <UserPlus className="mr-2 h-4 w-4" /> New administrator
@@ -376,7 +374,7 @@ function CreateAdminDialog({
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>New administrator</DialogTitle>
-          <DialogDescription>They sign in with this email and password, and can change it later.</DialogDescription>
+          <DialogDescription className="sr-only">Create a staff administrator account.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -534,9 +532,7 @@ function PermissionsDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>Permissions - {admin?.name}</DialogTitle>
-          <DialogDescription>
-            Pick one or more roles. The matrix below shows what that actually grants.
-          </DialogDescription>
+          <DialogDescription className="sr-only">Choose roles for this administrator.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">

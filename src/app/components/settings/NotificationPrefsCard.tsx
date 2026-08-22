@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bell, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -163,9 +163,6 @@ export function NotificationPrefsCard() {
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-4 w-4 text-primary" /> {t('settings.notificationSettings', 'Notifications')}
         </CardTitle>
-        <CardDescription>
-          {t('settings.notificationsHint', 'Choose channels, quiet hours, and whether alerts wait for a digest.')}
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex items-center justify-between gap-4">

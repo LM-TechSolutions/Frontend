@@ -181,11 +181,6 @@ export default function Coupons() {
       <PageHeader
         eyebrow="Economy"
         title={t('coupons.title')}
-        description={
-          isAdminView
-            ? 'Allocate packages to operators, refill drivers, and settle refill requests.'
-            : 'Sell coupons to your drivers and request more stock when you run low.'
-        }
         actions={
           <div className="flex items-center gap-2">
             {!isAdminView && (
@@ -282,7 +277,6 @@ export default function Coupons() {
             <EmptyState
               icon={Car}
               title="No drivers match that search"
-              description="Try a plate number, a phone number, or part of a name."
             />
           ) : (
             <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
@@ -301,7 +295,6 @@ export default function Coupons() {
             <EmptyState
               icon={Inbox}
               title="No coupon requests"
-              description="When a driver runs out of coupons, their request lands here for you to approve."
             />
           ) : (
             <RequestQueue requests={requests} onResolved={load} isAdminView={isAdminView} />
@@ -317,7 +310,6 @@ export default function Coupons() {
               <EmptyState
                 icon={Users}
                 title="No operators yet"
-                description="Create call-centre operators first - then allocate coupon packages to them here."
               />
             ) : (
               <div className="grid gap-3 lg:grid-cols-2">
@@ -342,7 +334,6 @@ export default function Coupons() {
             <EmptyState
               icon={Package}
               title="No coupon packages"
-              description="Packages are the bundles an admin allocates to operators."
               action={
                 canManagePackages ? (
                   <Button
@@ -801,7 +792,7 @@ function SellDialog({
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle>Refill {driver?.name}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             {inventory !== null
               ? `Sold from your inventory of ${inventory.toLocaleString()} coupons.`
               : 'Issued directly from Tokuma.'}
@@ -944,8 +935,8 @@ function AllocateDialog({
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>Allocate coupons to {name}</DialogTitle>
-          <DialogDescription>
-            Currently holding {(wallet?.balance ?? 0).toLocaleString()} coupons to sell on to drivers.
+          <DialogDescription className="sr-only">
+            Currently holding {(wallet?.balance ?? 0).toLocaleString()} coupons.
           </DialogDescription>
         </DialogHeader>
 
@@ -1059,9 +1050,7 @@ function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose:
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle>Request more coupons</DialogTitle>
-          <DialogDescription>
-            An administrator will review this and allocate the coupons to your inventory.
-          </DialogDescription>
+          <DialogDescription className="sr-only">Request coupons for your inventory.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -1155,7 +1144,7 @@ function PackageDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>New coupon package</DialogTitle>
-          <DialogDescription>A reusable bundle you can allocate to operators in one click.</DialogDescription>
+          <DialogDescription className="sr-only">Create a coupon package.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">

@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function EnrollTwoFactor() {
   const navigate = useNavigate();
-  const { user, completeTwoFactorEnrollment, logout, needsTwoFactorEnrollment } = useAuth();
+  const { completeTwoFactorEnrollment, logout, needsTwoFactorEnrollment } = useAuth();
   const [password, setPassword] = useState('');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [totpURI, setTotpURI] = useState<string | null>(null);
@@ -71,9 +71,7 @@ export default function EnrollTwoFactor() {
             <h1 className="text-2xl font-semibold">Turn on two-factor authentication</h1>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Super Admin policy requires 2FA for {user?.name ?? 'this account'} before the dashboard opens. Scan once - trusted devices remember you for 30 days.
-        </p>
+        <p className="text-sm text-muted-foreground">Scan the QR code, then enter a 6-digit code.</p>
 
         {step === 'password' ? (
           <div className="mt-8 space-y-4">

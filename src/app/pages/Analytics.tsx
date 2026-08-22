@@ -73,7 +73,6 @@ export default function Analytics() {
       <PageHeader
         eyebrow="Performance"
         title={t('analytics.title', 'Analytics')}
-        description={t('analytics.subtitle', 'Choose a date range - figures are live from rides and calls.')}
         actions={
           <div className="flex flex-wrap gap-2">
             <DateRangePicker value={range} onChange={setRange} align="end" />
