@@ -102,7 +102,7 @@ export default function Analytics() {
         setStats(s);
         setOperators(ops.operators ?? []);
       })
-      .catch((e) => toast.error(e?.message ?? 'Failed to load analytics'))
+      .catch((e) => toast.error(e?.message ?? t('analytics.loadFailed', 'Failed to load analytics')))
       .finally(() => {
         setLoading(false);
         setRefreshing(false);
@@ -161,7 +161,7 @@ export default function Analytics() {
   );
 
   const operatorBars = leaderboard.slice(0, 8).map((op) => ({
-    name: String(op.name ?? 'Operator').split(' ')[0],
+    name: String(op.name ?? t('analytics.operator', 'Operator')).split(' ')[0],
     rides: op.rides,
     calls: op.calls,
   }));
@@ -193,14 +193,14 @@ export default function Analytics() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Performance"
+        eyebrow={t('analytics.eyebrow', 'Performance')}
         title={t('analytics.title', 'Analytics')}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {refreshing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             <DateRangePicker value={range} onChange={setRange} align="end" />
             <Button variant="outline" onClick={exportCsv} disabled={!series.length}>
-              <Download className="mr-2 h-4 w-4" /> Export
+              <Download className="mr-2 h-4 w-4" /> {t('common.export', 'Export')}
             </Button>
           </div>
         }
@@ -215,7 +215,7 @@ export default function Analytics() {
           accent={SUCCESS}
         />
         <StatTile
-          label={t('analytics.activeDrivers', 'Online now')}
+          label={t('analytics.onlineNow', 'Online now')}
           value={`${stats.activeDrivers ?? 0}/${stats.totalDrivers ?? 0}`}
           icon={Users}
         />
@@ -225,13 +225,13 @@ export default function Analytics() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_22rem]">
         <Surface className="p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="font-display text-base font-semibold">Trend</h3>
+            <h3 className="font-display text-base font-semibold">{t('analytics.trend', 'Trend')}</h3>
             <div className="flex gap-1">
               <Facet active={chart === 'volume'} onClick={() => setChart('volume')}>
-                Rides
+                {t('analytics.rides', 'Rides')}
               </Facet>
               <Facet active={chart === 'revenue'} onClick={() => setChart('revenue')}>
-                Revenue
+                {t('analytics.revenue', 'Revenue')}
               </Facet>
             </div>
           </div>
@@ -257,7 +257,7 @@ export default function Analytics() {
                   contentStyle={tooltipStyle}
                   formatter={(value: number, key: string) => [
                     value,
-                    key === 'completed' ? 'Completed' : key === 'calls' ? 'Calls' : 'Rides',
+                    key === 'completed' ? t('analytics.completed', 'Completed') : key === 'calls' ? t('analytics.calls', 'Calls') : t('analytics.rides', 'Rides'),
                   ]}
                 />
                 <Area type="monotone" dataKey="rides" stroke={PRIMARY} strokeWidth={2.4} fill="url(#ridesFill)" />
@@ -277,7 +277,7 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} className="text-muted-foreground" minTickGap={22} />
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} className="text-muted-foreground" width={52} tickFormatter={(v) => `${Math.round(v)}`} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [formatETB(value), 'Revenue']} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [formatETB(value), t('analytics.revenue', 'Revenue')]} />
                 <Area type="monotone" dataKey="revenue" stroke={WARN} strokeWidth={2.4} fill="url(#revFill)" />
               </ComposedChart>
             </ResponsiveContainer>
@@ -285,20 +285,23 @@ export default function Analytics() {
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
             {chart === 'volume' ? (
               <>
-                <LegendDot color={PRIMARY} label="Rides" />
-                <LegendDot color={SUCCESS} label="Completed" />
-                <LegendDot color={INK} label="Calls" />
+                <LegendDot color={PRIMARY} label={t('analytics.rides', 'Rides')} />
+                <LegendDot color={SUCCESS} label={t('analytics.completed', 'Completed')} />
+                <LegendDot color={INK} label={t('analytics.calls', 'Calls')} />
               </>
             ) : (
-              <LegendDot color={WARN} label="Completed fare" />
+              <LegendDot color={WARN} label={t('analytics.completedFare', 'Completed fare')} />
             )}
           </div>
         </Surface>
 
         <Surface className="p-5">
-          <h3 className="mb-1 font-display text-base font-semibold">Outcome mix</h3>
+          <h3 className="mb-1 font-display text-base font-semibold">{t('analytics.outcomeMix', 'Outcome mix')}</h3>
           <p className="mb-3 text-xs text-muted-foreground">
-            {Math.round(ops.completionRate ?? 0)}% completed · {Math.round(ops.cancelRate ?? 0)}% cancelled
+            {t('analytics.outcomeMixHint', '{completed}% completed · {cancelled}% cancelled', {
+              completed: Math.round(ops.completionRate ?? 0),
+              cancelled: Math.round(ops.cancelRate ?? 0),
+            })}
           </p>
           {statusData.length === 0 ? (
             <EmptyChart height={200} />
@@ -333,10 +336,13 @@ export default function Analytics() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Surface className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-baseline justify-between gap-3">
-            <h3 className="font-display text-base font-semibold">Busy hours</h3>
+            <h3 className="font-display text-base font-semibold">{t('analytics.busyHours', 'Busy hours')}</h3>
             {peakHour && peakHour.rides > 0 && (
               <p className="text-xs text-muted-foreground">
-                Peak {String(peakHour.hour).padStart(2, '0')}:00 · {peakHour.rides} rides
+                {t('analytics.peakHour', 'Peak {hour}:00 · {rides} rides', {
+                  hour: String(peakHour.hour).padStart(2, '0'),
+                  rides: peakHour.rides,
+                })}
               </p>
             )}
           </div>
@@ -348,7 +354,7 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} interval={1} className="text-muted-foreground" />
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} allowDecimals={false} width={28} className="text-muted-foreground" />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [value, 'Rides']} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [value, t('analytics.rides', 'Rides')]} />
                 <Bar dataKey="rides" fill={PRIMARY} radius={[6, 6, 0, 0]} maxBarSize={18} />
               </BarChart>
             </ResponsiveContainer>
@@ -356,21 +362,21 @@ export default function Analytics() {
         </Surface>
 
         <Surface className="grid grid-cols-1 gap-0 divide-y divide-border/70">
-          <Metric label="Avg assign time" value={fmtDuration(ops.avgDispatchSeconds ?? 0)} />
-          <Metric label="Avg pickup" value={fmtMinutes(ops.avgPickupMinutes ?? 0)} />
-          <Metric label="Avg trip" value={fmtMinutes(ops.avgTripMinutes ?? 0)} />
-          <Metric label="Avg fare" value={formatETB(stats.averageFare)} />
-          <Metric label="Active now" value={String(stats.activeRides ?? 0)} />
+          <Metric label={t('analytics.avgAssignTime', 'Avg assign time')} value={fmtDuration(ops.avgDispatchSeconds ?? 0)} />
+          <Metric label={t('analytics.avgPickup', 'Avg pickup')} value={fmtMinutes(ops.avgPickupMinutes ?? 0)} />
+          <Metric label={t('analytics.avgTrip', 'Avg trip')} value={fmtMinutes(ops.avgTripMinutes ?? 0)} />
+          <Metric label={t('analytics.avgFareLabel', 'Avg fare')} value={formatETB(stats.averageFare)} />
+          <Metric label={t('analytics.activeNow', 'Active now')} value={String(stats.activeRides ?? 0)} />
         </Surface>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <Surface>
           <div className="border-b border-border/70 px-5 py-4">
-            <h3 className="font-display text-base font-semibold">Top routes</h3>
+            <h3 className="font-display text-base font-semibold">{t('analytics.topRoutes', 'Top routes')}</h3>
           </div>
           {topRoutes.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-muted-foreground">No completed trips in this range</p>
+            <p className="px-5 py-10 text-center text-sm text-muted-foreground">{t('analytics.noCompletedTrips', 'No completed trips in this range')}</p>
           ) : (
             <ul className="divide-y divide-border/70">
               {topRoutes.map((route, i) => (
@@ -390,7 +396,7 @@ export default function Analytics() {
         </Surface>
 
         <Surface className="p-5">
-          <h3 className="mb-4 font-display text-base font-semibold">Operator volume</h3>
+          <h3 className="mb-4 font-display text-base font-semibold">{t('analytics.operatorVolume', 'Operator volume')}</h3>
           {operatorBars.length === 0 ? (
             <EmptyChart height={200} />
           ) : (
@@ -400,8 +406,8 @@ export default function Analytics() {
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" width={72} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} className="text-muted-foreground" />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="rides" fill={PRIMARY} radius={[0, 8, 8, 0]} maxBarSize={16} name="Rides" />
-                <Bar dataKey="calls" fill={INK} radius={[0, 8, 8, 0]} maxBarSize={16} name="Calls" />
+                <Bar dataKey="rides" fill={PRIMARY} radius={[0, 8, 8, 0]} maxBarSize={16} name={t('analytics.rides', 'Rides')} />
+                <Bar dataKey="calls" fill={INK} radius={[0, 8, 8, 0]} maxBarSize={16} name={t('analytics.calls', 'Calls')} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -416,7 +422,7 @@ export default function Analytics() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                {['#', t('analytics.operator', 'Operator'), t('analytics.status', 'Status'), t('analytics.shift', 'Shift'), t('analytics.ridesCreated', 'Rides'), t('analytics.totalCalls', 'Calls'), 'Conversion'].map((h) => (
+                {['#', t('analytics.operator', 'Operator'), t('analytics.status', 'Status'), t('analytics.shift', 'Shift'), t('analytics.ridesCreated', 'Rides'), t('analytics.totalCalls', 'Calls'), t('analytics.conversion', 'Conversion')].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
                     {h}
                   </th>
@@ -431,7 +437,7 @@ export default function Analytics() {
                   <td className="px-4 py-3">
                     <StatusBadge status={op.status === 'active' ? 'active' : 'inactive'} />
                   </td>
-                  <td className="px-4 py-3 text-sm capitalize text-muted-foreground">{op.shift}</td>
+                  <td className="px-4 py-3 text-sm capitalize text-muted-foreground">{t(`operators.${op.shift}`, op.shift)}</td>
                   <td className="px-4 py-3 text-sm tabular-nums">{op.rides}</td>
                   <td className="px-4 py-3 text-sm tabular-nums text-muted-foreground">{op.calls.toLocaleString()}</td>
                   <td className="px-4 py-3">
@@ -478,9 +484,10 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function EmptyChart({ height = 240 }: { height?: number }) {
+  const { t } = useAppContext();
   return (
     <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height }}>
-      No trips in this range
+      {t('analytics.noTripsInRange', 'No trips in this range')}
     </div>
   );
 }

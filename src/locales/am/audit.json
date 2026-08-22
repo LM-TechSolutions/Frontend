@@ -1,0 +1,18 @@
+{
+  "title": "የኦዲት መዝገብ",
+  "eyebrow": "የማይለወጥ ዱካ",
+  "adminOnly": "የኦዲት መዝገቦች ለአስተዳዳሪዎች ይታያሉ።",
+  "eventsCount": "{count} ክስተቶች",
+  "actionPlaceholder": "በእርምጃ አጣራ (auth.lockout, coupons.allocate…)",
+  "resourcePlaceholder": "ሀብት (ተጠቃሚ፣ ክፍለ-ጊዜ፣ ደህንነት)",
+  "search": "ፈልግ",
+  "noEvents": "እነዚያን ማጣሪያዎች የሚዛመድ ክስተት የለም።",
+  "when": "መቼ",
+  "actor": "ፈጻሚ",
+  "action": "እርምጃ",
+  "resource": "ሀብት",
+  "ip": "IP",
+  "system": "ስርዓት",
+  "pageOf": "ገጽ {page} ከ {totalPages}",
+  "loadFailed": "የኦዲት መዝገብ መጫን አልተሳካም"
+}

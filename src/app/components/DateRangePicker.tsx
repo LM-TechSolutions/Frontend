@@ -7,22 +7,10 @@ import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from './ui/utils';
 
+import { useAppContext } from '../contexts/AppContext';
+
 export type { DateRange };
 
-const PRESETS: Array<{ label: string; build: () => DateRange }> = [
-  { label: 'Today', build: () => ({ from: new Date(), to: new Date() }) },
-  { label: 'Last 7 days', build: () => ({ from: subDays(new Date(), 6), to: new Date() }) },
-  { label: 'Last 30 days', build: () => ({ from: subDays(new Date(), 29), to: new Date() }) },
-  { label: 'This month', build: () => ({ from: startOfMonth(new Date()), to: new Date() }) },
-];
-
-/**
- * Start/end date picker with the presets people actually reach for.
- *
- * Both endpoints are inclusive, which the label reflects - "1 - 15 Aug" reports
- * all fifteen days. The range only commits once both ends are chosen, so a
- * half-finished selection never fires a query.
- */
 export default function DateRangePicker({
   value,
   onChange,
@@ -34,14 +22,22 @@ export default function DateRangePicker({
   className?: string;
   align?: 'start' | 'center' | 'end';
 }) {
+  const { t } = useAppContext();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(value);
+
+  const presets: Array<{ label: string; build: () => DateRange }> = [
+    { label: t('common.today'), build: () => ({ from: new Date(), to: new Date() }) },
+    { label: t('common.last7Days'), build: () => ({ from: subDays(new Date(), 6), to: new Date() }) },
+    { label: t('common.last30Days'), build: () => ({ from: subDays(new Date(), 29), to: new Date() }) },
+    { label: t('common.thisMonth'), build: () => ({ from: startOfMonth(new Date()), to: new Date() }) },
+  ];
 
   const label = value?.from
     ? value.to
       ? `${format(value.from, 'd MMM')} - ${format(value.to, 'd MMM yyyy')}`
       : format(value.from, 'd MMM yyyy')
-    : 'Select dates';
+    : t('common.selectDates');
 
   const commit = (range: DateRange | undefined) => {
     setDraft(range);
@@ -73,7 +69,7 @@ export default function DateRangePicker({
       <PopoverContent className="w-auto p-0" align={align}>
         <div className="flex flex-col sm:flex-row">
           <div className="flex shrink-0 gap-1 border-b border-border p-2 sm:flex-col sm:border-b-0 sm:border-r">
-            {PRESETS.map((preset) => (
+            {presets.map((preset) => (
               <Button
                 key={preset.label}
                 variant="ghost"

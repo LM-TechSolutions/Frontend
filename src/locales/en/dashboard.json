@@ -36,5 +36,20 @@
   "unassigned": "Unassigned",
   "guest": "Guest",
   "callTest": "Call Test",
-  "testCustomer": "Test Customer"
+  "testCustomer": "Test Customer",
+  "liveBoard": "Live board",
+  "driverColon": "Driver: {name}",
+  "waitingRides": "Waiting rides ({count})",
+  "activePickups": "Active pickups ({count})",
+  "mapHint": "Tap a driver pin for their report, or a ride pin for tracking",
+  "alarmUnassigned": "{count} unassigned ride(s) have waited more than 8 minutes. Assign or re-notify now.",
+  "reNotified": "Re-notified {count} nearby driver(s)",
+  "noEligibleNearby": "No eligible nearby drivers right now",
+  "redispatchFailed": "Failed to re-notify drivers",
+  "phoneRequired": "Customer phone is required",
+  "callLogged": "Call logged",
+  "callLogFailed": "Failed to log call",
+  "avgWait": "Avg wait",
+  "alarmed": "Overdue",
+  "onARide": "On a ride"
 }

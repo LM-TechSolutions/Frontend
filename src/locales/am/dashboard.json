@@ -36,5 +36,20 @@
   "unassigned": "ያልተመደበ",
   "guest": "እንግዳ",
   "callTest": "የሙከራ ጥሪ",
-  "testCustomer": "የሙከራ ደንበኛ"
+  "testCustomer": "የሙከራ ደንበኛ",
+  "liveBoard": "ቀጥታ ሰሌዳ",
+  "driverColon": "አሽከርካሪ: {name}",
+  "waitingRides": "በመጠባበቅ ያሉ ጉዞዎች ({count})",
+  "activePickups": "ንቁ መነሻዎች ({count})",
+  "mapHint": "ለሪፖርት የአሽከርካሪ ፒን፣ ለክትትል የጉዞ ፒን ይንኩ",
+  "alarmUnassigned": "{count} ያልተመደቡ ጉዞዎች ከ8 ደቂቃ በላይ ጠብቀዋል። አሁን ይመድቡ ወይም እንደገና ያሳውቁ።",
+  "reNotified": "{count} በአቅራቢያ ያሉ አሽከርካሪዎች እንደገና ተነግረዋል",
+  "noEligibleNearby": "አሁን ብቁ በአቅራቢያ ያለ አሽከርካሪ የለም",
+  "redispatchFailed": "አሽከርካሪዎችን እንደገና ማሳወቅ አልተሳካም",
+  "phoneRequired": "የደንበኛ ስልክ ያስፈልጋል",
+  "callLogged": "ጥሪ ተመዝግቧል",
+  "callLogFailed": "ጥሪ መመዝገብ አልተሳካም",
+  "avgWait": "አማካይ ጠባቂ",
+  "alarmed": "ያለፈበት",
+  "onARide": "በጉዞ ላይ"
 }

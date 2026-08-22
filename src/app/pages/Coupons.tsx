@@ -179,7 +179,7 @@ export default function Coupons() {
   return (
     <div className="space-y-6 p-6">
       <PageHeader
-        eyebrow="Economy"
+        eyebrow={t('coupons.economy')}
         title={t('coupons.title')}
         actions={
           <div className="flex items-center gap-2">
@@ -189,12 +189,12 @@ export default function Coupons() {
                 className="border-primary/40 text-primary hover:bg-primary/10"
                 onClick={() => setRequestOpen(true)}
               >
-                <Send className="mr-2 h-4 w-4" /> Request stock
+                <Send className="mr-2 h-4 w-4" /> {t('coupons.requestStock')}
               </Button>
             )}
             {canManagePackages && (
               <Button onClick={() => setPackageDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> New package
+                <Plus className="mr-2 h-4 w-4" /> {t('coupons.newPackage')}
               </Button>
             )}
           </div>
@@ -207,30 +207,38 @@ export default function Coupons() {
       {isAdminView && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile
-            label="In driver wallets"
+            label={t('coupons.inDriverWallets')}
             value={totals.inCirculation.toLocaleString()}
-            hint={`Across ${drivers.length} driver${drivers.length === 1 ? '' : 's'}`}
+            hint={
+              drivers.length === 1
+                ? t('coupons.acrossDriversOne')
+                : t('coupons.acrossDrivers', undefined, { count: drivers.length })
+            }
             icon={Wallet}
           />
           <StatTile
-            label="Operator inventory"
+            label={t('coupons.operatorInventory')}
             value={totals.operatorStock.toLocaleString()}
-            hint={`${wallets.length} operator${wallets.length === 1 ? '' : 's'} supplied`}
+            hint={
+              wallets.length === 1
+                ? t('coupons.operatorsSuppliedOne')
+                : t('coupons.operatorsSupplied', undefined, { count: wallets.length })
+            }
             icon={Boxes}
             accent="#6366F1"
           />
           <StatTile
-            label="Drivers running low"
+            label={t('coupons.driversRunningLow')}
             value={totals.lowDrivers.toLocaleString()}
-            hint={`Below ${minCouponBalance} coupons`}
+            hint={t('coupons.belowCoupons', undefined, { count: minCouponBalance })}
             icon={AlertTriangle}
             accent={totals.lowDrivers > 0 ? '#EF4444' : '#10B981'}
             onClick={() => setTab('drivers')}
           />
           <StatTile
-            label="Pending requests"
+            label={t('coupons.pendingRequests')}
             value={pendingRequests.length.toLocaleString()}
-            hint={pendingRequests.length ? 'Awaiting your decision' : 'Queue is clear'}
+            hint={pendingRequests.length ? t('coupons.awaitingDecision') : t('coupons.queueClear')}
             icon={Inbox}
             accent={pendingRequests.length > 0 ? '#F59E0B' : '#10B981'}
             onClick={() => setTab('requests')}
@@ -241,21 +249,21 @@ export default function Coupons() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="h-auto flex-wrap gap-1 bg-muted/60 p-1">
           <TabsTrigger value="drivers" className="gap-2 data-[state=active]:bg-background">
-            <Car className="h-4 w-4" /> Drivers
+            <Car className="h-4 w-4" /> {t('nav.drivers')}
           </TabsTrigger>
           <TabsTrigger value="requests" className="gap-2 data-[state=active]:bg-background">
-            <Inbox className="h-4 w-4" /> Requests
+            <Inbox className="h-4 w-4" /> {t('coupons.tabRequests')}
             {pendingRequests.length > 0 && (
               <span className="text-[11px] font-semibold text-[color:var(--warning)]">{pendingRequests.length}</span>
             )}
           </TabsTrigger>
           {isAdminView && (
             <TabsTrigger value="operators" className="gap-2 data-[state=active]:bg-background">
-              <Users className="h-4 w-4" /> Operators
+              <Users className="h-4 w-4" /> {t('nav.operators')}
             </TabsTrigger>
           )}
           <TabsTrigger value="packages" className="gap-2 data-[state=active]:bg-background">
-            <Package className="h-4 w-4" /> Packages
+            <Package className="h-4 w-4" /> {t('coupons.tabPackages')}
           </TabsTrigger>
         </TabsList>
 
@@ -264,7 +272,7 @@ export default function Coupons() {
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by name, plate, or phone…"
+              placeholder={t('coupons.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-11 pl-10"
@@ -276,7 +284,7 @@ export default function Coupons() {
           ) : visibleDrivers.length === 0 ? (
             <EmptyState
               icon={Car}
-              title="No drivers match that search"
+              title={t('coupons.noDriversMatch')}
             />
           ) : (
             <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
@@ -294,7 +302,7 @@ export default function Coupons() {
           ) : requests.length === 0 ? (
             <EmptyState
               icon={Inbox}
-              title="No coupon requests"
+              title={t('coupons.noRequests')}
             />
           ) : (
             <RequestQueue requests={requests} onResolved={load} isAdminView={isAdminView} />
@@ -309,7 +317,7 @@ export default function Coupons() {
             ) : wallets.length === 0 ? (
               <EmptyState
                 icon={Users}
-                title="No operators yet"
+                title={t('coupons.noOperators')}
               />
             ) : (
               <div className="grid gap-3 lg:grid-cols-2">
@@ -333,13 +341,13 @@ export default function Coupons() {
           ) : packages.length === 0 ? (
             <EmptyState
               icon={Package}
-              title="No coupon packages"
+              title={t('coupons.noPackages')}
               action={
                 canManagePackages ? (
                   <Button
                     onClick={() => setPackageDialogOpen(true)}
                   >
-                    <Plus className="mr-2 h-4 w-4" /> Create the first package
+                    <Plus className="mr-2 h-4 w-4" /> {t('coupons.createFirstPackage')}
                   </Button>
                 ) : undefined
               }
@@ -375,6 +383,7 @@ export default function Coupons() {
 /* -------------------------------------------------------------- hero ---- */
 
 function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; onRequest: () => void }) {
+  const { t } = useAppContext();
   const balance = wallet?.balance ?? 0;
   const threshold = wallet?.lowBalanceThreshold ?? 50;
   const tone = couponTone(balance, threshold);
@@ -389,26 +398,26 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
         />
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/70">My coupon inventory</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/70">{t('coupons.myInventory')}</p>
             <p className="mt-2 text-5xl font-semibold leading-none tabular-nums">{balance.toLocaleString()}</p>
             <p className="mt-2 text-sm text-white/80">
-              {isLow ? 'Low stock - request more before your drivers run dry.' : 'Available to sell to your drivers.'}
+              {isLow ? t('coupons.lowStockHint') : t('coupons.availableToSell')}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.09em] text-white/60">Received</p>
+              <p className="text-[11px] uppercase tracking-[0.09em] text-white/60">{t('coupons.received')}</p>
               <p className="mt-1 text-xl font-semibold tabular-nums">
                 {(wallet?.totalAllocated ?? 0).toLocaleString()}
               </p>
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.09em] text-white/60">Sold</p>
+              <p className="text-[11px] uppercase tracking-[0.09em] text-white/60">{t('coupons.sold')}</p>
               <p className="mt-1 text-xl font-semibold tabular-nums">{(wallet?.totalSold ?? 0).toLocaleString()}</p>
             </div>
             <Button onClick={onRequest} className="bg-white text-primary shadow-sm hover:bg-white/90">
-              <Send className="mr-2 h-4 w-4" /> Request more
+              <Send className="mr-2 h-4 w-4" /> {t('coupons.requestMore')}
             </Button>
           </div>
         </div>
@@ -418,7 +427,11 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
         <CardContent className={`flex items-center gap-2 border-t border-border/60 p-3 ${TONE_STYLES[tone].bg}`}>
           <AlertTriangle className={`h-4 w-4 ${TONE_STYLES[tone].text}`} />
           <p className={`text-sm font-medium ${TONE_STYLES[tone].text}`}>
-            {TONE_STYLES[tone].label} - {balance} coupons against a working level of {threshold}.
+            {t('coupons.toneAgainstThreshold', undefined, {
+              label: t(`common.${tone}`),
+              balance,
+              threshold,
+            })}
           </p>
         </CardContent>
       )}
@@ -429,6 +442,7 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
 /* ------------------------------------------------------------- cards ---- */
 
 function DriverCouponCard({ driver, threshold, onSell }: { driver: any; threshold: number; onSell: () => void }) {
+  const { t } = useAppContext();
   const balance = driver.couponBalance ?? 0;
   const tone = couponTone(balance, threshold);
 
@@ -462,13 +476,13 @@ function DriverCouponCard({ driver, threshold, onSell }: { driver: any; threshol
 
         <div className="flex items-end justify-between border-t border-border/60 pt-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.09em] text-muted-foreground">Balance</p>
+            <p className="text-[11px] uppercase tracking-[0.09em] text-muted-foreground">{t('coupons.balance')}</p>
             <p className={`mt-1 text-2xl font-semibold tabular-nums ${TONE_STYLES[tone].text}`}>
               {balance.toLocaleString()}
             </p>
           </div>
           <Button size="sm" onClick={onSell}>
-            <Plus className="mr-1.5 h-4 w-4" /> Refill
+            <Plus className="mr-1.5 h-4 w-4" /> {t('coupons.refillShort')}
           </Button>
         </div>
       </CardContent>
@@ -485,7 +499,8 @@ function OperatorWalletCard({
   onAllocate: () => void;
   canAllocate: boolean;
 }) {
-  const name = wallet.operator ? `${wallet.operator.firstName} ${wallet.operator.lastName}`.trim() : 'Operator';
+  const { t } = useAppContext();
+  const name = wallet.operator ? `${wallet.operator.firstName} ${wallet.operator.lastName}`.trim() : t('coupons.operator');
   const tone = couponTone(wallet.balance, wallet.lowBalanceThreshold);
 
   return (
@@ -504,19 +519,19 @@ function OperatorWalletCard({
 
         <div className="grid grid-cols-3 gap-3 border-t border-border/60 pt-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.09em] text-muted-foreground">In stock</p>
+            <p className="text-[11px] uppercase tracking-[0.09em] text-muted-foreground">{t('coupons.inStock')}</p>
             <p className={`mt-1 text-lg font-semibold tabular-nums ${TONE_STYLES[tone].text}`}>
               {wallet.balance.toLocaleString()}
             </p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-[0.09em] text-muted-foreground">Received</p>
+            <p className="text-[11px] uppercase tracking-[0.09em] text-muted-foreground">{t('coupons.received')}</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">
               {wallet.totalAllocated.toLocaleString()}
             </p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-[0.09em] text-muted-foreground">Sold on</p>
+            <p className="text-[11px] uppercase tracking-[0.09em] text-muted-foreground">{t('coupons.soldOn')}</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">
               {wallet.totalSold.toLocaleString()}
             </p>
@@ -529,7 +544,7 @@ function OperatorWalletCard({
             className="w-full border-primary/40 text-primary hover:bg-primary/10"
             onClick={onAllocate}
           >
-            <Boxes className="mr-2 h-4 w-4" /> Allocate coupons
+            <Boxes className="mr-2 h-4 w-4" /> {t('coupons.allocateCoupons')}
           </Button>
         )}
       </CardContent>
@@ -538,16 +553,17 @@ function OperatorWalletCard({
 }
 
 function PackageCard({ pkg, canEdit, onChanged }: { pkg: CouponPackage; canEdit: boolean; onChanged: () => void }) {
+  const { t } = useAppContext();
   const [saving, setSaving] = useState(false);
 
   const toggle = async (isActive: boolean) => {
     setSaving(true);
     try {
       await api.couponPackages.update(pkg.id, { isActive });
-      toast.success(isActive ? `${pkg.name} is available again` : `${pkg.name} retired`);
+      toast.success(isActive ? t('coupons.packageAvailable', undefined, { name: pkg.name }) : t('coupons.packageRetired', undefined, { name: pkg.name }));
       onChanged();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not update the package');
+      toast.error(e?.message ?? t('coupons.updatePackageFailed'));
     } finally {
       setSaving(false);
     }
@@ -570,12 +586,14 @@ function PackageCard({ pkg, canEdit, onChanged }: { pkg: CouponPackage; canEdit:
           <div>
             <p className="text-3xl font-semibold tabular-nums text-foreground">{pkg.couponCount.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">
-              coupons{pkg.price != null ? ` · ${formatETB(pkg.price)}` : ''}
+              {pkg.price != null
+                ? t('coupons.couponsWithPrice', undefined, { price: formatETB(pkg.price) })
+                : t('common.coupons')}
             </p>
           </div>
           {canEdit && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{pkg.isActive ? 'Active' : 'Retired'}</span>
+              <span className="text-xs text-muted-foreground">{pkg.isActive ? t('coupons.active') : t('coupons.retired')}</span>
               <Switch checked={pkg.isActive} disabled={saving} onCheckedChange={toggle} />
             </div>
           )}
@@ -596,6 +614,7 @@ function RequestQueue({
   onResolved: () => void;
   isAdminView: boolean;
 }) {
+  const { t } = useAppContext();
   const pending = requests.filter((r) => r.status === 'pending');
   const settled = requests.filter((r) => r.status !== 'pending');
 
@@ -604,7 +623,7 @@ function RequestQueue({
       {pending.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-foreground">
-            Awaiting a decision <span className="font-normal text-muted-foreground">({pending.length})</span>
+            {t('coupons.awaitingDecisionCount', undefined, { count: pending.length })}
           </h3>
           {pending.map((request) => (
             <RequestRow key={request.id} request={request} onResolved={onResolved} isAdminView={isAdminView} />
@@ -614,7 +633,7 @@ function RequestQueue({
 
       {settled.length > 0 && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground">Recently settled</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground">{t('coupons.recentlySettled')}</h3>
           {settled.slice(0, 15).map((request) => (
             <RequestRow key={request.id} request={request} onResolved={onResolved} isAdminView={isAdminView} />
           ))}
@@ -633,6 +652,7 @@ function RequestRow({
   onResolved: () => void;
   isAdminView: boolean;
 }) {
+  const { t } = useAppContext();
   const [busy, setBusy] = useState<'approve' | 'reject' | null>(null);
   const [amount, setAmount] = useState(String(request.amount));
 
@@ -640,10 +660,10 @@ function RequestRow({
   const who = fromDriver
     ? request.driver
       ? `${request.driver.firstName} ${request.driver.lastName}`.trim()
-      : 'Driver'
+      : t('common.driver')
     : request.operator
     ? `${request.operator.firstName} ${request.operator.lastName}`.trim()
-    : 'Operator';
+    : t('coupons.operator');
 
   const currentBalance = fromDriver
     ? request.driver?.couponWallet?.balance ?? 0
@@ -653,16 +673,16 @@ function RequestRow({
     if (action === 'approve') {
       const granted = Number(amount);
       if (!Number.isFinite(granted) || granted <= 0) {
-        toast.error('Enter how many coupons to grant');
+        toast.error(t('coupons.enterGrantAmount'));
         return;
       }
       setBusy('approve');
       try {
         await api.couponRequests.approve(request.id, { amount: granted });
-        toast.success(`Granted ${granted} coupons to ${who}`);
+        toast.success(t('coupons.grantedTo', undefined, { count: granted, name: who }));
         onResolved();
       } catch (e: any) {
-        toast.error(e?.message ?? 'Could not approve the request');
+        toast.error(e?.message ?? t('coupons.approveFailed'));
       } finally {
         setBusy(null);
       }
@@ -672,10 +692,10 @@ function RequestRow({
     setBusy('reject');
     try {
       await api.couponRequests.reject(request.id);
-      toast.success(`Request from ${who} rejected`);
+      toast.success(t('coupons.rejectedFrom', undefined, { name: who }));
       onResolved();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not reject the request');
+      toast.error(e?.message ?? t('coupons.rejectFailed'));
     } finally {
       setBusy(null);
     }
@@ -693,17 +713,16 @@ function RequestRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-foreground">{who}</p>
-            <span className="text-xs text-muted-foreground">{fromDriver ? 'Driver' : 'Operator'}</span>
+            <span className="text-xs text-muted-foreground">{fromDriver ? t('common.driver') : t('coupons.operator')}</span>
             {request.autoCreated && (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
-                <Sparkles className="h-3 w-3" /> Auto
+                <Sparkles className="h-3 w-3" /> {t('coupons.auto')}
               </span>
             )}
             {!isPending && <RequestStatusChip status={request.status} />}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Asked for <span className="font-medium tabular-nums text-foreground">{request.amount}</span> coupons ·
-            currently holds <span className="tabular-nums">{currentBalance}</span>
+            {t('coupons.askedHolds', undefined, { asked: request.amount, holds: currentBalance })}
             <span className="mx-1.5 opacity-50">·</span>
             <Clock className="mr-1 inline h-3 w-3" />
             {timeAgo(request.createdAt)}
@@ -719,7 +738,7 @@ function RequestRow({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="h-9 w-24 text-center tabular-nums"
-              aria-label={`Coupons to grant ${who}`}
+              aria-label={t('coupons.grantAria', undefined, { name: who })}
             />
             <Button
               size="sm"
@@ -728,7 +747,7 @@ function RequestRow({
               onClick={() => act('approve')}
             >
               {busy === 'approve' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              <span className="ml-1.5">Approve</span>
+              <span className="ml-1.5">{t('coupons.approve')}</span>
             </Button>
             <Button
               size="sm"
@@ -736,7 +755,7 @@ function RequestRow({
               className="border-[#EF4444]/40 text-[#DC2626] hover:bg-[#EF4444]/10 dark:text-[#F87171]"
               disabled={busy !== null}
               onClick={() => act('reject')}
-              aria-label={`Reject request from ${who}`}
+              aria-label={t('coupons.rejectAria', undefined, { name: who })}
             >
               {busy === 'reject' ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
             </Button>
@@ -761,6 +780,7 @@ function SellDialog({
   /** The operator's available stock, or null when an admin is issuing directly. */
   inventory: number | null;
 }) {
+  const { t } = useAppContext();
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -776,12 +796,12 @@ function SellDialog({
     if (!driver || !valid || exceedsStock) return;
     setSaving(true);
     try {
-      await api.coupons.refill(driver.id, parsed, 'Coupon refill');
-      toast.success(`${parsed} coupons added to ${driver.name}`);
+      await api.coupons.refill(driver.id, parsed, t('coupons.refill'));
+      toast.success(t('coupons.addedTo', undefined, { count: parsed, name: driver.name }));
       onClose();
       onDone();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Refill failed');
+      toast.error(e?.message ?? t('coupons.refillFailed'));
     } finally {
       setSaving(false);
     }
@@ -793,33 +813,33 @@ function SellDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             {driver ? <Initials name={driver.name} src={driver.profilePicture} className="h-10 w-10 text-xs" /> : null}
-            <span>Refill {driver?.name}</span>
+            <span>{t('coupons.refillName', undefined, { name: driver?.name ?? '' })}</span>
           </DialogTitle>
           <DialogDescription className="sr-only">
             {inventory !== null
-              ? `Sold from your inventory of ${inventory.toLocaleString()} coupons.`
-              : 'Issued directly from Tokuma.'}
+              ? t('coupons.soldFromInventory', undefined, { count: inventory.toLocaleString() })
+              : t('coupons.issuedDirect')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/60 p-4 text-sm">
             <div>
-              <p className="text-xs text-muted-foreground">Plate</p>
+              <p className="text-xs text-muted-foreground">{t('coupons.plate')}</p>
               <p className="font-medium text-foreground">{driver?.licensePlate}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Phone</p>
+              <p className="text-xs text-muted-foreground">{t('coupons.phone')}</p>
               <p className="font-medium text-foreground">{driver?.phone}</p>
             </div>
             <div className="col-span-2">
-              <p className="text-xs text-muted-foreground">Current balance</p>
+              <p className="text-xs text-muted-foreground">{t('coupons.currentBalanceLabel')}</p>
               <p className="text-2xl font-semibold tabular-nums text-foreground">{driver?.couponBalance ?? 0}</p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="sell-amount">Coupons to add</Label>
+            <Label htmlFor="sell-amount">{t('coupons.couponsToAdd')}</Label>
             <Input
               id="sell-amount"
               type="number"
@@ -848,7 +868,7 @@ function SellDialog({
 
           {valid && !exceedsStock && (
             <div className="rounded-xl border border-primary/30 bg-primary/10 p-3">
-              <p className="text-xs text-muted-foreground">New balance</p>
+              <p className="text-xs text-muted-foreground">{t('coupons.newBalance')}</p>
               <p className="text-2xl font-semibold tabular-nums text-primary">
                 {((driver?.couponBalance ?? 0) + parsed).toLocaleString()}
               </p>
@@ -859,8 +879,7 @@ function SellDialog({
             <div className="flex items-start gap-2 rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 p-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#DC2626] dark:text-[#F87171]" />
               <p className="text-sm text-[#DC2626] dark:text-[#F87171]">
-                That is more than the {inventory?.toLocaleString()} coupons you hold. Request more from an
-                administrator first.
+                {t('coupons.exceedsStock', undefined, { count: inventory?.toLocaleString() ?? 0 })}
               </p>
             </div>
           )}
@@ -868,14 +887,14 @@ function SellDialog({
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={submit}
             disabled={!valid || exceedsStock || saving}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Transfer coupons
+            {t('coupons.transferCoupons')}
           </Button>
         </div>
       </DialogContent>
@@ -894,6 +913,7 @@ function AllocateDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useAppContext();
   const [packageId, setPackageId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
@@ -911,7 +931,7 @@ function AllocateDialog({
   const granted = selected ? selected.couponCount : Number.isFinite(custom) ? custom : 0;
   const valid = granted > 0;
 
-  const name = wallet?.operator ? `${wallet.operator.firstName} ${wallet.operator.lastName}`.trim() : 'operator';
+  const name = wallet?.operator ? `${wallet.operator.firstName} ${wallet.operator.lastName}`.trim() : t('coupons.operator');
 
   const submit = async () => {
     if (!wallet || !valid) return;
@@ -923,11 +943,11 @@ function AllocateDialog({
           selected ? { packageId: selected.id } : { amount: granted }
         )
       );
-      toast.success(`Allocated ${granted} coupons to ${name}`);
+      toast.success(t('coupons.allocatedTo', undefined, { count: granted, name }));
       onClose();
       onDone();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Allocation failed');
+      toast.error(e?.message ?? t('coupons.allocationFailed'));
     } finally {
       setSaving(false);
     }
@@ -937,16 +957,16 @@ function AllocateDialog({
     <Dialog open={!!wallet} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Allocate coupons to {name}</DialogTitle>
+          <DialogTitle>{t('coupons.allocateTo', undefined, { name })}</DialogTitle>
           <DialogDescription className="sr-only">
-            Currently holding {(wallet?.balance ?? 0).toLocaleString()} coupons.
+            {t('coupons.currentlyHolding', undefined, { count: (wallet?.balance ?? 0).toLocaleString() })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
           {activePackages.length > 0 && (
             <div className="space-y-2">
-              <Label>Choose a package</Label>
+              <Label>{t('coupons.choosePackage')}</Label>
               <div className="grid gap-2 sm:grid-cols-2">
                 {activePackages.map((pkg) => {
                   const isSelected = packageId === pkg.id;
@@ -978,7 +998,7 @@ function AllocateDialog({
 
           <div className="space-y-2">
             <Label htmlFor="allocate-amount">
-              {activePackages.length > 0 ? 'Or enter a custom amount' : 'Coupons to allocate'}
+              {activePackages.length > 0 ? t('coupons.customAmount') : t('coupons.couponsToAllocate')}
             </Label>
             <Input
               id="allocate-amount"
@@ -996,7 +1016,7 @@ function AllocateDialog({
 
           {valid && (
             <div className="rounded-xl border border-primary/30 bg-primary/10 p-3">
-              <p className="text-xs text-muted-foreground">New inventory</p>
+              <p className="text-xs text-muted-foreground">{t('coupons.newInventory')}</p>
               <p className="text-2xl font-semibold tabular-nums text-primary">
                 {((wallet?.balance ?? 0) + granted).toLocaleString()}
               </p>
@@ -1006,11 +1026,11 @@ function AllocateDialog({
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={submit} disabled={!valid || saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Allocate
+            {t('coupons.allocate')}
           </Button>
         </div>
       </DialogContent>
@@ -1019,6 +1039,7 @@ function AllocateDialog({
 }
 
 function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+  const { t } = useAppContext();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1038,11 +1059,11 @@ function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose:
     setSaving(true);
     try {
       await api.couponRequests.create({ amount: parsed, note: note || undefined });
-      toast.success('Request sent to the administrator');
+      toast.success(t('coupons.requestSent'));
       onClose();
       onDone();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not send the request');
+      toast.error(e?.message ?? t('coupons.requestFailed'));
     } finally {
       setSaving(false);
     }
@@ -1052,13 +1073,13 @@ function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose:
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle>Request more coupons</DialogTitle>
-          <DialogDescription className="sr-only">Request coupons for your inventory.</DialogDescription>
+          <DialogTitle>{t('coupons.requestMoreTitle')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('coupons.requestInventory')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="request-amount">How many coupons?</Label>
+            <Label htmlFor="request-amount">{t('coupons.howMany')}</Label>
             <Input
               id="request-amount"
               type="number"
@@ -1086,12 +1107,12 @@ function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose:
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="request-note">Note (optional)</Label>
+            <Label htmlFor="request-note">{t('coupons.noteOptional')}</Label>
             <Textarea
               id="request-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Why you need them - helps the admin prioritise."
+              placeholder={t('coupons.notePlaceholder')}
               rows={3}
             />
           </div>
@@ -1099,11 +1120,11 @@ function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose:
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={submit} disabled={!valid || saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send request
+            {t('coupons.sendRequest')}
           </Button>
         </div>
       </DialogContent>
@@ -1112,6 +1133,7 @@ function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose:
 }
 
 function PackageDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+  const { t } = useAppContext();
   const [form, setForm] = useState({ name: '', couponCount: '', price: '', description: '' });
   const [saving, setSaving] = useState(false);
 
@@ -1132,11 +1154,11 @@ function PackageDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
         price: form.price ? Number(form.price) : undefined,
         description: form.description || undefined,
       });
-      toast.success(`${form.name} created`);
+      toast.success(t('coupons.packageCreated', undefined, { name: form.name }));
       onClose();
       onDone();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not create the package');
+      toast.error(e?.message ?? t('coupons.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -1146,24 +1168,24 @@ function PackageDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle>New coupon package</DialogTitle>
-          <DialogDescription className="sr-only">Create a coupon package.</DialogDescription>
+          <DialogTitle>{t('coupons.newPackageTitle')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('coupons.createPackageDesc')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="pkg-name">Name</Label>
+            <Label htmlFor="pkg-name">{t('coupons.name')}</Label>
             <Input
               id="pkg-name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Standard 200"
+              placeholder={t('coupons.namePlaceholder')}
               autoFocus
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="pkg-count">Coupons</Label>
+              <Label htmlFor="pkg-count">{t('coupons.coupons')}</Label>
               <Input
                 id="pkg-count"
                 type="number"
@@ -1175,7 +1197,7 @@ function PackageDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pkg-price">Price (ETB)</Label>
+              <Label htmlFor="pkg-price">{t('coupons.priceEtb')}</Label>
               <Input
                 id="pkg-price"
                 type="number"
@@ -1188,24 +1210,24 @@ function PackageDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="pkg-desc">Description (optional)</Label>
+            <Label htmlFor="pkg-desc">{t('coupons.descriptionOptional')}</Label>
             <Textarea
               id="pkg-desc"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={2}
-              placeholder="Everyday replenishment bundle"
+              placeholder={t('coupons.descPlaceholder')}
             />
           </div>
         </div>
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={submit} disabled={!valid || saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create package
+            {t('coupons.createPackage')}
           </Button>
         </div>
       </DialogContent>

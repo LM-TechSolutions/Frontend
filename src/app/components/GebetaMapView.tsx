@@ -7,6 +7,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { config, ADDIS_CENTER } from '../lib/config';
 import { fetchRoadRoute, type RoadRoute } from '../lib/route';
 import { api } from '../lib/api';
+import { useAppContext } from '../contexts/AppContext';
+import i18n from '../i18n';
 
 export interface MapPoint {
   lng: number;
@@ -118,9 +120,9 @@ function pointsKey(a?: MapPoint | null, b?: MapPoint | null) {
 function prettyStatus(status?: string | null) {
   if (!status) return '';
   const key = status.toLowerCase();
-  if (key === 'available') return 'Available';
-  if (key === 'busy') return 'On a ride';
-  if (key === 'offline') return 'Offline';
+  if (key === 'available') return i18n.t('available', { ns: 'dashboard', defaultValue: 'Available' });
+  if (key === 'busy') return i18n.t('onARide', { ns: 'dashboard', defaultValue: 'On a ride' });
+  if (key === 'offline') return i18n.t('offline', { ns: 'dashboard', defaultValue: 'Offline' });
   return status;
 }
 
@@ -132,7 +134,9 @@ function personHoverHtml(d: {
   kind?: 'driver' | 'customer';
   detail?: string | null;
 }, address?: string) {
-  const role = d.kind === 'customer' ? 'Customer' : 'Driver';
+  const role = d.kind === 'customer'
+    ? i18n.t('customer', { ns: 'common', defaultValue: 'Customer' })
+    : i18n.t('driver', { ns: 'common', defaultValue: 'Driver' });
   const status = prettyStatus(d.status);
   const color = d.color ?? '#00BDC3';
   const face = d.photoUrl
@@ -144,13 +148,13 @@ function personHoverHtml(d: {
       <div class="tokuma-hover-top">
         <div class="tokuma-hover-face" style="background:${escapeHtml(color)}">${face}</div>
         <div class="tokuma-hover-who">
-          <p class="tokuma-hover-name">${escapeHtml(d.name || 'Unknown')}</p>
+          <p class="tokuma-hover-name">${escapeHtml(d.name || i18n.t('unknown', { ns: 'common', defaultValue: 'Unknown' }))}</p>
           <p class="tokuma-hover-role">${role}</p>
         </div>
       </div>
       ${status ? `<p class="tokuma-hover-status">${escapeHtml(status)}</p>` : ''}
       ${d.detail ? `<p class="tokuma-hover-detail">${escapeHtml(d.detail)}</p>` : ''}
-      <p class="tokuma-hover-addr">${address ? escapeHtml(address) : 'Finding street…'}</p>
+      <p class="tokuma-hover-addr">${address ? escapeHtml(address) : i18n.t('findingStreet', { ns: 'common', defaultValue: 'Finding street…' })}</p>
     </div>
   `;
 }
@@ -319,6 +323,7 @@ export default function GebetaMapView({
   fullscreen: fullscreenProp,
   onFullscreenChange,
 }: GebetaMapViewProps) {
+  const { t } = useAppContext();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [internalFs, setInternalFs] = useState(false);
   const fullscreen = fullscreenProp ?? internalFs;
@@ -666,13 +671,13 @@ export default function GebetaMapView({
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#F3F4F6]">
           <div className="flex flex-col items-center gap-2">
             <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-            <p className="text-xs text-[#6B7280]">Loading map…</p>
+            <p className="text-xs text-[#6B7280]">{t('common.loadingMap')}</p>
           </div>
         </div>
       )}
       {ready && routeLoading && pickup && dropoff && (
         <div className="pointer-events-none absolute bottom-3 right-14 z-10 rounded-full border border-border/80 bg-card/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur">
-          Calculating road route…
+          {t('common.calculatingRoute')}
         </div>
       )}
       <GebetaMap
@@ -690,7 +695,7 @@ export default function GebetaMapView({
           type="button"
           onClick={toggleFullscreen}
           className="absolute right-3 top-3 z-[30] flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-card/95 text-foreground shadow-md backdrop-blur hover:bg-card"
-          aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen map'}
+          aria-label={fullscreen ? t('common.exitFullscreen') : t('common.fullscreenMap')}
         >
           {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </button>

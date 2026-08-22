@@ -18,5 +18,15 @@
   "duration": "Turtii",
   "rideId": "ID Imalaa",
   "notes": "Yaadannoo",
-  "noLogs": "Galmeen bilbilaa tokkollee hin argamne"
+  "noLogs": "Galmeen bilbilaa tokkollee hin argamne",
+  "loadFailed": "Galmee bilbilaa fe'uu hin dandeenye",
+  "eyebrow": "Sagalee",
+  "csv": "CSV",
+  "thisPage": "Fuula kana",
+  "inRange": "{count} yeroo keessa",
+  "callToRide": "Bilbila gara imalaatti",
+  "avgHint": "Giddugaleessa {duration}",
+  "converted": "Jijjiirame",
+  "noRide": "Imalli hin jiru",
+  "pageOf": "Fuula {page} keessaa {total} · bilbila {count}"
 }

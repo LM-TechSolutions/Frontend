@@ -12,5 +12,6 @@
   "groupDrivers": "Drivers",
   "groupSecurity": "Security",
   "groupSystem": "System",
-  "noneNew": "No new notifications"
+  "noneNew": "No new notifications",
+  "loadFailed": "Could not load notifications"
 }

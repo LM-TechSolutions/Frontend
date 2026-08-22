@@ -43,7 +43,7 @@ export default function Notifications() {
       const res = await api.notifications.list({ limit: 50, unreadOnly: unreadOnly || undefined });
       setItems(res.notifications ?? []);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not load notifications');
+      toast.error(e?.message ?? t('inbox.loadFailed', 'Could not load notifications'));
     } finally {
       setLoading(false);
     }

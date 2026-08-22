@@ -141,7 +141,7 @@ export default function Drivers() {
 
   const handleAdd = async () => {
     if (!form.name || !form.phone || !form.email || !form.licensePlate || !form.licenseNumber) {
-      toast.error('Name, phone, email, license plate and license number are required');
+      toast.error(t('drivers.fillFields'));
       return;
     }
     setSaving(true);
@@ -155,12 +155,12 @@ export default function Drivers() {
       if (form.couponBalance > 0 && created?.id) {
         await api.coupons.refill(created.id, form.couponBalance, 'Initial balance').catch(() => null);
       }
-      toast.success('Driver added');
+      toast.success(t('drivers.createSuccess'));
       setAddOpen(false);
       setForm(emptyNew);
       load();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to add driver');
+      toast.error(e?.message ?? t('drivers.addFailed'));
     } finally {
       setSaving(false);
     }
@@ -187,11 +187,11 @@ export default function Drivers() {
         licensePlate: edit.licensePlate, commissionPercent: edit.commissionPercent,
         profilePicture: edit.profilePicture ?? '',
       });
-      toast.success('Driver updated');
+      toast.success(t('drivers.editSuccess'));
       setEditing(null);
       load();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to update driver');
+      toast.error(e?.message ?? t('drivers.updateFailed'));
     } finally {
       setSaving(false);
     }
@@ -201,35 +201,35 @@ export default function Drivers() {
     if (!refill) return;
     const amount = Number(refillAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error('Enter a coupon amount');
+      toast.error(t('drivers.enterCouponAmount'));
       return;
     }
     setSaving(true);
     try {
       await api.coupons.refill(refill.id, amount, 'Inline refill');
-      toast.success(`Added ${amount} coupons to ${refill.name}`);
+      toast.success(t('drivers.refillSuccess', undefined, { amount, name: refill.name }));
       setRefill(null);
       load();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Refill failed');
+      toast.error(e?.message ?? t('drivers.refillFailed'));
     } finally {
       setSaving(false);
     }
   };
 
   const facets: Array<{ id: Facet; label: string; count: number }> = [
-    { id: 'all', label: 'All', count: drivers.length },
-    { id: 'available', label: 'Online', count: drivers.filter((d) => d.status === 'available').length },
-    { id: 'busy', label: 'Busy', count: drivers.filter((d) => d.status === 'busy').length },
-    { id: 'offline', label: 'Offline', count: drivers.filter((d) => d.status === 'offline').length },
-    { id: 'low', label: 'Critical coupons', count: drivers.filter((d) => (d.couponBalance ?? 0) < minCouponBalance).length },
-    { id: 'watch', label: 'Low coupons', count: drivers.filter((d) => (d.couponBalance ?? 0) >= minCouponBalance && (d.couponBalance ?? 0) < Math.max(minCouponBalance * 3, 30)).length },
+    { id: 'all', label: t('common.all'), count: drivers.length },
+    { id: 'available', label: t('drivers.online'), count: drivers.filter((d) => d.status === 'available').length },
+    { id: 'busy', label: t('drivers.busy'), count: drivers.filter((d) => d.status === 'busy').length },
+    { id: 'offline', label: t('drivers.offline'), count: drivers.filter((d) => d.status === 'offline').length },
+    { id: 'low', label: t('drivers.criticalCoupons'), count: drivers.filter((d) => (d.couponBalance ?? 0) < minCouponBalance).length },
+    { id: 'watch', label: t('drivers.lowCoupons'), count: drivers.filter((d) => (d.couponBalance ?? 0) >= minCouponBalance && (d.couponBalance ?? 0) < Math.max(minCouponBalance * 3, 30)).length },
   ];
 
   return (
     <Page>
       <PageHeader
-        eyebrow="Fleet"
+        eyebrow={t('drivers.fleet')}
         title={t('drivers.title', 'Drivers')}
         actions={
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -258,10 +258,10 @@ export default function Drivers() {
                     <Select value={form.vehicleType} onValueChange={(v) => setForm({ ...form, vehicleType: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="sedan">Sedan</SelectItem>
-                        <SelectItem value="suv">SUV</SelectItem>
-                        <SelectItem value="van">Van</SelectItem>
-                        <SelectItem value="motorcycle">Motorcycle</SelectItem>
+                        <SelectItem value="sedan">{t('common.sedan')}</SelectItem>
+                        <SelectItem value="suv">{t('common.suv')}</SelectItem>
+                        <SelectItem value="van">{t('common.van')}</SelectItem>
+                        <SelectItem value="motorcycle">{t('common.motorcycle')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -296,9 +296,9 @@ export default function Drivers() {
           <Input placeholder={t('drivers.searchPlaceholder', 'Search by name, phone, plate…')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-10 pl-10" />
         </div>
         <Select value={vehicleFilter} onValueChange={setVehicleFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Vehicle" /></SelectTrigger>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder={t('drivers.vehicleFilter')} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All vehicles</SelectItem>
+            <SelectItem value="all">{t('drivers.allVehicles')}</SelectItem>
             {vehicles.map((v) => (
               <SelectItem key={v} value={v} className="capitalize">{v}</SelectItem>
             ))}
@@ -316,7 +316,7 @@ export default function Drivers() {
 
       <Surface>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h4 className="text-sm font-semibold">Live fleet map</h4>
+          <h4 className="text-sm font-semibold">{t('drivers.liveFleetMap')}</h4>
         </div>
         <GebetaMapView
           fleet={fleet}
@@ -326,14 +326,14 @@ export default function Drivers() {
           onFleetSelect={(id) => navigate(`/employees/${id}`)}
           overlay={
             <div className="pointer-events-auto absolute left-3 top-3 w-[220px] rounded-2xl border border-border/80 bg-card/95 p-3 text-xs shadow-md backdrop-blur">
-              <p className="mb-2 font-semibold">Live fleet</p>
+              <p className="mb-2 font-semibold">{t('drivers.liveFleet')}</p>
               <div className="mb-2 grid grid-cols-2 gap-1">
                 {(
                   [
-                    ['all', 'All'],
-                    ['available', 'Online'],
-                    ['busy', 'Busy'],
-                    ['offline', 'Off'],
+                    ['all', t('common.all')],
+                    ['available', t('drivers.online')],
+                    ['busy', t('drivers.busy')],
+                    ['offline', t('drivers.off')],
                   ] as const
                 ).map(([id, label]) => (
                   <button
@@ -351,19 +351,19 @@ export default function Drivers() {
               <div className="space-y-1.5 text-muted-foreground">
                 <p className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-[#0B7A55]" />
-                  {drivers.filter((d) => d.status === 'available').length} available
+                  {t('drivers.availableCount', undefined, { count: drivers.filter((d) => d.status === 'available').length })}
                 </p>
                 <p className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-[#AE2E2D]" />
-                  {drivers.filter((d) => d.status === 'busy').length} busy
+                  {t('drivers.busyCount', undefined, { count: drivers.filter((d) => d.status === 'busy').length })}
                 </p>
                 <p className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-[#6B7280]" />
-                  {drivers.filter((d) => d.status === 'offline').length} offline
+                  {t('drivers.offlineCount', undefined, { count: drivers.filter((d) => d.status === 'offline').length })}
                 </p>
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
-                {fleet.length} with GPS · tap a pin to open the report
+                {t('drivers.gpsHint', undefined, { count: fleet.length })}
               </p>
             </div>
           }
@@ -384,7 +384,7 @@ export default function Drivers() {
                 <TableHead className="font-semibold">{t('drivers.vehicle', 'Vehicle')}</TableHead>
                 <TableHead className="font-semibold">{t('drivers.couponBalance', 'Coupons')}</TableHead>
                 <TableHead className="font-semibold">{t('drivers.status', 'Status')}</TableHead>
-                <TableHead className="font-semibold">Last seen</TableHead>
+                <TableHead className="font-semibold">{t('drivers.lastSeen')}</TableHead>
                 <TableHead className="font-semibold">{t('drivers.actions', 'Actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -415,7 +415,7 @@ export default function Drivers() {
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/employees/${d.id}`)}><Eye className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => openEdit(d)}><Edit className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="sm" title="Refill coupons" onClick={() => { setRefill(d); setRefillAmount('25'); }}>
+                      <Button variant="ghost" size="sm" title={t('drivers.refillCoupons')} onClick={() => { setRefill(d); setRefillAmount('25'); }}>
                         <Wallet className="h-4 w-4" />
                       </Button>
                     </div>
@@ -457,12 +457,12 @@ export default function Drivers() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               {refill ? <Initials name={refill.name} src={refill.profilePicture} className="h-10 w-10 text-xs" /> : null}
-              <span>Refill {refill?.name}</span>
+              <span>{t('drivers.refillTitle', undefined, { name: refill?.name ?? '' })}</span>
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">Current balance {refill?.couponBalance ?? 0} coupons.</p>
-            <Label>Amount</Label>
+            <p className="text-sm text-muted-foreground">{t('drivers.currentBalance', undefined, { count: refill?.couponBalance ?? 0 })}</p>
+            <Label>{t('common.amount')}</Label>
             <Input type="number" min={1} value={refillAmount} onChange={(e) => setRefillAmount(e.target.value)} className="h-11 tabular-nums" />
             <div className="flex gap-2">
               {[10, 25, 50, 100].map((q) => (
@@ -471,9 +471,9 @@ export default function Drivers() {
             </div>
           </div>
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setRefill(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setRefill(null)}>{t('common.cancel')}</Button>
             <Button onClick={handleRefill} disabled={saving}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Refill
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('coupons.refill')}
             </Button>
           </div>
         </DialogContent>

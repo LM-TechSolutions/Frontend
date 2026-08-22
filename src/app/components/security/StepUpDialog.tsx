@@ -5,21 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { api, ApiError } from '../../lib/api';
-
-const ACTION_COPY: Record<string, { title: string; body: string }> = {
-  coupon_allocate: {
-    title: 'Confirm coupon allocation',
-    body: 'Allocating coupons moves real inventory. Re-enter your password to continue.',
-  },
-  super_admin_transfer: {
-    title: 'Confirm Super Admin transfer',
-    body: 'This hands unrestricted access to another account. Re-enter your password to continue.',
-  },
-  fare_change: {
-    title: 'Confirm fare change',
-    body: 'Fare rules affect every live trip. Re-enter your password to save.',
-  },
-};
+import { useAppContext } from '../../contexts/AppContext';
 
 export async function withStepUp<T>(action: string, fn: () => Promise<T>): Promise<T> {
   try {
@@ -47,6 +33,7 @@ function requestStepUp(action: string): Promise<boolean> {
 }
 
 export function StepUpHost() {
+  const { t } = useAppContext();
   const [action, setAction] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -65,7 +52,7 @@ export function StepUpHost() {
 
   const submit = async () => {
     if (!action || !password) {
-      setError('Enter your password');
+      setError(t('auth.passwordRequired'));
       return;
     }
     setBusy(true);
@@ -74,15 +61,19 @@ export function StepUpHost() {
       await api.auth.stepUp(password, action);
       close(true);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not confirm your identity');
+      setError(e instanceof ApiError ? e.message : t('auth.identityFailed'));
       setBusy(false);
     }
   };
 
-  const copy = ACTION_COPY[action ?? ''] ?? {
-    title: 'Confirm it’s you',
-    body: 'Re-enter your password to continue this action.',
-  };
+  const copy =
+    action === 'coupon_allocate'
+      ? { title: t('auth.stepUpCouponTitle'), body: t('auth.stepUpCouponBody') }
+      : action === 'super_admin_transfer'
+        ? { title: t('auth.stepUpTransferTitle'), body: t('auth.stepUpTransferBody') }
+        : action === 'fare_change'
+          ? { title: t('auth.stepUpFareTitle'), body: t('auth.stepUpFareBody') }
+          : { title: t('auth.stepUpDefaultTitle'), body: t('auth.stepUpDefaultBody') };
 
   return (
     <Dialog open={!!action} onOpenChange={(open) => !open && close(false)}>
@@ -97,7 +88,7 @@ export function StepUpHost() {
             <DialogDescription>{copy.body}</DialogDescription>
           </DialogHeader>
           <div className="mt-5 space-y-2">
-            <Label htmlFor="step-up-password">Password</Label>
+            <Label htmlFor="step-up-password">{t('auth.password')}</Label>
             <Input
               id="step-up-password"
               type="password"
@@ -111,11 +102,11 @@ export function StepUpHost() {
           </div>
           <DialogFooter className="mt-6">
             <Button variant="outline" onClick={() => close(false)} disabled={busy}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={submit} disabled={busy}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Confirm
+              {t('auth.confirm')}
             </Button>
           </DialogFooter>
         </div>

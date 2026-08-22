@@ -65,7 +65,7 @@ export function NotificationPrefsCard() {
         setChannels(prefs.channels ?? []);
         setVapid(prefs.vapidPublicKey);
       })
-      .catch((e: any) => toast.error(e?.message ?? 'Could not load notification preferences'))
+      .catch((e: any) => toast.error(e?.message ?? t('settings.prefsLoadFailed', 'Could not load notification preferences')))
       .finally(() => setLoading(false));
 
     if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -104,7 +104,7 @@ export function NotificationPrefsCard() {
       await api.notifications.updatePreferences(body);
       toast.success(t('settings.prefsSaved', 'Notification preferences saved'));
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not save preferences');
+      toast.error(e?.message ?? t('settings.prefsSaveFailed', 'Could not save preferences'));
     } finally {
       setSaving(false);
     }
@@ -143,7 +143,7 @@ export function NotificationPrefsCard() {
       setPushOn(true);
       toast.success(t('settings.pushEnabled', 'This browser will alert you to unassigned rides with the tab in the background.'));
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not enable web push');
+      toast.error(e?.message ?? t('settings.pushEnableFailed', 'Could not enable web push'));
     }
   };
 

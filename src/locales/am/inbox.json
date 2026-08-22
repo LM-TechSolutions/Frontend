@@ -12,5 +12,6 @@
   "groupDrivers": "አሽከርካሪዎች",
   "groupSecurity": "ደህንነት",
   "groupSystem": "ስርዓት",
-  "noneNew": "አዲስ ማስጠንቀቂያ የለም"
+  "noneNew": "አዲስ ማስጠንቀቂያ የለም",
+  "loadFailed": "ማስጠንቀቂያዎችን መጫን አልተቻለም"
 }

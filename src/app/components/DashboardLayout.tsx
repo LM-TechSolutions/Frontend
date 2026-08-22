@@ -76,8 +76,8 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, role: userRole, logout, isSuperAdmin } = useAuth();
-  const userName = user?.name ?? 'User';
   const { t, language, setLanguage, theme, setTheme } = useAppContext();
+  const userName = user?.name ?? t('common.user');
   const [notifications, setNotifications] = useState<InboxNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -111,17 +111,17 @@ export default function DashboardLayout() {
     const socket = getSocket() ?? connectSocket();
 
     const onNew = (payload: any) => {
-      toast.info(payload.title ?? 'Notification', { description: payload.message });
+      toast.info(payload.title ?? t('common.notification'), { description: payload.message });
       refreshInbox();
     };
 
     const onStatus = (data: any) => {
       const label = data?.statusLabel ?? rideStatusLabel(data?.status);
-      toast.info(`Ride #${String(data?.rideId ?? '').slice(0, 8)}`, { description: label });
+      toast.info(t('rides.rideTitle', undefined, { 0: String(data?.rideId ?? '').slice(0, 8) }), { description: label });
     };
     const onCompleted = (data: any) => {
-      toast.success('Ride completed', {
-        description: `Fare: ${data?.fare ?? 0} ${data?.currency ?? 'ETB'}`,
+      toast.success(t('common.rideCompleted'), {
+        description: t('common.fareWithAmount', undefined, { amount: data?.fare ?? 0, currency: data?.currency ?? 'ETB' }),
       });
     };
 
@@ -199,7 +199,7 @@ export default function DashboardLayout() {
         {!compact && (
           <div className="min-w-0">
             <p className="font-display text-lg font-semibold tracking-[0.16em] text-sidebar-foreground">TEKUMMA</p>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50">Live ops</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50">{t('common.liveOps')}</p>
           </div>
         )}
       </div>
@@ -291,7 +291,7 @@ export default function DashboardLayout() {
             type="button"
             onClick={() => setCollapsedPersist(!collapsed)}
             className="absolute -right-3 top-[4.75rem] z-50 flex h-7 w-7 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg hover:bg-sidebar-accent"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? t('common.expandSidebar') : t('common.collapseSidebar')}
           >
             {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
           </button>
@@ -300,7 +300,7 @@ export default function DashboardLayout() {
         <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
           <SheetContent side="left" className="w-[280px] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
             <SheetHeader className="sr-only">
-              <SheetTitle>Navigation</SheetTitle>
+              <SheetTitle>{t('common.navigation')}</SheetTitle>
             </SheetHeader>
             <div className="flex h-full flex-col">
               <SidebarBody onNavigate={() => setDrawerOpen(false)} />
@@ -332,7 +332,7 @@ export default function DashboardLayout() {
                 <SelectContent>
                   <SelectItem value="en">English</SelectItem>
                   <SelectItem value="am">አማርኛ</SelectItem>
-                  <SelectItem value="om">Oromiffa</SelectItem>
+                  <SelectItem value="om">Afaan Oromoo</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -358,9 +358,9 @@ export default function DashboardLayout() {
                 <PopoverContent align="end" className="w-96 p-0">
                   <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
                     <div>
-                      <p className="text-sm font-semibold">Notifications</p>
+                      <p className="text-sm font-semibold">{t('common.notifications')}</p>
                       {unreadCount > 0 && (
-                        <p className="text-xs text-muted-foreground">{unreadCount} unread</p>
+                        <p className="text-xs text-muted-foreground">{t('common.unreadCount', undefined, { count: unreadCount })}</p>
                       )}
                     </div>
                     <div className="flex gap-3 text-xs font-semibold">
@@ -371,7 +371,7 @@ export default function DashboardLayout() {
                           }}
                           className="text-primary hover:underline"
                         >
-                          Mark read
+                          {t('common.markRead')}
                         </button>
                       )}
                       <button
@@ -381,7 +381,7 @@ export default function DashboardLayout() {
                         }}
                         className="text-muted-foreground hover:text-foreground"
                       >
-                        View all
+                          {t('common.viewAll')}
                       </button>
                     </div>
                   </div>

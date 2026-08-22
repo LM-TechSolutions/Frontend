@@ -141,11 +141,11 @@ export default function Dashboard() {
     setRedispatchingId(ride.id);
     try {
       const res = await api.rides.redispatch(ride.id);
-      if (res.dispatched) toast.success(`Re-notified ${res.candidates} nearby driver(s)`);
-      else toast.warning('No eligible nearby drivers right now');
+      if (res.dispatched) toast.success(t('dashboard.reNotified', undefined, { count: res.candidates }));
+      else toast.warning(t('dashboard.noEligibleNearby'));
       reload();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to re-notify drivers');
+      toast.error(e?.message ?? t('dashboard.redispatchFailed'));
     } finally {
       setRedispatchingId(null);
     }
@@ -156,7 +156,7 @@ export default function Dashboard() {
       <div className="border-b border-border/80 bg-card/70 px-4 py-4 sm:px-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">Live board</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">{t('dashboard.liveBoard')}</p>
             <h2 className="font-display text-2xl font-semibold tracking-tight">{t('nav.dashboard', 'Dashboard')}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -199,8 +199,7 @@ export default function Dashboard() {
           <div className="mt-3 flex items-start gap-2 rounded-2xl border border-destructive/20 bg-destructive/8 px-4 py-3 text-sm text-destructive">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              <span className="font-semibold">{alarmed.length} unassigned ride{alarmed.length === 1 ? '' : 's'}</span>{' '}
-              have waited more than 8 minutes. Assign or re-notify now.
+              <span className="font-semibold">{t('dashboard.alarmUnassigned', undefined, { count: alarmed.length })}</span>
             </p>
           </div>
         )}
@@ -244,7 +243,9 @@ export default function Dashboard() {
                             <div className="flex flex-col items-end gap-1">
                               <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
                               <span className={`text-[12px] font-medium ${wait.className}`}>
-                                {wait.label}
+                                {wait.minutes >= 3
+                                  ? t('common.waitingMinutes', undefined, { m: wait.minutes })
+                                  : t('common.waitingShort', undefined, { m: wait.minutes })}
                               </span>
                             </div>
                           </div>
@@ -303,7 +304,7 @@ export default function Dashboard() {
                             ) : null}
                             <div className="min-w-0">
                               <p className="font-semibold text-card-foreground">{ride.customerName}</p>
-                              <p className="text-sm text-muted-foreground">Driver: {ride.driverName ?? '-'}</p>
+                              <p className="text-sm text-muted-foreground">{t('dashboard.driverColon', undefined, { name: ride.driverName ?? '-' })}</p>
                             </div>
                           </div>
                           <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
@@ -364,14 +365,14 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="h-3 w-3 rounded-full bg-[#e08a14]" />
-                      <span>Waiting rides ({pendingRides.length})</span>
+                      <span>{t('dashboard.waitingRides', undefined, { count: pendingRides.length })}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="h-3 w-3 rounded-full bg-[#00BDC3]" />
-                      <span>Active pickups ({activeRides.length})</span>
+                      <span>{t('dashboard.activePickups', undefined, { count: activeRides.length })}</span>
                     </div>
                   </div>
-                  <p className="mt-3 text-[11px] text-muted-foreground">Tap a driver pin for their report, or a ride pin for tracking</p>
+                  <p className="mt-3 text-[11px] text-muted-foreground">{t('dashboard.mapHint')}</p>
                 </div>
                 {mapFs && (
                   <Button

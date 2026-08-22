@@ -46,37 +46,38 @@ const EDITABLE: { key: string; labelKey?: string }[] = [
   { key: 'commission.defaultPercent', labelKey: 'settings.defaultCommission' },
 ];
 
-type FieldMeta = { label: string; hint: string; unit?: string; min?: number; max?: number };
+type Translate = (path: string, fallback?: string, params?: Record<string, string | number>) => string;
+type FieldMeta = { labelKey: string; hintKey: string; unit?: string; min?: number; max?: number };
 
 const FIELD_META: Record<string, FieldMeta> = {
-  'fare.baseFare': { label: 'Base fare', hint: 'Charged before distance and time.', unit: 'currency', min: 0, max: 50000 },
-  'fare.perKm': { label: 'Per kilometre', hint: 'Added for every kilometre of the trip.', unit: 'currency', min: 0, max: 5000 },
-  'fare.timeBlockCharge': { label: 'Time-block charge', hint: 'Added for each time block.', unit: 'currency', min: 0, max: 5000 },
-  'fare.timeBlockMinutes': { label: 'Time-block length', hint: 'Minutes in one time block.', unit: 'min', min: 1, max: 60 },
-  'fare.minimumFare': { label: 'Minimum fare', hint: 'Floor applied after the calculation.', unit: 'currency', min: 0, max: 50000 },
-  'fare.currency': { label: 'Currency', hint: 'ISO code shown on every receipt and payout.' },
+  'fare.baseFare': { labelKey: 'settings.fieldBaseFare', hintKey: 'settings.hintBaseFare', unit: 'currency', min: 0, max: 50000 },
+  'fare.perKm': { labelKey: 'settings.fieldPerKm', hintKey: 'settings.hintPerKm', unit: 'currency', min: 0, max: 5000 },
+  'fare.timeBlockCharge': { labelKey: 'settings.fieldTimeBlockCharge', hintKey: 'settings.hintTimeBlockCharge', unit: 'currency', min: 0, max: 5000 },
+  'fare.timeBlockMinutes': { labelKey: 'settings.fieldTimeBlockMinutes', hintKey: 'settings.hintTimeBlockMinutes', unit: 'min', min: 1, max: 60 },
+  'fare.minimumFare': { labelKey: 'settings.fieldMinimumFare', hintKey: 'settings.hintMinimumFare', unit: 'currency', min: 0, max: 50000 },
+  'fare.currency': { labelKey: 'settings.fieldCurrency', hintKey: 'settings.hintCurrency' },
   'commission.defaultPercent': {
-    label: 'Default commission for new drivers',
-    hint: 'Applied to new drivers. Existing rates stay until you apply to fleet.',
+    labelKey: 'settings.fieldCommission',
+    hintKey: 'settings.hintCommission',
     unit: '%',
     min: 0,
     max: 100,
   },
   'dispatch.radiusKm': {
-    label: 'Dispatch radius',
-    hint: 'Offer radius. Expands if empty.',
+    labelKey: 'settings.fieldDispatchRadius',
+    hintKey: 'settings.hintDispatchRadius',
     unit: 'km',
     min: 0.5,
     max: 50,
   },
-  'dispatch.maxDrivers': { label: 'Max drivers notified', hint: 'Closest N eligible drivers.', min: 1, max: 100 },
-  'dispatch.offerTtlSeconds': { label: 'Offer lifetime', hint: 'Seconds to accept.', unit: 'sec', min: 15, max: 900 },
-  'dispatch.urbanSpeedKmh': { label: 'Urban speed for ETA', hint: 'Fallback when routing is unavailable.', unit: 'km/h', min: 5, max: 80 },
-  'dispatch.staleDriverMinutes': { label: 'Stale-driver threshold', hint: 'Drop online drivers with no GPS after this.', unit: 'min', min: 1, max: 60 },
-  'coupon.minBalanceThreshold': { label: 'Minimum coupon balance', hint: 'Drivers at or below this cannot take new rides.', min: 0, max: 1000 },
-  'coupon.startingBalance': { label: 'New-driver starting coupons', hint: 'Granted when a driver is created.', min: 0, max: 1000 },
-  'coupon.perRideDeduction': { label: 'Coupons per completed ride', hint: 'Deducted automatically when a driver ends a trip.', min: 0, max: 100 },
-  'coupon.operatorLowBalanceThreshold': { label: 'Operator low-stock warning', hint: 'Inventory level at which an operator is prompted to restock.', min: 0, max: 10000 },
+  'dispatch.maxDrivers': { labelKey: 'settings.fieldMaxDrivers', hintKey: 'settings.hintMaxDrivers', min: 1, max: 100 },
+  'dispatch.offerTtlSeconds': { labelKey: 'settings.fieldOfferLifetime', hintKey: 'settings.hintOfferLifetime', unit: 'sec', min: 15, max: 900 },
+  'dispatch.urbanSpeedKmh': { labelKey: 'settings.fieldUrbanSpeed', hintKey: 'settings.hintUrbanSpeed', unit: 'km/h', min: 5, max: 80 },
+  'dispatch.staleDriverMinutes': { labelKey: 'settings.fieldStaleDriver', hintKey: 'settings.hintStaleDriver', unit: 'min', min: 1, max: 60 },
+  'coupon.minBalanceThreshold': { labelKey: 'settings.fieldMinCoupon', hintKey: 'settings.hintMinCoupon', min: 0, max: 1000 },
+  'coupon.startingBalance': { labelKey: 'settings.fieldStartingCoupons', hintKey: 'settings.hintStartingCoupons', min: 0, max: 1000 },
+  'coupon.perRideDeduction': { labelKey: 'settings.fieldPerRide', hintKey: 'settings.hintPerRide', min: 0, max: 100 },
+  'coupon.operatorLowBalanceThreshold': { labelKey: 'settings.fieldOperatorLow', hintKey: 'settings.hintOperatorLow', min: 0, max: 10000 },
 };
 
 /**
@@ -87,34 +88,26 @@ const FIELD_META: Record<string, FieldMeta> = {
  * both - so it gets an explanation rather than a bare dropdown.
  */
 const DEDUCTION_MODES = [
-  { value: 'flat', title: 'Fixed coupons' },
-  { value: 'commission', title: 'Commission only' },
-  { value: 'both', title: 'Both' },
+  { value: 'flat', titleKey: 'settings.modeFlat' },
+  { value: 'commission', titleKey: 'settings.modeCommission' },
+  { value: 'both', titleKey: 'settings.modeBoth' },
 ];
 
-const COUPON_NUMERIC: { key: string; label: string; hint: string }[] = [
-  {
-    key: 'coupon.perRideDeduction',
-    label: 'Coupons per completed ride',
-    hint: 'Deducted automatically when a driver ends a trip.',
-  },
-  {
-    key: 'coupon.operatorLowBalanceThreshold',
-    label: 'Operator low-stock warning',
-    hint: 'Inventory level at which an operator is prompted to restock.',
-  },
+const COUPON_NUMERIC: { key: string }[] = [
+  { key: 'coupon.perRideDeduction' },
+  { key: 'coupon.operatorLowBalanceThreshold' },
 ];
 
-const COUPON_TOGGLES: { key: string; label: string; hint: string }[] = [
+const COUPON_TOGGLES: { key: string; labelKey: string; hintKey: string }[] = [
   {
     key: 'coupon.blockAcceptBelowMinimum',
-    label: 'Block accepting when underfunded',
-    hint: 'Stop underfunded drivers from accepting.',
+    labelKey: 'settings.blockAccept',
+    hintKey: 'settings.hintBlockAccept',
   },
   {
     key: 'coupon.driverRequestEnabled',
-    label: 'Let drivers request refills',
-    hint: 'Drivers can request coupons from the app.',
+    labelKey: 'settings.driverRequest',
+    hintKey: 'settings.hintDriverRequest',
   },
 ];
 
@@ -155,7 +148,7 @@ export default function Settings() {
         setDefaults(defs);
         setDistribution(dist.distribution ?? []);
       })
-      .catch((e) => toast.error(e?.message ?? 'Failed to load system settings'))
+      .catch((e) => toast.error(e?.message ?? t('settings.loadFailed', 'Failed to load system settings')))
       .finally(() => setLoading(false));
   };
 
@@ -180,7 +173,7 @@ export default function Settings() {
   const dirty = dirtyKeys.some((key) => (values[key] ?? '') !== (saved[key] ?? ''));
 
   const handleSave = async () => {
-    const error = validateSettings(values);
+    const error = validateSettings(values, t);
     if (error) {
       toast.error(error);
       return;
@@ -193,10 +186,10 @@ export default function Settings() {
       });
       await withStepUp('fare_change', () => api.settings.updateSystem(payload));
       setSaved(values);
-      toast.success('System settings saved - dispatch and fares pick them up within 30 seconds');
+      toast.success(t('settings.savedDispatch', 'System settings saved. Dispatch and fares pick them up within 30 seconds'));
       load();
     } catch (e: any) {
-      toast.error(e?.status === 403 ? 'You need settings:write to change these' : e?.message ?? 'Failed to save');
+      toast.error(e?.status === 403 ? t('settings.needWrite', 'You need settings:write to change these') : e?.message ?? t('settings.saveFailed', 'Failed to save'));
     } finally {
       setSaving(false);
     }
@@ -211,11 +204,11 @@ export default function Settings() {
     setApplying(true);
     try {
       const result = await withStepUp('fare_change', () => api.settings.applyCommissionToFleet());
-      toast.success(`Applied ${result.percent}% to ${result.updated} driver(s)`);
+      toast.success(t('settings.appliedCommission', 'Applied {percent}% to {updated} driver(s)', { percent: result.percent, updated: result.updated }));
       setApplyOpen(false);
       load();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not apply commission');
+      toast.error(e?.message ?? t('settings.applyCommissionFailed', 'Could not apply commission'));
     } finally {
       setApplying(false);
     }
@@ -224,7 +217,7 @@ export default function Settings() {
   const saveButton = canWrite ? (
     <Button onClick={handleSave} disabled={saving || !dirty}>
       {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-      {dirty ? 'Save changes' : 'Saved'}
+      {dirty ? t('common.saveChanges', 'Save changes') : t('settings.saved', 'Saved')}
     </Button>
   ) : null;
 
@@ -244,7 +237,7 @@ export default function Settings() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Workspace"
+        eyebrow={t('settings.workspace', 'Workspace')}
         title={t('settings.title', 'Settings')}
         actions={saveButton}
       />
@@ -266,13 +259,13 @@ export default function Settings() {
 
       <Tabs defaultValue="profile" className="max-w-4xl gap-4">
         <TabsList className="h-auto flex-wrap gap-1 bg-muted/60 p-1">
-          <TabsTrigger value="profile" className="gap-1.5"><User className="h-4 w-4" /> Profile</TabsTrigger>
-          <TabsTrigger value="security" className="gap-1.5"><Shield className="h-4 w-4" /> Security</TabsTrigger>
-          <TabsTrigger value="pricing" className="gap-1.5"><CircleDollarSign className="h-4 w-4" /> Pricing</TabsTrigger>
-          <TabsTrigger value="dispatch" className="gap-1.5">Dispatch</TabsTrigger>
-          <TabsTrigger value="coupons" className="gap-1.5"><Wallet className="h-4 w-4" /> Coupons</TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-1.5"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
-          <TabsTrigger value="localization" className="gap-1.5"><Languages className="h-4 w-4" /> Language</TabsTrigger>
+          <TabsTrigger value="profile" className="gap-1.5"><User className="h-4 w-4" /> {t('settings.tabProfile', 'Profile')}</TabsTrigger>
+          <TabsTrigger value="security" className="gap-1.5"><Shield className="h-4 w-4" /> {t('settings.tabSecurity', 'Security')}</TabsTrigger>
+          <TabsTrigger value="pricing" className="gap-1.5"><CircleDollarSign className="h-4 w-4" /> {t('settings.tabPricing', 'Pricing')}</TabsTrigger>
+          <TabsTrigger value="dispatch" className="gap-1.5">{t('settings.tabDispatch', 'Dispatch')}</TabsTrigger>
+          <TabsTrigger value="coupons" className="gap-1.5"><Wallet className="h-4 w-4" /> {t('settings.tabCoupons', 'Coupons')}</TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-1.5"><Bell className="h-4 w-4" /> {t('settings.tabNotifications', 'Notifications')}</TabsTrigger>
+          <TabsTrigger value="localization" className="gap-1.5"><Languages className="h-4 w-4" /> {t('settings.tabLanguage', 'Language')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-4">
@@ -299,7 +292,7 @@ export default function Settings() {
         <TabsContent value="pricing">
           <Card>
             <CardHeader>
-              <CardTitle>Pricing & commission</CardTitle>
+              <CardTitle>{t('settings.pricingCommission', 'Pricing & commission')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               {loading ? (
@@ -310,9 +303,9 @@ export default function Settings() {
                     {['fare.baseFare', 'fare.perKm', 'fare.timeBlockCharge', 'fare.timeBlockMinutes', 'fare.minimumFare'].map(numberField)}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <Label>Currency</Label>
+                        <Label>{t('settings.fieldCurrency', 'Currency')}</Label>
                         <button type="button" className="text-[11px] text-muted-foreground hover:text-foreground" onClick={() => resetField('fare.currency')} disabled={!canWrite}>
-                          Reset
+                          {t('settings.reset', 'Reset')}
                         </button>
                       </div>
                       <Input
@@ -322,27 +315,33 @@ export default function Settings() {
                         className="uppercase"
                         onChange={(e) => setValues({ ...values, 'fare.currency': e.target.value.toUpperCase() })}
                       />
-                      <p className="text-xs text-muted-foreground">{FIELD_META['fare.currency'].hint}</p>
+                      <p className="text-xs text-muted-foreground">{t(FIELD_META['fare.currency'].hintKey)}</p>
                     </div>
                     {numberField('commission.defaultPercent')}
                   </div>
                   <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
-                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">Effect on a 5 km, 12-minute trip</p>
-                    <p className="mt-1.5 text-sm text-foreground">{describeFare(values)}</p>
+                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">{t('settings.farePreviewTitle', 'Effect on a 5 km, 12-minute trip')}</p>
+                    <p className="mt-1.5 text-sm text-foreground">{describeFare(values, t)}</p>
                   </div>
                   <div className="rounded-xl border border-border/70 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium">Fleet commission</p>
+                        <p className="text-sm font-medium">{t('settings.fleetCommission', 'Fleet commission')}</p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {distribution.length
-                            ? distribution.map((d) => `${d.drivers} driver${d.drivers === 1 ? '' : 's'} at ${d.percent}%`).join(' · ')
-                            : 'No drivers yet.'}
+                            ? distribution.map((d) =>
+                                t(
+                                  d.drivers === 1 ? 'settings.driversAtPercent' : 'settings.driversAtPercentPlural',
+                                  '{count} drivers at {percent}%',
+                                  { count: d.drivers, percent: d.percent }
+                                )
+                              ).join(' · ')
+                            : t('settings.noDriversYet', 'No drivers yet.')}
                         </p>
                       </div>
                       {canWrite && (
                         <Button variant="outline" size="sm" onClick={() => setApplyOpen(true)}>
-                          Apply default to all drivers
+                          {t('settings.applyDefaultToAll', 'Apply default to all drivers')}
                         </Button>
                       )}
                     </div>
@@ -356,7 +355,7 @@ export default function Settings() {
         <TabsContent value="dispatch">
           <Card>
             <CardHeader>
-              <CardTitle>Dispatch</CardTitle>
+              <CardTitle>{t('settings.tabDispatch', 'Dispatch')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               {loading ? (
@@ -365,8 +364,8 @@ export default function Settings() {
                 <>
                   <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 p-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">Enforce dispatch radius</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Off: city-wide, still capped by max drivers.</p>
+                      <p className="text-sm font-medium">{t('settings.enforceRadius', 'Enforce dispatch radius')}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{t('settings.enforceRadiusHint', 'Off: city-wide, still capped by max drivers.')}</p>
                     </div>
                     <Switch
                       checked={values['dispatch.enforceRadius'] !== 'false'}
@@ -378,8 +377,8 @@ export default function Settings() {
                     {['dispatch.radiusKm', 'dispatch.maxDrivers', 'dispatch.offerTtlSeconds', 'dispatch.urbanSpeedKmh', 'dispatch.staleDriverMinutes'].map(numberField)}
                   </div>
                   <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
-                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">What happens on the next ride</p>
-                    <p className="mt-1.5 text-sm text-foreground">{describeDispatch(values)}</p>
+                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">{t('settings.dispatchPreviewTitle', 'What happens on the next ride')}</p>
+                    <p className="mt-1.5 text-sm text-foreground">{describeDispatch(values, t)}</p>
                   </div>
                 </>
               )}
@@ -391,7 +390,7 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Ticket className="h-4 w-4 text-primary" /> Coupon economy
+                <Ticket className="h-4 w-4 text-primary" /> {t('settings.couponEconomy', 'Coupon economy')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -400,7 +399,7 @@ export default function Settings() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label>Deduction mode</Label>
+                    <Label>{t('settings.deductionMode', 'Deduction mode')}</Label>
                     <div className="grid gap-2 sm:grid-cols-3">
                       {DEDUCTION_MODES.map((mode) => {
                         const selected = (values['coupon.deductionMode'] ?? 'flat') === mode.value;
@@ -416,7 +415,7 @@ export default function Settings() {
                                 : 'border-border hover:border-primary/50 hover:bg-muted/50'
                             }`}
                           >
-                            <p className="text-sm font-medium text-foreground">{mode.title}</p>
+                            <p className="text-sm font-medium text-foreground">{t(mode.titleKey)}</p>
                           </button>
                         );
                       })}
@@ -431,8 +430,8 @@ export default function Settings() {
                       return (
                         <div key={field.key} className="flex items-start justify-between gap-4 rounded-xl border border-border/70 p-4">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{field.label}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{field.hint}</p>
+                            <p className="text-sm font-medium text-foreground">{t(field.labelKey)}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{t(field.hintKey)}</p>
                           </div>
                           <Switch
                             checked={on}
@@ -444,8 +443,8 @@ export default function Settings() {
                     })}
                   </div>
                   <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
-                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">Effect on a completed ride</p>
-                    <p className="mt-1.5 text-sm text-foreground">{describeDeduction(values)}</p>
+                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">{t('settings.deductionPreviewTitle', 'Effect on a completed ride')}</p>
+                    <p className="mt-1.5 text-sm text-foreground">{describeDeduction(values, t)}</p>
                   </div>
                 </>
               )}
@@ -498,14 +497,13 @@ export default function Settings() {
       <AlertDialog open={applyOpen} onOpenChange={setApplyOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Apply default commission to every driver?</AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.applyCommissionTitle', 'Apply default commission to every driver?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This overwrites each driver&apos;s current rate with {values['commission.defaultPercent'] ?? '10'}%.
-              Existing custom rates cannot be restored automatically.
+              {t('settings.applyCommissionBody', "This overwrites each driver's current rate with {percent}%. Existing custom rates cannot be restored automatically.", { percent: values['commission.defaultPercent'] ?? '10' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={applying}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={applying}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={applying}
               onClick={(e) => {
@@ -514,7 +512,7 @@ export default function Settings() {
               }}
             >
               {applying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Apply to fleet
+              {t('settings.applyToFleet', 'Apply to fleet')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -523,20 +521,24 @@ export default function Settings() {
   );
 }
 
-function validateSettings(values: Record<string, string>): string | null {
+function validateSettings(values: Record<string, string>, t: Translate): string | null {
   for (const [key, meta] of Object.entries(FIELD_META)) {
     if (meta.min == null || values[key] === undefined || values[key] === '') continue;
     const n = Number(values[key]);
     if (!Number.isFinite(n) || n < meta.min || n > (meta.max ?? Infinity)) {
-      return `${meta.label} must be between ${meta.min} and ${meta.max}`;
+      return t('settings.rangeError', '{label} must be between {min} and {max}', {
+        label: t(meta.labelKey),
+        min: meta.min,
+        max: meta.max ?? '',
+      });
     }
   }
   const cur = (values['fare.currency'] ?? '').trim().toUpperCase();
-  if (cur && !/^[A-Z]{3}$/.test(cur)) return 'Currency must be a 3-letter ISO code (e.g. ETB)';
+  if (cur && !/^[A-Z]{3}$/.test(cur)) return t('settings.currencyIsoError', 'Currency must be a 3-letter ISO code (e.g. ETB)');
   return null;
 }
 
-function describeFare(values: Record<string, string>): string {
+function describeFare(values: Record<string, string>, t: Translate): string {
   const base = Number(values['fare.baseFare'] ?? 90);
   const perKm = Number(values['fare.perKm'] ?? 40);
   const timeCharge = Number(values['fare.timeBlockCharge'] ?? 20);
@@ -546,11 +548,26 @@ function describeFare(values: Record<string, string>): string {
   const blocks = Math.ceil(12 / blockMin);
   const raw = base + perKm * 5 + timeCharge * blocks;
   const fare = Math.max(minimum, raw);
-  const raised = raw < minimum ? `, raised to the ${minimum} ${currency} minimum` : '';
-  return `A 5 km, 12-minute trip costs ${fare.toFixed(0)} ${currency} (${base} base + ${perKm} × 5 km + ${timeCharge} × ${blocks} time block${blocks === 1 ? '' : 's'}${raised}).`;
+  const raised = raw < minimum
+    ? t('settings.fareRaised', ', raised to the {minimum} {currency} minimum', { minimum, currency })
+    : '';
+  return t(
+    'settings.farePreview',
+    'A 5 km, 12-minute trip costs {fare} {currency} ({base} base + {perKm} × 5 km + {timeCharge} × {blocks} time {blockWord}{raised}).',
+    {
+      fare: fare.toFixed(0),
+      currency,
+      base,
+      perKm,
+      timeCharge,
+      blocks,
+      blockWord: t(blocks === 1 ? 'settings.blockSingular' : 'settings.blockPlural', blocks === 1 ? 'block' : 'blocks'),
+      raised,
+    }
+  );
 }
 
-function describeDispatch(values: Record<string, string>): string {
+function describeDispatch(values: Record<string, string>, t: Translate): string {
   const enforce = values['dispatch.enforceRadius'] !== 'false';
   const radius = Number(values['dispatch.radiusKm'] ?? 5);
   const max = Number(values['dispatch.maxDrivers'] ?? 15);
@@ -558,9 +575,17 @@ function describeDispatch(values: Record<string, string>): string {
   const speed = Number(values['dispatch.urbanSpeedKmh'] ?? 20);
   const stale = Number(values['dispatch.staleDriverMinutes'] ?? 5);
   const ring = enforce
-    ? `the closest ${max} eligible drivers within ${radius} km (expanding to ${radius * 2} km, then city-wide, if the ring is empty)`
-    : `the closest ${max} eligible drivers city-wide`;
-  return `The next ride is offered to ${ring}. Drivers have ${ttl} seconds to accept. ETAs assume ${speed} km/h when routing is unavailable. Online drivers silent for ${stale} minutes are dropped.`;
+    ? t(
+        'settings.dispatchRingEnforce',
+        'the closest {max} eligible drivers within {radius} km (expanding to {expanded} km, then city-wide, if the ring is empty)',
+        { max, radius, expanded: radius * 2 }
+      )
+    : t('settings.dispatchRingCity', 'the closest {max} eligible drivers city-wide', { max });
+  return t(
+    'settings.dispatchPreview',
+    'The next ride is offered to {ring}. Drivers have {ttl} seconds to accept. ETAs assume {speed} km/h when routing is unavailable. Online drivers silent for {stale} minutes are dropped.',
+    { ring, ttl, speed, stale }
+  );
 }
 
 function NumberField({
@@ -578,20 +603,21 @@ function NumberField({
   onChange: (next: string) => void;
   onReset: () => void;
 }) {
+  const { t } = useAppContext();
   const meta = FIELD_META[keyName];
   if (!meta) return null;
   const unit = meta.unit === 'currency' ? currency : meta.unit;
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <Label>{meta.label}</Label>
+        <Label>{t(meta.labelKey)}</Label>
         <button
           type="button"
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
           onClick={onReset}
           disabled={disabled}
         >
-          <RotateCcw className="h-3 w-3" /> Reset
+          <RotateCcw className="h-3 w-3" /> {t('settings.reset', 'Reset')}
         </button>
       </div>
       <div className="relative">
@@ -611,31 +637,42 @@ function NumberField({
           </span>
         ) : null}
       </div>
-      <p className="text-xs text-muted-foreground">{meta.hint}</p>
+      <p className="text-xs text-muted-foreground">{t(meta.hintKey)}</p>
     </div>
   );
 }
 
 /** Turn the coupon settings into the sentence an administrator can check. */
-function describeDeduction(values: Record<string, string>): string {
+function describeDeduction(values: Record<string, string>, t: Translate): string {
   const mode = values['coupon.deductionMode'] ?? 'flat';
   const perRide = Number(values['coupon.perRideDeduction'] ?? 1);
   const commission = Number(values['commission.defaultPercent'] ?? 10);
   const minBalance = Number(values['coupon.minBalanceThreshold'] ?? 10);
   const blocks = values['coupon.blockAcceptBelowMinimum'] !== 'false';
 
-  const charge =
-    mode === 'commission'
-      ? `${commission}% of the fare is deducted as commission`
-      : mode === 'both'
-      ? `${perRide} coupon${perRide === 1 ? '' : 's'} plus ${commission}% of the fare are deducted`
-      : `${perRide} coupon${perRide === 1 ? '' : 's'} ${perRide === 1 ? 'is' : 'are'} deducted`;
-
   const gate = blocks
-    ? ` Drivers below ${minBalance + (mode === 'commission' ? 0 : perRide)} coupons cannot accept a new ride.`
-    : ' Drivers are not blocked from accepting when underfunded.';
+    ? t('settings.gateBlocked', ' Drivers below {threshold} coupons cannot accept a new ride.', {
+        threshold: minBalance + (mode === 'commission' ? 0 : perRide),
+      })
+    : t('settings.gateOpen', ' Drivers are not blocked from accepting when underfunded.');
 
-  return `${charge} from the driver's wallet.${gate}`;
+  if (mode === 'commission') {
+    return t('settings.deductCommission', '{percent}% of the fare is deducted as commission from the driver\'s wallet.{gate}', {
+      percent: commission,
+      gate,
+    });
+  }
+  if (mode === 'both') {
+    return t('settings.deductBoth', '{count} coupon(s) plus {percent}% of the fare are deducted from the driver\'s wallet.{gate}', {
+      count: perRide,
+      percent: commission,
+      gate,
+    });
+  }
+  return t('settings.deductFlat', '{count} coupon(s) are deducted from the driver\'s wallet.{gate}', {
+    count: perRide,
+    gate,
+  });
 }
 
 function SecurityCard() {
@@ -651,22 +688,22 @@ function SecurityCard() {
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword) {
-      toast.error('Fill in your current and new password');
+      toast.error(t('settings.fillPasswords', 'Fill in your current and new password'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('New password and confirmation do not match');
+      toast.error(t('settings.passwordMismatch', 'New password and confirmation do not match'));
       return;
     }
     setSavingPassword(true);
     try {
       await api.auth.changePassword(currentPassword, newPassword, confirmPassword);
-      toast.success('Password updated');
+      toast.success(t('settings.passwordUpdated', 'Password updated'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Failed to change password');
+      toast.error(e instanceof ApiError ? e.message : t('settings.changePasswordFailed', 'Failed to change password'));
     } finally {
       setSavingPassword(false);
     }
@@ -685,7 +722,7 @@ function SecurityCard() {
 
   const submitEnablePassword = async () => {
     if (!twoFAPassword) {
-      toast.error('Enter your password to continue');
+      toast.error(t('settings.enterPasswordContinue', 'Enter your password to continue'));
       return;
     }
     setBusy(true);
@@ -696,7 +733,7 @@ function SecurityCard() {
       setBackupCodes(res.backupCodes ?? []);
       setTwoFAStep('confirm');
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Failed to start two-factor setup');
+      toast.error(e instanceof ApiError ? e.message : t('settings.twoFactorStartFailed', 'Failed to start two-factor setup'));
     } finally {
       setBusy(false);
     }
@@ -704,13 +741,13 @@ function SecurityCard() {
 
   const submitConfirmCode = async () => {
     if (!confirmCode) {
-      toast.error('Enter the 6-digit code from your authenticator app');
+      toast.error(t('settings.enterSixDigit', 'Enter the 6-digit code from your authenticator app'));
       return;
     }
     setBusy(true);
     try {
       await api.twoFactor.verify(confirmCode);
-      toast.success('Two-factor authentication enabled');
+      toast.success(t('settings.twoFactorEnabled', 'Two-factor authentication enabled'));
       setTwoFactorEnabled(true);
       setTwoFAStep('idle');
       setTwoFAPassword('');
@@ -718,7 +755,7 @@ function SecurityCard() {
       setQrCodeDataUrl(null);
       setTotpURI(null);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Invalid code - try again');
+      toast.error(e instanceof ApiError ? e.message : t('settings.invalidCode', 'Invalid code. Try again'));
     } finally {
       setBusy(false);
     }
@@ -729,18 +766,18 @@ function SecurityCard() {
 
   const submitDisable = async () => {
     if (!disablePassword) {
-      toast.error('Enter your password to continue');
+      toast.error(t('settings.enterPasswordContinue', 'Enter your password to continue'));
       return;
     }
     setBusy(true);
     try {
       await api.twoFactor.disable(disablePassword);
-      toast.success('Two-factor authentication disabled');
+      toast.success(t('settings.twoFactorDisabled', 'Two-factor authentication disabled'));
       setTwoFactorEnabled(false);
       setShowDisable(false);
       setDisablePassword('');
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Failed to disable two-factor authentication');
+      toast.error(e instanceof ApiError ? e.message : t('settings.twoFactorDisableFailed', 'Failed to disable two-factor authentication'));
     } finally {
       setBusy(false);
     }
@@ -760,23 +797,23 @@ function SecurityCard() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-2">
-              <Label className="text-xs">Current Password</Label>
+              <Label className="text-xs">{t('settings.currentPassword', 'Current Password')}</Label>
               <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">New Password</Label>
+              <Label className="text-xs">{t('settings.newPassword', 'New Password')}</Label>
               <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Confirm New Password</Label>
+              <Label className="text-xs">{t('settings.confirmNewPassword', 'Confirm New Password')}</Label>
               <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            New passwords cannot match any of your last 5. Shared terminals also idle-timeout after the Super Admin’s policy.
+            {t('settings.passwordPolicyHint', "New passwords cannot match any of your last 5. Shared terminals also idle-timeout after the Super Admin's policy.")}
           </p>
           <Button size="sm" onClick={handleChangePassword} disabled={savingPassword}>
-            {savingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Update Password
+            {savingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('settings.updatePassword', 'Update Password')}
           </Button>
         </div>
 
@@ -784,31 +821,31 @@ function SecurityCard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {twoFactorEnabled ? <ShieldCheck className="w-4 h-4 text-[#10B981]" /> : <ShieldOff className="w-4 h-4 text-muted-foreground" />}
-              <h4 className="font-semibold text-sm text-card-foreground">Two-Factor Authentication</h4>
+              <h4 className="font-semibold text-sm text-card-foreground">{t('settings.twoFactor', 'Two-Factor Authentication')}</h4>
             </div>
-            <StatusBadge status={twoFactorEnabled ? 'enabled' : 'disabled'} label={twoFactorEnabled ? 'Enabled' : 'Disabled'} />
+            <StatusBadge status={twoFactorEnabled ? 'enabled' : 'disabled'} label={twoFactorEnabled ? t('settings.enabled', 'Enabled') : t('settings.disabled', 'Disabled')} />
           </div>
           <p className="text-xs text-muted-foreground">
-            Protects your account with a 6-digit code from an authenticator app (Google Authenticator, Authy, 1Password, etc.) in addition to your password.
+            {t('settings.twoFactorHint', 'Protects your account with a 6-digit code from an authenticator app (Google Authenticator, Authy, 1Password, etc.) in addition to your password.')}
           </p>
 
           {!twoFactorEnabled && twoFAStep === 'idle' && (
-            <Button size="sm" variant="outline" onClick={startEnable}>Enable Two-Factor</Button>
+            <Button size="sm" variant="outline" onClick={startEnable}>{t('settings.enableTwoFactor', 'Enable Two-Factor')}</Button>
           )}
 
           {twoFAStep === 'password' && (
             <div className="flex flex-col md:flex-row gap-2 max-w-md">
               <Input
                 type="password"
-                placeholder="Confirm your password"
+                placeholder={t('settings.confirmYourPassword', 'Confirm your password')}
                 value={twoFAPassword}
                 onChange={(e) => setTwoFAPassword(e.target.value)}
               />
               <div className="flex gap-2">
                 <Button size="sm" onClick={submitEnablePassword} disabled={busy}>
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Continue'}
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : t('settings.continue', 'Continue')}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => { setTwoFAStep('idle'); setTwoFAPassword(''); }}>Cancel</Button>
+                <Button size="sm" variant="outline" onClick={() => { setTwoFAStep('idle'); setTwoFAPassword(''); }}>{t('common.cancel', 'Cancel')}</Button>
               </div>
             </div>
           )}
@@ -817,29 +854,29 @@ function SecurityCard() {
             <div className="space-y-4 max-w-md">
               <div className="flex flex-col sm:flex-row items-start gap-4">
                 {qrCodeDataUrl && (
-                  <img src={qrCodeDataUrl} alt="Two-factor QR code" className="w-40 h-40 rounded-lg border border-border" />
+                  <img src={qrCodeDataUrl} alt={t('settings.qrAlt', 'Two-factor QR code')} className="w-40 h-40 rounded-lg border border-border" />
                 )}
                 <div className="space-y-2 text-xs text-muted-foreground">
-                  <p>1. Scan this QR code with your authenticator app.</p>
+                  <p>{t('settings.scanQr', '1. Scan this QR code with your authenticator app.')}</p>
                   {totpURI && (
                     <button
                       type="button"
                       className="flex items-center gap-1 text-primary hover:underline"
                       onClick={() => {
                         navigator.clipboard.writeText(totpURI);
-                        toast.info('Setup link copied');
+                        toast.info(t('settings.setupLinkCopied', 'Setup link copied'));
                       }}
                     >
-                      <Copy className="w-3 h-3" /> Can't scan? Copy setup link
+                      <Copy className="w-3 h-3" /> {t('settings.copySetupLink', "Can't scan? Copy setup link")}
                     </button>
                   )}
-                  <p>2. Enter the 6-digit code it shows below to confirm.</p>
+                  <p>{t('settings.enterCodeConfirm', '2. Enter the 6-digit code it shows below to confirm.')}</p>
                 </div>
               </div>
 
               {backupCodes.length > 0 && (
                 <div className="bg-muted rounded-lg p-3 text-xs">
-                  <p className="font-semibold mb-1 text-card-foreground">Backup codes - save these somewhere safe:</p>
+                  <p className="font-semibold mb-1 text-card-foreground">{t('settings.backupCodesHint', 'Backup codes. Save these somewhere safe:')}</p>
                   <div className="grid grid-cols-2 gap-1 font-mono text-muted-foreground">
                     {backupCodes.map((c) => <span key={c}>{c}</span>)}
                   </div>
@@ -856,7 +893,7 @@ function SecurityCard() {
                   className="text-center tracking-[0.3em]"
                 />
                 <Button onClick={submitConfirmCode} disabled={busy}>
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.confirm', 'Confirm')}
                 </Button>
               </div>
             </div>
@@ -864,7 +901,7 @@ function SecurityCard() {
 
           {twoFactorEnabled && !showDisable && (
             <Button size="sm" variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => setShowDisable(true)}>
-              Disable Two-Factor
+              {t('settings.disableTwoFactor', 'Disable Two-Factor')}
             </Button>
           )}
 
@@ -872,15 +909,15 @@ function SecurityCard() {
             <div className="flex flex-col md:flex-row gap-2 max-w-md">
               <Input
                 type="password"
-                placeholder="Confirm your password"
+                placeholder={t('settings.confirmYourPassword', 'Confirm your password')}
                 value={disablePassword}
                 onChange={(e) => setDisablePassword(e.target.value)}
               />
               <div className="flex gap-2">
                 <Button size="sm" variant="destructive" onClick={submitDisable} disabled={busy}>
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm Disable'}
+                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : t('settings.confirmDisable', 'Confirm Disable')}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => { setShowDisable(false); setDisablePassword(''); }}>Cancel</Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowDisable(false); setDisablePassword(''); }}>{t('common.cancel', 'Cancel')}</Button>
               </div>
             </div>
           )}
@@ -890,17 +927,18 @@ function SecurityCard() {
   );
 }
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, t: Translate) {
   const delta = Date.now() - new Date(iso).getTime();
   const minutes = Math.round(delta / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return t('settings.justNow', 'just now');
+  if (minutes < 60) return t('settings.minutesAgo', '{n}m ago', { n: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
+  if (hours < 24) return t('settings.hoursAgo', '{n}h ago', { n: hours });
+  return t('settings.daysAgo', '{n}d ago', { n: Math.round(hours / 24) });
 }
 
 function SessionsCard() {
+  const { t } = useAppContext();
   const [sessions, setSessions] = useState<StaffSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -910,7 +948,7 @@ function SessionsCard() {
     api.auth
       .sessions()
       .then((data) => setSessions(data.sessions ?? []))
-      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Could not load sessions'))
+      .catch((e) => toast.error(e instanceof ApiError ? e.message : t('settings.sessionsLoadFailed', 'Could not load sessions')))
       .finally(() => setLoading(false));
   };
 
@@ -922,10 +960,10 @@ function SessionsCard() {
     setBusyId(id);
     try {
       await api.auth.revokeSession(id);
-      toast.success('Session revoked');
+      toast.success(t('settings.sessionRevoked', 'Session revoked'));
       load();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Could not revoke session');
+      toast.error(e instanceof ApiError ? e.message : t('settings.revokeFailed', 'Could not revoke session'));
     } finally {
       setBusyId(null);
     }
@@ -935,10 +973,10 @@ function SessionsCard() {
     setBusyId('others');
     try {
       await api.auth.revokeOtherSessions();
-      toast.success('Other sessions signed out');
+      toast.success(t('settings.othersSignedOut', 'Other sessions signed out'));
       load();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Could not sign out other sessions');
+      toast.error(e instanceof ApiError ? e.message : t('settings.signOutOthersFailed', 'Could not sign out other sessions'));
     } finally {
       setBusyId(null);
     }
@@ -948,7 +986,7 @@ function SessionsCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MonitorSmartphone className="w-4 h-4 text-primary" /> Active sessions
+          <MonitorSmartphone className="w-4 h-4 text-primary" /> {t('settings.activeSessions', 'Active sessions')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -957,7 +995,7 @@ function SessionsCard() {
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
           </div>
         ) : sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active sessions.</p>
+          <p className="text-sm text-muted-foreground">{t('settings.noSessions', 'No active sessions.')}</p>
         ) : (
           sessions.map((session) => (
             <div
@@ -967,16 +1005,16 @@ function SessionsCard() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-sm">{session.deviceName}</p>
-                  {session.isCurrent && <span className="text-xs font-medium text-primary">This device</span>}
-                  {session.isTrusted && <StatusBadge status="trusted" label="Trusted" />}
+                  {session.isCurrent && <span className="text-xs font-medium text-primary">{t('settings.thisDevice', 'This device')}</span>}
+                  {session.isTrusted && <StatusBadge status="trusted" label={t('settings.trusted', 'Trusted')} />}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {session.ipAddress ?? 'Unknown IP'} · last active {timeAgo(session.lastActivityAt)}
+                  {session.ipAddress ?? t('settings.unknownIp', 'Unknown IP')} · {t('settings.lastActiveAgo', 'last active {time}', { time: timeAgo(session.lastActivityAt, t) })}
                 </p>
               </div>
               {!session.isCurrent && (
                 <Button size="sm" variant="outline" className="text-destructive" onClick={() => revoke(session.id)} disabled={busyId === session.id}>
-                  {busyId === session.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Revoke'}
+                  {busyId === session.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t('settings.revoke', 'Revoke')}
                 </Button>
               )}
             </div>
@@ -984,7 +1022,7 @@ function SessionsCard() {
         )}
         {sessions.some((s) => !s.isCurrent) && (
           <Button variant="outline" size="sm" onClick={revokeOthers} disabled={busyId === 'others'}>
-            Sign out other sessions
+            {t('settings.signOutOthers', 'Sign out other sessions')}
           </Button>
         )}
       </CardContent>
@@ -994,6 +1032,7 @@ function SessionsCard() {
 
 function SecurityPolicyCard() {
   const { isSuperAdmin } = useAuth();
+  const { t } = useAppContext();
   const [policy, setPolicy] = useState<SecurityPolicy | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -1011,9 +1050,9 @@ function SecurityPolicyCard() {
     try {
       const updated = await api.settings.updateSecurityPolicy(next);
       setPolicy(updated);
-      toast.success('Security policy saved');
+      toast.success(t('settings.policySaved', 'Security policy saved'));
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Could not save policy');
+      toast.error(e instanceof ApiError ? e.message : t('settings.policySaveFailed', 'Could not save policy'));
     } finally {
       setSaving(false);
     }
@@ -1023,19 +1062,19 @@ function SecurityPolicyCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-primary" /> Security policy
+          <Shield className="w-4 h-4 text-primary" /> {t('settings.securityPolicy', 'Security policy')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         {[
-          { key: 'super-admin' as const, label: 'Super Admin' },
-          { key: 'admin' as const, label: 'Administrators' },
-          { key: 'agent' as const, label: 'Call-centre operators' },
+          { key: 'super-admin' as const, labelKey: 'settings.roleSuperAdmin' },
+          { key: 'admin' as const, labelKey: 'settings.roleAdministrators' },
+          { key: 'agent' as const, labelKey: 'settings.roleCallCentre' },
         ].map((role) => (
           <div key={role.key} className="flex items-center justify-between gap-4 rounded-2xl border border-border px-4 py-3">
             <div>
-              <p className="text-sm font-medium">Require 2FA for {role.label}</p>
-              <p className="text-xs text-muted-foreground">They enrol at the next sign-in before the dashboard opens.</p>
+              <p className="text-sm font-medium">{t('settings.require2faFor', 'Require 2FA for {role}', { role: t(role.labelKey) })}</p>
+              <p className="text-xs text-muted-foreground">{t('settings.require2faHint', 'They enrol at the next sign-in before the dashboard opens.')}</p>
             </div>
             <Switch
               checked={policy.require2FA[role.key]}
@@ -1047,7 +1086,7 @@ function SecurityPolicyCard() {
           </div>
         ))}
         <div className="space-y-2">
-          <Label>Idle timeout (minutes)</Label>
+          <Label>{t('settings.idleTimeout', 'Idle timeout (minutes)')}</Label>
           <Input
             type="number"
             min={1}
@@ -1058,7 +1097,7 @@ function SecurityPolicyCard() {
             onChange={(e) => setPolicy({ ...policy, idleTimeoutMinutes: Number(e.target.value) })}
             onBlur={() => save(policy)}
           />
-          <p className="text-xs text-muted-foreground">7-day sessions stay, but a quiet terminal signs itself out.</p>
+          <p className="text-xs text-muted-foreground">{t('settings.idleTimeoutHint', '7-day sessions stay, but a quiet terminal signs itself out.')}</p>
         </div>
       </CardContent>
     </Card>

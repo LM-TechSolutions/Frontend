@@ -6,10 +6,12 @@ import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppContext } from '../contexts/AppContext';
 
 export default function EnrollTwoFactor() {
   const navigate = useNavigate();
   const { completeTwoFactorEnrollment, logout, needsTwoFactorEnrollment } = useAuth();
+  const { t } = useAppContext();
   const [password, setPassword] = useState('');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [totpURI, setTotpURI] = useState<string | null>(null);
@@ -24,7 +26,7 @@ export default function EnrollTwoFactor() {
 
   const start = async () => {
     if (!password) {
-      toast.error('Enter your password to continue');
+      toast.error(t('auth.passwordRequired'));
       return;
     }
     setBusy(true);
@@ -35,7 +37,7 @@ export default function EnrollTwoFactor() {
       setBackupCodes(res.backupCodes ?? []);
       setStep('confirm');
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Could not start two-factor setup');
+      toast.error(e instanceof ApiError ? e.message : t('auth.enrollStartFailed'));
     } finally {
       setBusy(false);
     }
@@ -43,17 +45,17 @@ export default function EnrollTwoFactor() {
 
   const confirm = async () => {
     if (code.length !== 6) {
-      toast.error('Enter the 6-digit code from your authenticator app');
+      toast.error(t('auth.enterCode'));
       return;
     }
     setBusy(true);
     try {
       await api.twoFactor.verify(code);
       completeTwoFactorEnrollment();
-      toast.success('Two-factor authentication is on. Welcome in.');
+      toast.success(t('auth.enrollSuccess'));
       navigate('/dashboard', { replace: true });
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Invalid code - try again');
+      toast.error(e instanceof ApiError ? e.message : t('auth.invalidCode'));
     } finally {
       setBusy(false);
     }
@@ -67,27 +69,27 @@ export default function EnrollTwoFactor() {
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Required to continue</p>
-            <h1 className="text-2xl font-semibold">Turn on two-factor authentication</h1>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t('auth.requiredToContinue')}</p>
+            <h1 className="text-2xl font-semibold">{t('auth.turnOn2fa')}</h1>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">Scan the QR code, then enter a 6-digit code.</p>
+        <p className="text-sm text-muted-foreground">{t('auth.scanQrThenCode')}</p>
 
         {step === 'password' ? (
           <div className="mt-8 space-y-4">
             <Input
               type="password"
-              placeholder="Confirm your password"
+              placeholder={t('auth.confirmPasswordPlaceholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="h-11"
             />
             <div className="flex gap-2">
               <Button className="flex-1 h-11" onClick={start} disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Start setup'}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('auth.startSetup')}
               </Button>
               <Button variant="outline" className="h-11" onClick={() => { logout(); navigate('/', { replace: true }); }}>
-                Sign out
+                {t('auth.signOut')}
               </Button>
             </div>
           </div>
@@ -95,28 +97,28 @@ export default function EnrollTwoFactor() {
           <div className="mt-8 space-y-5">
             <div className="flex flex-col sm:flex-row gap-5">
               {qrCodeDataUrl && (
-                <img src={qrCodeDataUrl} alt="Two-factor QR code" className="w-44 h-44 rounded-2xl border border-border bg-white p-2" />
+                <img src={qrCodeDataUrl} alt={t('auth.qrAlt')} className="w-44 h-44 rounded-2xl border border-border bg-white p-2" />
               )}
               <div className="space-y-3 text-sm text-muted-foreground">
-                <p>1. Scan with Google Authenticator, Authy, or 1Password.</p>
+                <p>{t('auth.scanWithApps')}</p>
                 {totpURI && (
                   <button
                     type="button"
                     className="flex items-center gap-1 text-primary hover:underline"
                     onClick={() => {
                       navigator.clipboard.writeText(totpURI);
-                      toast.info('Setup link copied');
+                      toast.info(t('auth.setupLinkCopied'));
                     }}
                   >
-                    <Copy className="h-3.5 w-3.5" /> Can’t scan? Copy setup link
+                    <Copy className="h-3.5 w-3.5" /> {t('auth.copySetupLink')}
                   </button>
                 )}
-                <p>2. Enter the 6-digit code to finish.</p>
+                <p>{t('auth.enterCodeToFinish')}</p>
               </div>
             </div>
             {backupCodes.length > 0 && (
               <div className="rounded-2xl bg-muted p-4 text-xs">
-                <p className="mb-2 font-semibold text-foreground">Backup codes - store these offline</p>
+                <p className="mb-2 font-semibold text-foreground">{t('auth.backupCodes')}</p>
                 <div className="grid grid-cols-2 gap-1 font-mono text-muted-foreground">
                   {backupCodes.map((c) => (
                     <span key={c}>{c}</span>
@@ -134,7 +136,7 @@ export default function EnrollTwoFactor() {
                 className="h-11 text-center tracking-[0.35em]"
               />
               <Button className="h-11" onClick={confirm} disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enable 2FA'}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('auth.enable2fa')}
               </Button>
             </div>
           </div>

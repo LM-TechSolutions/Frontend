@@ -20,7 +20,7 @@ export default function LogCallDialog({ onLogged, className }: { onLogged?: () =
 
   const submit = async () => {
     if (!form.customerPhone) {
-      toast.error('Customer phone is required');
+      toast.error(t('dashboard.phoneRequired'));
       return;
     }
     setSaving(true);
@@ -33,12 +33,12 @@ export default function LogCallDialog({ onLogged, className }: { onLogged?: () =
         notes: form.notes || undefined,
         rideCreated: false,
       });
-      toast.success('Call logged');
+      toast.success(t('dashboard.callLogged'));
       setForm(empty);
       setOpen(false);
       onLogged?.();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to log call');
+      toast.error(e?.message ?? t('dashboard.callLogFailed'));
     } finally {
       setSaving(false);
     }

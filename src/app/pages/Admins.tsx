@@ -7,7 +7,6 @@ import {
   Lock,
   Mail,
   Phone,
-  Plus,
   Shield,
   ShieldCheck,
   UserCog,
@@ -34,6 +33,7 @@ import { toast } from 'sonner';
 import { api, type AdminAccount } from '../lib/api';
 import { withStepUp } from '../components/security/StepUpDialog';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppContext } from '../contexts/AppContext';
 import { EmptyState, Initials, RowSkeleton, StatTile } from '../components/coupons/CouponAtoms';
 import { Page, PageHeader } from '../components/layout/PageHeader';
 
@@ -43,23 +43,23 @@ interface PermissionCatalog {
   presets: Array<{ name: string; description: string; permissions: string[] }>;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  'super-admin': 'Super Admin',
-  admin: 'Administrator',
-  'finance-admin': 'Finance',
-  'dispatch-admin': 'Dispatch',
-  operator: 'Operator',
+const ROLE_KEYS: Record<string, string> = {
+  'super-admin': 'admins.superAdmin',
+  admin: 'admins.roleAdmin',
+  'finance-admin': 'admins.roleFinance',
+  'dispatch-admin': 'admins.roleDispatch',
+  operator: 'admins.roleOperator',
 };
 
-const RESOURCE_LABELS: Record<string, string> = {
-  rides: 'Rides & dispatch',
-  drivers: 'Drivers',
-  coupons: 'Coupons',
-  operators: 'Operators',
-  admins: 'Administrators',
-  analytics: 'Analytics',
-  call_logs: 'Call logs',
-  settings: 'Settings',
+const RESOURCE_KEYS: Record<string, string> = {
+  rides: 'admins.resourceRides',
+  drivers: 'admins.resourceDrivers',
+  coupons: 'admins.resourceCoupons',
+  operators: 'admins.resourceOperators',
+  admins: 'admins.resourceAdmins',
+  analytics: 'admins.resourceAnalytics',
+  call_logs: 'admins.resourceCallLogs',
+  settings: 'admins.resourceSettings',
 };
 
 /**
@@ -72,6 +72,7 @@ const RESOURCE_LABELS: Record<string, string> = {
  */
 export default function Admins() {
   const { isSuperAdmin, refreshPermissions } = useAuth();
+  const { t } = useAppContext();
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
   const [catalog, setCatalog] = useState<PermissionCatalog | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,11 +86,11 @@ export default function Admins() {
       setAdmins(list.admins ?? []);
       setCatalog(cat);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not load administrators');
+      toast.error(e?.message ?? t('admins.loadFailed', 'Could not load administrators'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -109,7 +110,7 @@ export default function Admins() {
       <div className="p-6">
         <EmptyState
           icon={Lock}
-          title="Super Admin access required"
+          title={t('admins.superAdminRequired', 'Super Admin access required')}
         />
       </div>
     );
@@ -118,28 +119,28 @@ export default function Admins() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Access"
-        title="Administrators"
+        eyebrow={t('admins.eyebrow', 'Access')}
+        title={t('admins.title', 'Administrators')}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
-            <UserPlus className="mr-2 h-4 w-4" /> New administrator
+            <UserPlus className="mr-2 h-4 w-4" /> {t('admins.newAdmin', 'New administrator')}
           </Button>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatTile label="Administrators" value={stats.total} hint="Including the Super Admin" icon={UserCog} />
+        <StatTile label={t('admins.statAdmins', 'Administrators')} value={stats.total} hint={t('admins.statAdminsHint', 'Including the Super Admin')} icon={UserCog} />
         <StatTile
-          label="Active"
+          label={t('admins.statActive', 'Active')}
           value={stats.active}
-          hint={stats.total - stats.active > 0 ? `${stats.total - stats.active} deactivated` : 'All can sign in'}
+          hint={stats.total - stats.active > 0 ? t('admins.deactivatedCount', '{count} deactivated', { count: stats.total - stats.active }) : t('admins.allCanSignIn', 'All can sign in')}
           icon={ShieldCheck}
           accent="#10B981"
         />
         <StatTile
-          label="Restricted"
+          label={t('admins.statRestricted', 'Restricted')}
           value={stats.restricted}
-          hint="Hold a limited permission set"
+          hint={t('admins.restrictedHint', 'Hold a limited permission set')}
           icon={KeyRound}
           accent="#6366F1"
         />
@@ -181,15 +182,13 @@ export default function Admins() {
       <AlertDialog open={!!transferTarget} onOpenChange={(open) => !open && setTransferTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Transfer the Super Admin role?</AlertDialogTitle>
+            <AlertDialogTitle>{t('admins.transferTitle', 'Transfer the Super Admin role?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{transferTarget?.name}</strong> becomes the Super Admin with unrestricted access, and you are
-              demoted to a standard administrator. Exactly one account can hold this role, so this cannot be undone
-              from your side - only the new Super Admin can transfer it back.
+              {t('admins.transferBody', '{name} becomes the Super Admin with unrestricted access, and you are demoted to a standard administrator. Exactly one account can hold this role, so this cannot be undone from your side. Only the new Super Admin can transfer it back.', { name: transferTarget?.name ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-[#EF4444] text-white hover:bg-[#DC2626]"
               onClick={async () => {
@@ -198,16 +197,16 @@ export default function Admins() {
                   await withStepUp('super_admin_transfer', () =>
                     api.admins.transferSuperAdmin(transferTarget.id)
                   );
-                  toast.success(`${transferTarget.name} is now the Super Admin`);
+                  toast.success(t('admins.transferSuccess', '{name} is now the Super Admin', { name: transferTarget.name }));
                   setTransferTarget(null);
                   await load();
                   await refreshPermissions();
                 } catch (e: any) {
-                  toast.error(e?.message ?? 'Transfer failed');
+                  toast.error(e?.message ?? t('admins.transferFailed', 'Transfer failed'));
                 }
               }}
             >
-              Transfer role
+              {t('admins.transferAction', 'Transfer role')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -230,15 +229,16 @@ function AdminRow({
   onChanged: () => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const { t } = useAppContext();
 
   const toggleActive = async (isActive: boolean) => {
     setSaving(true);
     try {
       await api.admins.update(admin.id, { isActive });
-      toast.success(isActive ? `${admin.name} reactivated` : `${admin.name} deactivated`);
+      toast.success(isActive ? t('admins.reactivated', '{name} reactivated', { name: admin.name }) : t('admins.deactivated', '{name} deactivated', { name: admin.name }));
       onChanged();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not update the account');
+      toast.error(e?.message ?? t('admins.updateFailed', 'Could not update the account'));
     } finally {
       setSaving(false);
     }
@@ -261,16 +261,16 @@ function AdminRow({
             <p className="font-semibold text-foreground">{admin.name}</p>
             {admin.isSuperAdmin ? (
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-[color:var(--warning)]">
-                <Crown className="h-3 w-3" /> Super Admin
+                <Crown className="h-3 w-3" /> {t('admins.superAdmin', 'Super Admin')}
               </span>
             ) : (
               admin.roles.map((role) => (
                 <span key={role} className="text-xs text-muted-foreground">
-                  {ROLE_LABELS[role] ?? role}
+                  {ROLE_KEYS[role] ? t(ROLE_KEYS[role]) : role}
                 </span>
               ))
             )}
-            {!admin.isActive && <StatusBadge status="inactive" label="Deactivated" />}
+            {!admin.isActive && <StatusBadge status="inactive" label={t('admins.deactivatedLabel', 'Deactivated')} />}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
@@ -286,9 +286,9 @@ function AdminRow({
             <span className="inline-flex items-center gap-1">
               <Shield className="h-3 w-3" />
               <span className="tabular-nums">
-                {admin.isSuperAdmin ? catalogSize || 'all' : admin.permissions.length}
+                {admin.isSuperAdmin ? t('admins.allPermissions', 'all') : admin.permissions.length}
               </span>{' '}
-              permissions
+              {t('admins.permissionsWord', 'permissions')}
             </span>
           </div>
         </div>
@@ -297,11 +297,11 @@ function AdminRow({
           {!admin.isSuperAdmin && (
             <>
               <div className="flex items-center gap-2 pr-1">
-                <span className="text-xs text-muted-foreground">{admin.isActive ? 'Active' : 'Off'}</span>
+                <span className="text-xs text-muted-foreground">{admin.isActive ? t('admins.active', 'Active') : t('admins.off', 'Off')}</span>
                 <Switch checked={admin.isActive} disabled={saving} onCheckedChange={toggleActive} />
               </div>
               <Button size="sm" variant="outline" onClick={onEdit}>
-                <KeyRound className="mr-1.5 h-4 w-4" /> Permissions
+                <KeyRound className="mr-1.5 h-4 w-4" /> {t('admins.permissions', 'Permissions')}
               </Button>
               <Button
                 size="sm"
@@ -309,7 +309,7 @@ function AdminRow({
                 className="text-[#B45309] hover:bg-[#F59E0B]/10 dark:text-[#FBBF24]"
                 onClick={onTransfer}
                 disabled={!admin.isActive}
-                title={admin.isActive ? 'Make this account the Super Admin' : 'Reactivate the account first'}
+                title={admin.isActive ? t('admins.makeSuperAdmin', 'Make this account the Super Admin') : t('admins.reactivateFirst', 'Reactivate the account first')}
               >
                 <Crown className="h-4 w-4" />
               </Button>
@@ -332,6 +332,7 @@ function CreateAdminDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useAppContext();
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', department: '' });
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['admin']);
   const [saving, setSaving] = useState(false);
@@ -359,11 +360,11 @@ function CreateAdminDialog({
         department: form.department || undefined,
         roles: selectedRoles.length ? selectedRoles : ['admin'],
       });
-      toast.success(`${form.name} can now sign in`);
+      toast.success(t('admins.created', '{name} can now sign in', { name: form.name }));
       onClose();
       onDone();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not create the administrator');
+      toast.error(e?.message ?? t('admins.createFailed', 'Could not create the administrator'));
     } finally {
       setSaving(false);
     }
@@ -373,13 +374,13 @@ function CreateAdminDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>New administrator</DialogTitle>
-          <DialogDescription className="sr-only">Create a staff administrator account.</DialogDescription>
+          <DialogTitle>{t('admins.newAdmin', 'New administrator')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('admins.createDescription', 'Create a staff administrator account.')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="admin-name">Full name</Label>
+            <Label htmlFor="admin-name">{t('admins.fullName', 'Full name')}</Label>
             <Input
               id="admin-name"
               value={form.name}
@@ -390,7 +391,7 @@ function CreateAdminDialog({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="admin-email">Email</Label>
+              <Label htmlFor="admin-email">{t('admins.email', 'Email')}</Label>
               <Input
                 id="admin-email"
                 type="email"
@@ -400,7 +401,7 @@ function CreateAdminDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="admin-phone">Phone</Label>
+              <Label htmlFor="admin-phone">{t('admins.phone', 'Phone')}</Label>
               <Input
                 id="admin-phone"
                 value={form.phone}
@@ -410,23 +411,27 @@ function CreateAdminDialog({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="admin-password">Temporary password</Label>
+            <Label htmlFor="admin-password">{t('admins.temporaryPassword', 'Temporary password')}</Label>
             <Input
               id="admin-password"
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="At least 8 characters"
+              placeholder={t('admins.passwordPlaceholder', 'At least 8 characters')}
             />
             {form.password.length > 0 && form.password.length < 8 && (
               <p className="text-xs text-[#DC2626] dark:text-[#F87171]">
-                {8 - form.password.length} more character{8 - form.password.length === 1 ? '' : 's'} needed.
+                {t(
+                  8 - form.password.length === 1 ? 'admins.charsNeededOne' : 'admins.charsNeeded',
+                  '{count} more characters needed.',
+                  { count: 8 - form.password.length }
+                )}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label>Permission set</Label>
+            <Label>{t('admins.permissionSet', 'Permission set')}</Label>
             <div className="grid gap-2 sm:grid-cols-2">
               {assignable.map((role) => {
                 const checked = selectedRoles.includes(role.name);
@@ -446,11 +451,11 @@ function CreateAdminDialog({
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-foreground">{ROLE_LABELS[role.name] ?? role.name}</p>
+                      <p className="text-sm font-medium text-foreground">{ROLE_KEYS[role.name] ? t(ROLE_KEYS[role.name]) : role.name}</p>
                       {checked && <Check className="h-4 w-4 shrink-0 text-primary" />}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {role.description ?? `${role.permissions.length} permissions`}
+                      {role.description ?? t('admins.permissionsCount', '{count} permissions', { count: role.permissions.length })}
                     </p>
                   </button>
                 );
@@ -461,11 +466,11 @@ function CreateAdminDialog({
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </Button>
           <Button onClick={submit} disabled={!valid || saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create administrator
+            {t('admins.createAdmin', 'Create administrator')}
           </Button>
         </div>
       </DialogContent>
@@ -484,6 +489,7 @@ function PermissionsDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useAppContext();
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -517,11 +523,11 @@ function PermissionsDialog({
     setSaving(true);
     try {
       await api.admins.setRoles(admin.id, selectedRoles);
-      toast.success(`Permissions updated for ${admin.name}`);
+      toast.success(t('admins.updatedPermissions', 'Permissions updated for {name}', { name: admin.name }));
       onClose();
       onDone();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not update permissions');
+      toast.error(e?.message ?? t('admins.updatePermissionsFailed', 'Could not update permissions'));
     } finally {
       setSaving(false);
     }
@@ -531,8 +537,8 @@ function PermissionsDialog({
     <Dialog open={!!admin} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>Permissions - {admin?.name}</DialogTitle>
-          <DialogDescription className="sr-only">Choose roles for this administrator.</DialogDescription>
+          <DialogTitle>{t('admins.permissionsTitle', 'Permissions for {name}', { name: admin?.name ?? '' })}</DialogTitle>
+          <DialogDescription className="sr-only">{t('admins.chooseRoles', 'Choose roles for this administrator.')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
@@ -555,7 +561,7 @@ function PermissionsDialog({
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground">{ROLE_LABELS[role.name] ?? role.name}</p>
+                    <p className="text-sm font-medium text-foreground">{ROLE_KEYS[role.name] ? t(ROLE_KEYS[role.name]) : role.name}</p>
                     {checked && <Check className="h-4 w-4 shrink-0 text-primary" />}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{role.description}</p>
@@ -566,9 +572,9 @@ function PermissionsDialog({
 
           <div className="space-y-3 rounded-xl border border-border/70 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-foreground">Effective access</p>
+              <p className="text-sm font-medium text-foreground">{t('admins.effectiveAccess', 'Effective access')}</p>
               <span className="text-xs tabular-nums text-muted-foreground">
-                {effective.size} of {catalog?.permissions.length ?? 0}
+                {t('admins.ofTotal', '{have} of {total}', { have: effective.size, total: catalog?.permissions.length ?? 0 })}
               </span>
             </div>
 
@@ -576,7 +582,7 @@ function PermissionsDialog({
               {byResource.map(([resource, permissions]) => (
                 <div key={resource}>
                   <p className="text-[11px] font-medium uppercase tracking-[0.09em] text-muted-foreground">
-                    {RESOURCE_LABELS[resource] ?? resource}
+                    {RESOURCE_KEYS[resource] ? t(RESOURCE_KEYS[resource]) : resource}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {permissions.map((p) => {
@@ -601,21 +607,21 @@ function PermissionsDialog({
 
           {selectedRoles.length === 0 && (
             <p className="text-sm text-[#DC2626] dark:text-[#F87171]">
-              Select at least one role - an administrator with no role cannot reach anything.
+              {t('admins.selectOneRole', 'Select at least one role. An administrator with no role cannot reach anything.')}
             </p>
           )}
         </div>
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </Button>
           <Button
             onClick={submit}
             disabled={selectedRoles.length === 0 || saving}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save permissions
+            {t('admins.savePermissions', 'Save permissions')}
           </Button>
         </div>
       </DialogContent>

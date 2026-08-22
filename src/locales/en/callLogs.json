@@ -18,5 +18,15 @@
   "duration": "Duration",
   "rideId": "Ride ID",
   "notes": "Notes",
-  "noLogs": "No call logs found"
+  "noLogs": "No call logs found",
+  "loadFailed": "Failed to load call logs",
+  "eyebrow": "Voice",
+  "csv": "CSV",
+  "thisPage": "This page",
+  "inRange": "{count} in range",
+  "callToRide": "Call to ride",
+  "avgHint": "Avg {duration}",
+  "converted": "Converted",
+  "noRide": "No ride",
+  "pageOf": "Page {page} of {total} · {count} calls"
 }

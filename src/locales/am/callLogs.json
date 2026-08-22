@@ -18,5 +18,15 @@
   "duration": "ቆይታ",
   "rideId": "የጉዞ መታወቂያ",
   "notes": "ማስታወሻ",
-  "noLogs": "የጥሪ መዝገብ አልተገኘም"
+  "noLogs": "የጥሪ መዝገብ አልተገኘም",
+  "loadFailed": "የጥሪ መዝገቦችን መጫን አልተሳካም",
+  "eyebrow": "ድምጽ",
+  "csv": "CSV",
+  "thisPage": "ይህ ገጽ",
+  "inRange": "{count} በክልሉ",
+  "callToRide": "ከጥሪ ወደ ጉዞ",
+  "avgHint": "አማካይ {duration}",
+  "converted": "ተቀይሯል",
+  "noRide": "ጉዞ የለም",
+  "pageOf": "ገጽ {page} ከ {total} · {count} ጥሪዎች"
 }

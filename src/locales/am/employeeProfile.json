@@ -1,0 +1,20 @@
+{
+  "driver": "አሽከርካሪ",
+  "profile": "መገለጫ",
+  "details": "ዝርዝር",
+  "email": "ኢሜይል",
+  "status": "ሁኔታ",
+  "couponBalance": "የኩፖን ቀሪ",
+  "coupons": "ኩፖኖች",
+  "vehicleType": "የተሽከርካሪ አይነት",
+  "vehicleModel": "የተሽከርካሪ ሞዴል",
+  "licensePlate": "የሰሌዳ ቁጥር",
+  "licenseNumber": "የመንጃ ፈቃድ ቁጥር",
+  "rating": "ደረጃ",
+  "completedRides": "የተጠናቀቁ ጉዞዎች",
+  "lastLocation": "መጨረሻ አካባቢ",
+  "commission": "የቶኩማ ኮሚሽን",
+  "manageCoupons": "ኩፖኖችን አስተዳድር",
+  "notFound": "አሽከርካሪ አልተገኘም",
+  "backToDrivers": "ወደ አሽከርካሪዎች ተመለስ"
+}

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '../ui/utils';
+import { useAppContext } from '../../contexts/AppContext';
+import i18n from '../../i18n';
 
 /**
  * Shared visual language for the coupon economy screens.
@@ -20,24 +22,21 @@ export function couponTone(balance: number, threshold: number): CouponTone {
   return 'healthy';
 }
 
-export const TONE_STYLES: Record<CouponTone, { text: string; bg: string; ring: string; label: string }> = {
+export const TONE_STYLES: Record<CouponTone, { text: string; bg: string; ring: string }> = {
   healthy: {
     text: 'text-[#059669] dark:text-[#34D399]',
     bg: 'bg-[#10B981]/10',
     ring: 'ring-[#10B981]/30',
-    label: 'Healthy',
   },
   watch: {
     text: 'text-[#B45309] dark:text-[#FBBF24]',
     bg: 'bg-[#F59E0B]/10',
     ring: 'ring-[#F59E0B]/30',
-    label: 'Running low',
   },
   critical: {
     text: 'text-[#DC2626] dark:text-[#F87171]',
     bg: 'bg-[#EF4444]/10',
     ring: 'ring-[#EF4444]/30',
-    label: 'Critical',
   },
 };
 
@@ -101,23 +100,25 @@ export function BalancePill({
   threshold: number;
   size?: 'sm' | 'md';
 }) {
+  const { t } = useAppContext();
   const tone = TONE_STYLES[couponTone(balance, threshold)];
   return (
     <span className={cn('inline-flex items-baseline gap-1 font-semibold tabular-nums', tone.text, size === 'sm' ? 'text-sm' : 'text-base')}>
       {balance.toLocaleString()}
-      <span className="font-normal text-muted-foreground">{balance === 1 ? 'coupon' : 'coupons'}</span>
+      <span className="font-normal text-muted-foreground">{balance === 1 ? t('common.coupon') : t('common.coupons')}</span>
     </span>
   );
 }
 
-const REQUEST_STATUS: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Pending', color: '#e08a14' },
-  approved: { label: 'Approved', color: '#1aa37a' },
-  rejected: { label: 'Rejected', color: '#e24b4a' },
-  cancelled: { label: 'Withdrawn', color: '#7a9193' },
+const REQUEST_STATUS: Record<string, { key: string; color: string }> = {
+  pending: { key: 'common.pending', color: '#e08a14' },
+  approved: { key: 'common.approved', color: '#1aa37a' },
+  rejected: { key: 'common.rejected', color: '#e24b4a' },
+  cancelled: { key: 'common.withdrawn', color: '#7a9193' },
 };
 
 export function RequestStatusChip({ status }: { status: string }) {
+  const { t } = useAppContext();
   const meta = REQUEST_STATUS[status] ?? REQUEST_STATUS.cancelled;
   return (
     <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground">
@@ -125,7 +126,7 @@ export function RequestStatusChip({ status }: { status: string }) {
         className="h-2 w-2 shrink-0 rounded-full"
         style={{ background: meta.color, boxShadow: `0 0 0 3px color-mix(in srgb, ${meta.color} 22%, transparent)` }}
       />
-      {meta.label}
+      {t(meta.key)}
     </span>
   );
 }
@@ -215,12 +216,12 @@ export function RowSkeleton({ rows = 4 }: { rows?: number }) {
 export function timeAgo(value: string | Date): string {
   const then = new Date(value).getTime();
   const seconds = Math.max(1, Math.round((Date.now() - then) / 1000));
-  if (seconds < 60) return 'just now';
+  if (seconds < 60) return i18n.t('justNow', { ns: 'common', defaultValue: 'just now' });
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return i18n.t('minutesAgo', { ns: 'common', m: minutes, defaultValue: `${minutes}m ago` });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return i18n.t('hoursAgo', { ns: 'common', h: hours, defaultValue: `${hours}h ago` });
   const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return i18n.t('daysAgo', { ns: 'common', d: days, defaultValue: `${days}d ago` });
   return new Date(value).toLocaleDateString();
 }

@@ -40,19 +40,23 @@ const STAGES = ['pending', 'dispatched', 'accepted', 'arrived', 'in_progress', '
 const OPEN_STATUSES = ['pending', 'unassigned', 'dispatched', 'accepted', 'arrived', 'in_progress'];
 const REDISPATCH_STATUSES = ['pending', 'unassigned', 'dispatched'];
 
-function copyText(value: string, label: string) {
+function copyText(value: string, label: string, copied: string, failed: string) {
   void navigator.clipboard.writeText(value).then(
-    () => toast.success(`${label} copied`),
-    () => toast.error('Could not copy')
+    () => toast.success(copied),
+    () => toast.error(failed)
   );
 }
 
-function gpsFreshness(at: Date | null, now: number) {
+function gpsFreshness(
+  at: Date | null,
+  now: number,
+  t: (path: string, fallback?: string, params?: Record<string, string | number>) => string
+) {
   if (!at) return null;
   const seconds = Math.max(0, Math.round((now - at.getTime()) / 1000));
-  if (seconds < 8) return 'Live';
-  if (seconds < 60) return `${seconds}s ago`;
-  return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 8) return { label: t('common.live'), live: true };
+  if (seconds < 60) return { label: t('rides.secondsAgo', undefined, { s: seconds }), live: false };
+  return { label: t('rides.minutesAgo', undefined, { m: Math.floor(seconds / 60) }), live: false };
 }
 
 export default function RideTracking() {
@@ -169,12 +173,12 @@ export default function RideTracking() {
     if (!rideId) return;
     setCancelling(true);
     try {
-      await api.rides.cancel(rideId, 'Cancelled by call center');
-      toast.success('Ride cancelled');
+      await api.rides.cancel(rideId, t('rides.cancelledByCallCenter'));
+      toast.success(t('rides.cancelled'));
       setCancelOpen(false);
       void fetchRide();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to cancel ride');
+      toast.error(e?.message ?? t('rides.cancelFailed'));
     } finally {
       setCancelling(false);
     }
@@ -186,10 +190,12 @@ export default function RideTracking() {
     try {
       const res = await api.rides.redispatch(rideId);
       toast.success(
-        res.candidates > 0 ? `Notified ${res.candidates} nearby driver${res.candidates === 1 ? '' : 's'}` : 'No nearby drivers to notify'
+        res.candidates > 0
+          ? t('rides.notifiedNearby', undefined, { count: res.candidates })
+          : t('rides.noNearby')
       );
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not re-notify');
+      toast.error(e?.message ?? t('rides.redispatchFailed'));
     } finally {
       setRedispatching(false);
     }
@@ -208,7 +214,7 @@ export default function RideTracking() {
   const displayDistanceKm = roadRoute?.distanceKm ?? (ride?.distance != null ? Number(ride.distance) : null);
   const displayDurationMin = roadRoute?.durationMinutes ?? ride?.duration ?? null;
   const wait = ride && REDISPATCH_STATUSES.includes(ride.status) ? waitTone(ride.createdAt) : null;
-  const pingLabel = gpsFreshness(lastPing, now);
+  const ping = gpsFreshness(lastPing, now, t);
   const stageIndex = ride ? STAGES.indexOf(ride.status) : -1;
   const events = useMemo(() => history, [history]);
 
@@ -228,19 +234,25 @@ export default function RideTracking() {
     <div className="flex min-h-[calc(100svh-4.25rem)] flex-col gap-4 p-4 sm:p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <Button variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => navigate('/rides')} aria-label="Back to rides">
+          <Button variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => navigate('/rides')} aria-label={t('rides.backToRides')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h2 className="truncate font-display text-2xl font-semibold tracking-tight">{ride.customerName}</h2>
               <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
-              {wait && <span className={cn('text-sm font-medium', wait.className)}>{wait.label}</span>}
+              {wait && (
+                <span className={cn('text-sm font-medium', wait.className)}>
+                  {wait.minutes >= 3
+                    ? t('common.waitingMinutes', undefined, { m: wait.minutes })
+                    : t('common.waitingShort', undefined, { m: wait.minutes })}
+                </span>
+              )}
             </div>
             <button
               type="button"
               className="mt-1 font-mono text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => copyText(ride.id, 'Ride ID')}
+              onClick={() => copyText(ride.id, 'Ride ID', t('common.copied', undefined, { label: t('rides.rideID') }), t('common.copyFailed'))}
             >
               #{shortId(ride.id)}
               <Copy className="ml-1.5 inline h-3 w-3 align-[-1px]" />
@@ -252,18 +264,18 @@ export default function RideTracking() {
           {ride.customerPhone && (
             <Button variant="outline" asChild>
               <a href={`tel:${ride.customerPhone}`}>
-                <Phone className="mr-2 h-4 w-4" /> Call
+                <Phone className="mr-2 h-4 w-4" /> {t('common.call')}
               </a>
             </Button>
           )}
           {canRedispatch && (
             <Button variant="outline" onClick={() => void handleRedispatch()} disabled={redispatching}>
               {redispatching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bell className="mr-2 h-4 w-4" />}
-              Re-notify
+              {t('rides.reNotify')}
             </Button>
           )}
           {canAssign && (
-            <Button onClick={() => setAssignOpen(true)}>{hasDriver ? 'Reassign' : t('dashboard.assign', 'Assign')}</Button>
+            <Button onClick={() => setAssignOpen(true)}>{hasDriver ? t('rides.reassign') : t('dashboard.assign')}</Button>
           )}
           {isOpen && (
             <Button
@@ -271,7 +283,7 @@ export default function RideTracking() {
               className="border-destructive/40 text-destructive hover:bg-destructive hover:text-white"
               onClick={() => setCancelOpen(true)}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
           )}
         </div>
@@ -299,16 +311,16 @@ export default function RideTracking() {
                   <span
                     className={cn(
                       'rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-sm backdrop-blur',
-                      pingLabel === 'Live' ? 'text-primary' : 'text-muted-foreground'
+                      ping?.live ? 'text-primary' : 'text-muted-foreground'
                     )}
                   >
-                    {pingLabel ?? (hasDriver ? 'Waiting for GPS' : 'No driver yet')}
+                    {ping?.label ?? (hasDriver ? t('rides.waitingGps') : t('rides.noDriverYet'))}
                   </span>
                   {(displayDistanceKm != null || displayDurationMin != null) && (
                     <span className="rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur">
-                      {displayDistanceKm != null ? `${Number(displayDistanceKm).toFixed(1)} km` : ''}
+                      {displayDistanceKm != null ? t('rides.kmValue', undefined, { n: Number(displayDistanceKm).toFixed(1) }) : ''}
                       {displayDistanceKm != null && displayDurationMin != null ? ' · ' : ''}
-                      {displayDurationMin != null ? `~${displayDurationMin} min` : ''}
+                      {displayDurationMin != null ? t('rides.minApprox', undefined, { n: displayDurationMin }) : ''}
                     </span>
                   )}
                 </div>
@@ -319,21 +331,21 @@ export default function RideTracking() {
                     {ride.customerPhone && (
                       <Button size="sm" variant="outline" asChild>
                         <a href={`tel:${ride.customerPhone}`}>
-                          <Phone className="mr-1.5 h-3.5 w-3.5" /> Call
+                          <Phone className="mr-1.5 h-3.5 w-3.5" /> {t('common.call')}
                         </a>
                       </Button>
                     )}
                     {ride.driverPhone && (
                       <Button size="sm" variant="outline" asChild>
                         <a href={`tel:${ride.driverPhone}`}>
-                          <Phone className="mr-1.5 h-3.5 w-3.5" /> Driver
+                          <Phone className="mr-1.5 h-3.5 w-3.5" /> {t('common.driver')}
                         </a>
                       </Button>
                     )}
                     {canRedispatch && (
                       <Button size="sm" variant="outline" onClick={() => void handleRedispatch()} disabled={redispatching}>
                         {redispatching ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Bell className="mr-1.5 h-3.5 w-3.5" />}
-                        Re-notify
+                        {t('rides.reNotify')}
                       </Button>
                     )}
                     {canAssign && (
@@ -344,7 +356,7 @@ export default function RideTracking() {
                           setAssignOpen(true);
                         }}
                       >
-                        {hasDriver ? 'Reassign' : 'Assign'}
+                        {hasDriver ? t('rides.reassign') : t('dashboard.assign')}
                       </Button>
                     )}
                     {isOpen && (
@@ -357,7 +369,7 @@ export default function RideTracking() {
                           setCancelOpen(true);
                         }}
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </Button>
                     )}
                   </div>
@@ -389,10 +401,13 @@ export default function RideTracking() {
               value={formatETB(ride.fare)}
             />
             <StatCell
-              label="Distance"
-              value={displayDistanceKm != null ? `${Number(displayDistanceKm).toFixed(1)} km` : '-'}
+              label={t('rides.distance')}
+              value={displayDistanceKm != null ? t('rides.kmValue', undefined, { n: Number(displayDistanceKm).toFixed(1) }) : '-'}
             />
-            <StatCell label="ETA" value={displayDurationMin != null ? `${displayDurationMin} min` : '-'} />
+            <StatCell
+              label={t('rides.eta')}
+              value={displayDurationMin != null ? t('rides.minValue', undefined, { n: displayDurationMin }) : '-'}
+            />
           </Surface>
 
           <Surface className="space-y-3 p-4">
@@ -403,7 +418,7 @@ export default function RideTracking() {
           <Surface className="p-4">
             {hasDriver ? (
               <div className="flex items-start gap-3">
-                <Initials name={ride.driverName ?? 'Driver'} src={ride.driverPhoto} />
+                <Initials name={ride.driverName ?? t('common.driver')} src={ride.driverPhoto} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{ride.driverName}</p>
                   <p className="mt-0.5 font-mono text-xs text-muted-foreground">{ride.licensePlate ?? '-'}</p>
@@ -412,12 +427,12 @@ export default function RideTracking() {
                     {ride.driverPhone && (
                       <Button size="sm" asChild>
                         <a href={`tel:${ride.driverPhone}`}>
-                          <Phone className="mr-1.5 h-3.5 w-3.5" /> Call
+                          <Phone className="mr-1.5 h-3.5 w-3.5" /> {t('common.call')}
                         </a>
                       </Button>
                     )}
                     <Button size="sm" variant="outline" onClick={() => navigate(`/employees/${ride.driverId}`)}>
-                      <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Profile
+                      <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> {t('common.profile')}
                     </Button>
                   </div>
                 </div>
@@ -425,8 +440,8 @@ export default function RideTracking() {
             ) : (
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-semibold">No driver</p>
-                  <p className="text-sm text-muted-foreground">Assign from the map</p>
+                  <p className="font-semibold">{t('rides.noDriver')}</p>
+                  <p className="text-sm text-muted-foreground">{t('rides.assignFromMap')}</p>
                 </div>
                 {canAssign && (
                   <Button size="sm" onClick={() => setAssignOpen(true)}>
@@ -450,8 +465,8 @@ export default function RideTracking() {
                     <button
                       type="button"
                       className="text-muted-foreground hover:text-foreground"
-                      aria-label="Copy phone"
-                      onClick={() => copyText(ride.customerPhone, 'Phone')}
+                      aria-label={t('rides.copyPhone')}
+                      onClick={() => copyText(ride.customerPhone, 'Phone', t('common.copied', undefined, { label: t('common.phone') }), t('common.copyFailed'))}
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </button>
@@ -467,14 +482,14 @@ export default function RideTracking() {
           {(ride.couponDeduction != null || ride.couponsUsed != null) && (
             <Surface className="flex items-center gap-2 px-4 py-3 text-sm">
               <Ticket className="h-4 w-4 text-primary" />
-              {ride.couponDeduction ?? ride.couponsUsed} coupons
+              {t('rides.couponsUsed', undefined, { count: ride.couponDeduction ?? ride.couponsUsed })}
             </Surface>
           )}
 
           <Surface className="p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Timeline</p>
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('rides.timeline')}</p>
             {events.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No events yet</p>
+              <p className="text-sm text-muted-foreground">{t('rides.noEvents')}</p>
             ) : (
               <ol className="space-y-0">
                 {events.map((event, index) => (
@@ -507,11 +522,11 @@ export default function RideTracking() {
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel this ride?</AlertDialogTitle>
-            <AlertDialogDescription>The customer and driver will be notified.</AlertDialogDescription>
+            <AlertDialogTitle>{t('rides.cancelThisRide')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('rides.cancelNotify')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelling}>Keep ride</AlertDialogCancel>
+            <AlertDialogCancel disabled={cancelling}>{t('rides.keepRide')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={(e) => {
@@ -520,7 +535,7 @@ export default function RideTracking() {
               }}
               disabled={cancelling}
             >
-              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cancel ride'}
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : t('rides.cancelRide')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

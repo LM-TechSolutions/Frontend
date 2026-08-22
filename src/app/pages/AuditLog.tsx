@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { toast } from 'sonner';
 import { api, type AuditLogRow } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppContext } from '../contexts/AppContext';
 import { Page, PageHeader, Surface } from '../components/layout/PageHeader';
 
 function actionTone(action: string) {
@@ -23,6 +24,7 @@ function actionTone(action: string) {
 
 export default function AuditLog() {
   const { role, isSuperAdmin } = useAuth();
+  const { t } = useAppContext();
   const [logs, setLogs] = useState<AuditLogRow[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -41,7 +43,7 @@ export default function AuditLog() {
         setTotalPages(data.pagination?.totalPages ?? 1);
         setTotal(data.pagination?.total ?? 0);
       })
-      .catch((e) => toast.error(e?.message ?? 'Failed to load audit log'))
+      .catch((e) => toast.error(e?.message ?? t('audit.loadFailed', 'Failed to load audit log')))
       .finally(() => setLoading(false));
   };
 
@@ -52,16 +54,16 @@ export default function AuditLog() {
 
   if (role !== 'admin' && !isSuperAdmin) {
     return (
-      <div className="p-8 text-sm text-muted-foreground">Audit logs are visible to administrators.</div>
+      <div className="p-8 text-sm text-muted-foreground">{t('audit.adminOnly', 'Audit logs are visible to administrators.')}</div>
     );
   }
 
   return (
     <Page>
       <PageHeader
-        eyebrow="Immutable trail"
-        title="Audit log"
-        actions={<p className="text-sm tabular-nums text-muted-foreground">{total.toLocaleString()} events</p>}
+        eyebrow={t('audit.eyebrow', 'Immutable trail')}
+        title={t('audit.title', 'Audit log')}
+        actions={<p className="text-sm tabular-nums text-muted-foreground">{t('audit.eventsCount', '{count} events', { count: total.toLocaleString() })}</p>}
       />
 
       <Surface className="p-4">
@@ -77,18 +79,18 @@ export default function AuditLog() {
               <Input
                 value={action}
                 onChange={(e) => setAction(e.target.value)}
-                placeholder="Filter by action - auth.lockout, coupons.allocate…"
+                placeholder={t('audit.actionPlaceholder', 'Filter by action (auth.lockout, coupons.allocate…)')}
                 className="h-11 pl-9"
               />
             </div>
             <Input
               value={resource}
               onChange={(e) => setResource(e.target.value)}
-              placeholder="Resource - user, session, security"
+              placeholder={t('audit.resourcePlaceholder', 'Resource (user, session, security)')}
               className="h-11 sm:w-56"
             />
             <Button type="submit" className="h-11">
-              Search
+              {t('common.search', 'Search')}
             </Button>
           </form>
       </Surface>
@@ -99,16 +101,16 @@ export default function AuditLog() {
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : logs.length === 0 ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">No events match those filters.</div>
+          <div className="py-16 text-center text-sm text-muted-foreground">{t('audit.noEvents', 'No events match those filters.')}</div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>Actor</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Resource</TableHead>
-                <TableHead>IP</TableHead>
+                <TableHead>{t('audit.when', 'When')}</TableHead>
+                <TableHead>{t('audit.actor', 'Actor')}</TableHead>
+                <TableHead>{t('audit.action', 'Action')}</TableHead>
+                <TableHead>{t('audit.resource', 'Resource')}</TableHead>
+                <TableHead>{t('audit.ip', 'IP')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -117,7 +119,7 @@ export default function AuditLog() {
                   <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
                     {new Date(log.createdAt).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-sm">{log.user?.email ?? log.userId ?? 'system'}</TableCell>
+                  <TableCell className="text-sm">{log.user?.email ?? log.userId ?? t('audit.system', 'system')}</TableCell>
                   <TableCell>
                     <span className={`text-sm font-medium ${actionTone(log.action)}`}>
                       {log.action.replace(/_/g, ' ')}
@@ -136,14 +138,14 @@ export default function AuditLog() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t px-4 py-3 text-sm">
             <span className="text-muted-foreground">
-              Page {page} of {totalPages}
+              {t('audit.pageOf', 'Page {page} of {totalPages}', { page, totalPages })}
             </span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => load(page - 1)}>
-                Previous
+                {t('common.previous', 'Previous')}
               </Button>
               <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => load(page + 1)}>
-                Next
+                {t('common.next', 'Next')}
               </Button>
             </div>
           </div>

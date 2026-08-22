@@ -10,6 +10,7 @@ const RIDE_STATUS_LABELS: Record<string, Record<string, string>> = {
     cancelled: 'Cancelled',
     expired: 'Expired',
     unassigned: 'Unassigned',
+    unknown: 'Unknown',
   },
   am: {
     pending: 'በሂደት ላይ ያለ',
@@ -21,6 +22,7 @@ const RIDE_STATUS_LABELS: Record<string, Record<string, string>> = {
     cancelled: 'የተሰረዘ',
     expired: 'ጊዜው ያለፈበት',
     unassigned: 'ያልተመደበ',
+    unknown: 'ያልታወቀ',
   },
   om: {
     pending: 'Eeggamaa Jira',
@@ -32,13 +34,14 @@ const RIDE_STATUS_LABELS: Record<string, Record<string, string>> = {
     cancelled: 'Haqameera',
     expired: 'Yeroon Isa Jalaa Dhumateera',
     unassigned: 'Ramaddii Malee',
+    unknown: 'Hin beekamne',
   },
 };
 
 export function rideStatusLabel(status?: string): string {
-  if (!status) return 'Unknown';
   const lang = typeof window !== 'undefined' ? window.localStorage.getItem('language') : null;
   const labels = lang === 'am' ? RIDE_STATUS_LABELS.am : lang === 'om' ? RIDE_STATUS_LABELS.om : RIDE_STATUS_LABELS.en;
+  if (!status) return labels.unknown;
   return labels[status] ?? RIDE_STATUS_LABELS.en[status] ?? status;
 }
 

@@ -36,5 +36,20 @@
   "unassigned": "Hin ramadamne",
   "guest": "Keessummaa",
   "callTest": "Bilbila qormaataa",
-  "testCustomer": "Maamila qormaataa"
+  "testCustomer": "Maamila qormaataa",
+  "liveBoard": "Gabatee kallattii",
+  "driverColon": "Draayivara: {name}",
+  "waitingRides": "Imala eeggamaa ({count})",
+  "activePickups": "Ka'umsa socho'aa ({count})",
+  "mapHint": "Gabaasa dhaaf pin draayivaraa, hordoffii dhaaf pin imalaa tuqi",
+  "alarmUnassigned": "Imalli hin ramadamne {count} daqiiqaa 8 oli eeganiiru. Amma ramadi ykn deebisi beeksisi.",
+  "reNotified": "Draayivaroota dhiyoo {count} deebifamanii beeksisaman",
+  "noEligibleNearby": "Draayivarri dhiyoo mijaa'e amma hin jiru",
+  "redispatchFailed": "Draayivaroota deebisuu beeksisuu hin dandeenye",
+  "phoneRequired": "Bilbilli maamilaa barbaachisaa dha",
+  "callLogged": "Bilbilli galmaa'eera",
+  "callLogFailed": "Bilbila galmeessuu hin dandeenye",
+  "avgWait": "Eeggannoo giddu galeessa",
+  "alarmed": "Yeroo darbate",
+  "onARide": "Imala irratti"
 }

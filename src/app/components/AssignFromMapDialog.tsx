@@ -19,6 +19,7 @@ import { api, type AssignmentCandidate, type NearbyDriversResponse } from '../li
 import { connectSocket, getSocket } from '../lib/socket';
 import GebetaMapView from './GebetaMapView';
 import { Initials } from './coupons/CouponAtoms';
+import { useAppContext } from '../contexts/AppContext';
 
 interface AssignFromMapDialogProps {
   ride: { id: string; customerName?: string; pickupLocation?: string } | null;
@@ -36,6 +37,7 @@ interface AssignFromMapDialogProps {
  * "everybody nearby is out of coupons".
  */
 export default function AssignFromMapDialog({ ride, onClose, onAssigned }: AssignFromMapDialogProps) {
+  const { t } = useAppContext();
   const [data, setData] = useState<NearbyDriversResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
@@ -52,7 +54,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
       // wanted most of the time, still one confirmation away from happening.
       setSelectedId((current) => current ?? res.candidates.find((c) => c.isEligible)?.driverId ?? null);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not load nearby drivers');
+      toast.error(e?.message ?? t('rides.loadNearbyFailed'));
     } finally {
       setLoading(false);
     }
@@ -109,20 +111,20 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
           lat: c.latitude as number,
           lng: c.longitude as number,
           name: c.name,
-          status: c.isEligible ? `${c.distanceKm ?? '?'} km away` : (c.blockedReason ?? 'unavailable'),
+          status: c.isEligible ? t('rides.kmAway', undefined, { n: c.distanceKm ?? '?' }) : (c.blockedReason ?? t('rides.unavailable')),
           color: c.isEligible ? '#10B981' : '#9CA3AF',
           label: c.isEligible ? String(index + 1) : undefined,
           photoUrl: c.photoUrl ?? null,
           kind: 'driver' as const,
           detail: [
             c.vehicleType && c.vehiclePlate ? `${c.vehicleType} · ${c.vehiclePlate}` : c.vehiclePlate,
-            c.etaMinutes != null ? `~${c.etaMinutes} min` : null,
-            `${c.couponBalance} coupons`,
+            c.etaMinutes != null ? t('rides.minApprox', undefined, { n: c.etaMinutes }) : null,
+            t('rides.couponsUsed', undefined, { count: c.couponBalance }),
           ]
             .filter(Boolean)
             .join(' · '),
         })),
-    [shown]
+    [shown, t]
   );
 
   const assign = async () => {
@@ -130,11 +132,11 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
     setAssigning(true);
     try {
       await api.rides.assign(ride.id, selected.driverId);
-      toast.success(`Ride assigned to ${selected.name}`);
+      toast.success(t('rides.assignedTo', undefined, { name: selected.name }));
       onAssigned?.();
       onClose();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not assign the driver');
+      toast.error(e?.message ?? t('rides.assignFailed'));
     } finally {
       setAssigning(false);
     }
@@ -146,11 +148,13 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
         <DialogHeader className="border-b border-border/70 px-6 py-4">
           <DialogTitle className="flex items-center gap-2">
             <Navigation className="h-5 w-5 text-primary" />
-            Assign a driver{ride?.customerName ? ` - ${ride.customerName}` : ''}
+            {ride?.customerName
+              ? t('rides.assignDriverNamed', undefined, { name: ride.customerName })
+              : t('rides.assignDriverTitle')}
           </DialogTitle>
           <DialogDescription className="flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-[#10B981]" />
-            <span className="truncate">{data?.pickup.address ?? ride?.pickupLocation ?? 'Loading pickup…'}</span>
+            <span className="truncate">{data?.pickup.address ?? ride?.pickupLocation ?? t('rides.loadingPickup')}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -175,13 +179,13 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                     <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur">
                       <div className="flex items-center gap-3 text-[11px] text-card-foreground">
                         <span className="flex items-center gap-1.5">
-                          <span className="h-2.5 w-2.5 rounded-full bg-[#10B981]" /> Assignable
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#10B981]" /> {t('rides.assignable')}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <span className="h-2.5 w-2.5 rounded-full bg-[#9CA3AF]" /> Unavailable
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#9CA3AF]" /> {t('rides.unavailable')}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <span className="h-2.5 w-2.5 rounded-full bg-[#10B981] opacity-60" /> Pickup
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#10B981] opacity-60" /> {t('rides.pickupLegend')}
                         </span>
                       </div>
                     </div>
@@ -192,19 +196,19 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                           {selected.vehicleType} · {selected.vehiclePlate}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {selected.distanceKm != null ? `${selected.distanceKm} km` : 'Distance unknown'}
-                          {selected.etaMinutes != null ? ` · ~${selected.etaMinutes} min` : ''}
-                          {selected.couponBalance != null ? ` · ${selected.couponBalance} coupons` : ''}
+                          {selected.distanceKm != null ? t('rides.kmValue', undefined, { n: selected.distanceKm }) : t('rides.distanceUnknown')}
+                          {selected.etaMinutes != null ? ` · ${t('rides.minApprox', undefined, { n: selected.etaMinutes })}` : ''}
+                          {selected.couponBalance != null ? ` · ${t('rides.couponsUsed', undefined, { count: selected.couponBalance })}` : ''}
                         </p>
                         <Button size="sm" className="mt-2 w-full" disabled={assigning || !selected.isEligible} onClick={() => void assign()}>
                           {assigning ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
-                          Assign {selected.name.split(' ')[0]}
+                          {t('rides.assignName', undefined, { name: selected.name.split(' ')[0] })}
                         </Button>
                       </div>
                     )}
                     {mapFs && !selected && (
                       <div className="pointer-events-none absolute left-3 top-3 rounded-2xl border border-border/80 bg-card/95 px-3 py-2 text-xs shadow-md backdrop-blur">
-                        Tap a numbered pin to pick a driver
+                        {t('rides.tapPin')}
                       </div>
                     )}
                   </>
@@ -221,7 +225,11 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
           <div className="flex min-h-0 flex-col">
             <div className="flex items-center justify-between gap-2 border-b border-border/70 px-5 py-3">
               <p className="text-sm font-medium text-foreground">
-                {loading ? 'Finding drivers…' : `${eligible.length} driver${eligible.length === 1 ? '' : 's'} nearby`}
+                {loading
+                  ? t('rides.findingDrivers')
+                  : eligible.length === 1
+                    ? t('rides.driversNearbyOne')
+                    : t('rides.driversNearby', undefined, { count: eligible.length })}
               </p>
               <div className="flex items-center gap-1">
                 {blocked.length > 0 && (
@@ -231,10 +239,10 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                     className="h-8 text-xs text-muted-foreground"
                     onClick={() => setShowBlocked((v) => !v)}
                   >
-                    {showBlocked ? 'Hide' : `Show ${blocked.length} unavailable`}
+                    {showBlocked ? t('rides.hide') : t('rides.showUnavailable', undefined, { count: blocked.length })}
                   </Button>
                 )}
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={load} aria-label="Refresh">
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={load} aria-label={t('common.refresh')}>
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
@@ -244,11 +252,13 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
               {!loading && shown.length === 0 && (
                 <div className="px-4 py-12 text-center">
                   <Car className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-                  <p className="font-medium text-foreground">No drivers are available</p>
+                  <p className="font-medium text-foreground">{t('rides.noDriversAvailable')}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {blocked.length > 0
-                      ? `${blocked.length} nearby driver${blocked.length === 1 ? ' is' : 's are'} blocked - show them to see why.`
-                      : 'Nobody is online with a GPS fix right now.'}
+                      ? blocked.length === 1
+                        ? t('rides.blockedHintOne')
+                        : t('rides.blockedHint', undefined, { count: blocked.length })
+                      : t('rides.nobodyOnlineGps')}
                   </p>
                 </div>
               )}
@@ -270,24 +280,24 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                   <>
                     <p className="truncate font-medium text-foreground">{selected.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {selected.distanceKm != null ? `${selected.distanceKm} km` : 'Distance unknown'}
-                      {selected.etaMinutes != null ? ` · ~${selected.etaMinutes} min away` : ''}
+                      {selected.distanceKm != null ? t('rides.kmValue', undefined, { n: selected.distanceKm }) : t('rides.distanceUnknown')}
+                      {selected.etaMinutes != null ? ` · ${t('rides.minAway', undefined, { n: selected.etaMinutes })}` : ''}
                     </p>
                   </>
                 ) : (
-                  <p className="text-muted-foreground">Pick a driver from the map or the list</p>
+                  <p className="text-muted-foreground">{t('rides.pickDriver')}</p>
                 )}
               </div>
               <div className="flex shrink-0 gap-2">
                 <Button variant="outline" onClick={onClose}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   disabled={!selected || assigning}
                   onClick={assign}
                 >
                   {assigning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-                  Assign
+                  {t('dashboard.assign')}
                 </Button>
               </div>
             </div>
@@ -309,6 +319,7 @@ function CandidateRow({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useAppContext();
   const disabled = !candidate.isEligible;
 
   return (
@@ -340,7 +351,7 @@ function CandidateRow({
             <p className="truncate font-medium text-foreground">{candidate.name}</p>
             {candidate.distanceKm != null && (
               <span className="shrink-0 text-sm font-semibold tabular-nums text-primary">
-                {candidate.distanceKm} km
+                {t('rides.kmValue', undefined, { n: candidate.distanceKm })}
               </span>
             )}
           </div>
@@ -352,7 +363,7 @@ function CandidateRow({
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             {candidate.etaMinutes != null && (
               <span className="inline-flex items-center gap-1">
-                <Timer className="h-3 w-3" />~{candidate.etaMinutes} min
+                <Timer className="h-3 w-3" />{t('rides.minApprox', undefined, { n: candidate.etaMinutes })}
               </span>
             )}
             <span className="inline-flex items-center gap-1">

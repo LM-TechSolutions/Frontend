@@ -43,7 +43,7 @@ export default function Operators() {
       const res = await api.operators.list({ limit: 200 });
       setOperators(res.operators ?? []);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to load operators');
+      toast.error(e?.message ?? t('operators.loadFailed', 'Failed to load operators'));
     } finally {
       setLoading(false);
     }
@@ -73,18 +73,18 @@ export default function Operators() {
     if (!removing) return;
     try {
       await api.operators.remove(removing.id);
-      toast.success(`${removing.name} removed`);
+      toast.success(t('operators.removed', '{name} removed', { name: removing.name }));
       setRemoving(null);
       load();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Could not delete operator');
+      toast.error(e?.message ?? t('operators.deleteFailed', 'Could not delete operator'));
     }
   };
 
   return (
     <Page>
       <PageHeader
-        eyebrow="Staff"
+        eyebrow={t('operators.eyebrow', 'Staff')}
         title={t('operators.title', 'Operators')}
         actions={<AddOperatorDialog onCreated={load} />}
       />
@@ -93,7 +93,7 @@ export default function Operators() {
         <StatTile label={t('operators.totalOperators', 'Total operators')} value={operators.length} icon={UserCog} />
         <StatTile label={t('operators.onlineNow', 'Active accounts')} value={onlineCount} icon={Users} accent="#0B7A55" />
         <StatTile label={t('operators.totalRidesCreated', 'Rides created')} value={totalCustomers} icon={Users} />
-        <StatTile label="Call → ride" value={`${conversion}%`} hint={`${totalCalls} logged calls`} icon={PhoneCall} />
+        <StatTile label={t('operators.callToRide', 'Call to ride')} value={`${conversion}%`} hint={t('operators.loggedCalls', '{count} logged calls', { count: totalCalls })} icon={PhoneCall} />
       </div>
 
       <FilterBar>
@@ -121,13 +121,13 @@ export default function Operators() {
                     <Initials name={op.name} />
                     <div>
                       <p className="font-semibold">{op.name}</p>
-                      <p className="text-xs capitalize text-muted-foreground">{op.shift} shift</p>
+                      <p className="text-xs capitalize text-muted-foreground">{t('operators.shiftNamed', '{shift} shift', { shift: t(`operators.${op.shift}`, op.shift) })}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <StatusBadge status={op.status === 'active' ? 'active' : 'inactive'} label={op.status === 'active' ? t('operators.active', 'Active') : t('operators.inactive', 'Inactive')} />
                     <span className={`text-[12px] font-medium ${working ? 'text-[color:var(--success)]' : 'text-muted-foreground'}`}>
-                      {working ? 'On shift' : 'Off shift'}
+                      {working ? t('operators.onShift', 'On shift') : t('operators.offShift', 'Off shift')}
                     </span>
                   </div>
                 </div>
@@ -139,24 +139,24 @@ export default function Operators() {
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Calls</p>
+                    <p className="text-xs text-muted-foreground">{t('operators.calls', 'Calls')}</p>
                     <p className="font-semibold tabular-nums">{calls.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Rides</p>
+                    <p className="text-xs text-muted-foreground">{t('operators.rides', 'Rides')}</p>
                     <p className="font-semibold tabular-nums">{rides.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Conversion</p>
+                    <p className="text-xs text-muted-foreground">{t('operators.conversion', 'Conversion')}</p>
                     <p className="font-semibold tabular-nums">{rate}%</p>
                   </div>
                 </div>
                 {op.lastActive && (
-                  <p className="mt-3 text-xs text-muted-foreground">Last active {timeAgo(op.lastActive)}</p>
+                  <p className="mt-3 text-xs text-muted-foreground">{t('operators.lastActive', 'Last active {time}', { time: timeAgo(op.lastActive) })}</p>
                 )}
                 <div className="mt-4 flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditing(op)}>
-                    <Pencil className="mr-1.5 h-4 w-4" /> Edit
+                    <Pencil className="mr-1.5 h-4 w-4" /> {t('common.edit', 'Edit')}
                   </Button>
                   <Button variant="outline" size="sm" className="border-[#AE2E2D]/40 text-[#AE2E2D]" onClick={() => setRemoving(op)}>
                     <Trash2 className="h-4 w-4" />
@@ -173,13 +173,13 @@ export default function Operators() {
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>Their operator profile and login will be deleted. This cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>{t('operators.removeTitle', 'Remove {name}?', { name: removing?.name ?? '' })}</AlertDialogTitle>
+            <AlertDialogDescription>{t('operators.removeBody', 'Their operator profile and login will be deleted. This cannot be undone.')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep</AlertDialogCancel>
+            <AlertDialogCancel>{t('operators.keep', 'Keep')}</AlertDialogCancel>
             <AlertDialogAction className="bg-[#AE2E2D] text-white hover:bg-[#8f2423]" onClick={handleDelete}>
-              Delete
+              {t('common.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -197,18 +197,18 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.phone || !form.password) {
-      toast.error('Name, email, phone and password are required');
+      toast.error(t('operators.requiredFields', 'Name, email, phone and password are required'));
       return;
     }
     setSaving(true);
     try {
       await api.operators.create(form);
-      toast.success('Operator added');
+      toast.success(t('operators.added', 'Operator added'));
       setOpen(false);
       setForm({ name: '', email: '', phone: '', password: '', shift: 'morning' });
       onCreated();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to add operator');
+      toast.error(e?.message ?? t('operators.addFailed', 'Failed to add operator'));
     } finally {
       setSaving(false);
     }
@@ -237,8 +237,8 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="morning">{t('operators.morning', 'Morning')}</SelectItem>
-                <SelectItem value="afternoon">Afternoon</SelectItem>
-                <SelectItem value="night">Night</SelectItem>
+                <SelectItem value="afternoon">{t('operators.afternoon', 'Afternoon')}</SelectItem>
+                <SelectItem value="night">{t('operators.night', 'Night')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -263,6 +263,7 @@ function EditOperatorDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useAppContext();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', shift: 'morning', status: 'active' });
 
@@ -284,11 +285,11 @@ function EditOperatorDialog({
     setSaving(true);
     try {
       await api.operators.update(operator.id, form);
-      toast.success('Operator updated');
+      toast.success(t('operators.updated', 'Operator updated'));
       onClose();
       onSaved();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to update operator');
+      toast.error(e?.message ?? t('operators.updateFailed', 'Failed to update operator'));
     } finally {
       setSaving(false);
     }
@@ -298,40 +299,40 @@ function EditOperatorDialog({
     <Dialog open={!!operator} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Edit operator</DialogTitle>
-          <DialogDescription className="sr-only">Edit this operator.</DialogDescription>
+          <DialogTitle>{t('operators.editTitle', 'Edit operator')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('operators.editDescription', 'Edit this operator.')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="mt-4 space-y-4">
-          <div className="space-y-2"><Label>Full name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-          <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+          <div className="space-y-2"><Label>{t('operators.fullName', 'Full name')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className="space-y-2"><Label>{t('operators.email', 'Email')}</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+          <div className="space-y-2"><Label>{t('operators.phone', 'Phone')}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Shift</Label>
+              <Label>{t('operators.shift', 'Shift')}</Label>
               <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="morning">Morning</SelectItem>
-                  <SelectItem value="afternoon">Afternoon</SelectItem>
-                  <SelectItem value="night">Night</SelectItem>
+                  <SelectItem value="morning">{t('operators.morning', 'Morning')}</SelectItem>
+                  <SelectItem value="afternoon">{t('operators.afternoon', 'Afternoon')}</SelectItem>
+                  <SelectItem value="night">{t('operators.night', 'Night')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Account</Label>
+              <Label>{t('operators.account', 'Account')}</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="active">{t('operators.active', 'Active')}</SelectItem>
+                  <SelectItem value="inactive">{t('operators.inactive', 'Inactive')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>{t('common.cancel', 'Cancel')}</Button>
             <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Save
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('common.save', 'Save')}
             </Button>
           </div>
         </form>

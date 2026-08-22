@@ -1,0 +1,18 @@
+{
+  "title": "Galmee qorannoo",
+  "eyebrow": "Hordoffii hin jijjiiramne",
+  "adminOnly": "Galmeen qorannoo bulchitootaaf mul'ata.",
+  "eventsCount": "Taateewwan {count}",
+  "actionPlaceholder": "Tarkaanfiin filadhu (auth.lockout, coupons.allocate…)",
+  "resourcePlaceholder": "Qabeenya (fayyadamaa, seensa, nageenya)",
+  "search": "Barbaadi",
+  "noEvents": "Taateen filannoo sana waliin wal simatu hin jiru.",
+  "when": "Yeroo",
+  "actor": "Hojjetaa",
+  "action": "Tarkaanfii",
+  "resource": "Qabeenya",
+  "ip": "IP",
+  "system": "sirna",
+  "pageOf": "Fuula {page} keessaa {totalPages}",
+  "loadFailed": "Galmee qorannoo fe'uu hin dandeenye"
+}

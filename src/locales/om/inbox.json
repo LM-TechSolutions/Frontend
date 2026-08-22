@@ -12,5 +12,6 @@
   "groupDrivers": "Draayivaroota",
   "groupSecurity": "Nageenya",
   "groupSystem": "Sirna",
-  "noneNew": "Beeksisa haaraan hin jiru"
+  "noneNew": "Beeksisa haaraan hin jiru",
+  "loadFailed": "Beeksisoota fe'uu hin dandeenye"
 }

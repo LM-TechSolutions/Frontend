@@ -6,10 +6,12 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { api, ApiError } from '../lib/api';
+import { useAppContext } from '../contexts/AppContext';
 
 export default function ResetPassword() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useAppContext();
   const token = params.get('token') ?? '';
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -21,32 +23,32 @@ export default function ResetPassword() {
   }, [token, navigate]);
 
   const strength = useMemo(() => {
-    if (password.length >= 12) return 'Strong passphrase';
-    if (password.length >= 8) return 'Meets the 8-character minimum';
-    return 'At least 8 characters';
-  }, [password]);
+    if (password.length >= 12) return t('auth.strengthStrong');
+    if (password.length >= 8) return t('auth.strengthOk');
+    return t('auth.strengthShort');
+  }, [password, t]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) {
-      toast.error('This reset link is missing its token.');
+      toast.error(t('auth.missingToken'));
       return;
     }
     if (password.length < 8) {
-      toast.error('Use at least 8 characters.');
+      toast.error(t('auth.minChars'));
       return;
     }
     if (password !== confirm) {
-      toast.error('Passwords do not match.');
+      toast.error(t('auth.passwordsMismatch'));
       return;
     }
     setBusy(true);
     try {
       await api.auth.resetPassword(token, password, confirm);
-      toast.success('Password updated. Sign in with the new one.');
+      toast.success(t('auth.passwordUpdated'));
       navigate('/', { replace: true });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Could not reset password');
+      toast.error(err instanceof ApiError ? err.message : t('auth.resetFailed'));
     } finally {
       setBusy(false);
     }
@@ -64,10 +66,10 @@ export default function ResetPassword() {
         <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <ShieldCheck className="h-6 w-6" />
         </div>
-        <h1 className="text-2xl font-semibold">Choose a new password</h1>
+        <h1 className="text-2xl font-semibold">{t('auth.chooseNewPassword')}</h1>
         <div className="mt-6 space-y-4">
           <div className="space-y-2">
-            <Label>New password</Label>
+            <Label>{t('auth.newPassword')}</Label>
             <div className="relative">
               <Input
                 type={show ? 'text' : 'password'}
@@ -75,21 +77,26 @@ export default function ResetPassword() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11 pr-10"
               />
-              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShow((v) => !v)}>
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                onClick={() => setShow((v) => !v)}
+                aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}
+              >
                 {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
             <p className="text-xs text-muted-foreground">{strength}</p>
           </div>
           <div className="space-y-2">
-            <Label>Confirm password</Label>
+            <Label>{t('auth.confirmPassword')}</Label>
             <Input type={show ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} className="h-11" />
           </div>
           <Button type="submit" className="w-full h-11" disabled={busy || !token}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update password'}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('auth.updatePassword')}
           </Button>
           <Link to="/" className="block text-center text-sm text-primary hover:underline">
-            Back to sign in
+            {t('auth.backToSignIn')}
           </Link>
         </div>
       </form>

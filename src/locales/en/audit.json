@@ -1,0 +1,18 @@
+{
+  "title": "Audit log",
+  "eyebrow": "Immutable trail",
+  "adminOnly": "Audit logs are visible to administrators.",
+  "eventsCount": "{count} events",
+  "actionPlaceholder": "Filter by action (auth.lockout, coupons.allocate…)",
+  "resourcePlaceholder": "Resource (user, session, security)",
+  "search": "Search",
+  "noEvents": "No events match those filters.",
+  "when": "When",
+  "actor": "Actor",
+  "action": "Action",
+  "resource": "Resource",
+  "ip": "IP",
+  "system": "system",
+  "pageOf": "Page {page} of {totalPages}",
+  "loadFailed": "Failed to load audit log"
+}

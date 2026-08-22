@@ -2,11 +2,13 @@ import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router';
+import { useAppContext } from '../../contexts/AppContext';
 
 const WARN_AT_MS = 60_000;
 
 export default function IdleGuard() {
   const { idleTimeoutMinutes, isAuthenticated, logout } = useAuth();
+  const { t } = useAppContext();
   const navigate = useNavigate();
   const warned = useRef(false);
 
@@ -24,14 +26,14 @@ export default function IdleGuard() {
       if (limit > WARN_AT_MS) {
         warnTimer = setTimeout(() => {
           warned.current = true;
-          toast.warning('Still there?', {
-            description: 'This terminal will sign out in 1 minute to protect the account.',
+          toast.warning(t('auth.stillThere'), {
+            description: t('auth.stillThereBody'),
           });
         }, limit - WARN_AT_MS);
       }
       timer = setTimeout(() => {
         logout();
-        toast.message('Signed out after inactivity');
+        toast.message(t('auth.signedOutIdle'));
         navigate('/', { replace: true });
       }, limit);
     };
@@ -45,7 +47,7 @@ export default function IdleGuard() {
       clearTimeout(warnTimer);
       events.forEach((event) => window.removeEventListener(event, arm));
     };
-  }, [idleTimeoutMinutes, isAuthenticated, logout, navigate]);
+  }, [idleTimeoutMinutes, isAuthenticated, logout, navigate, t]);
 
   return null;
 }

@@ -41,7 +41,7 @@ export default function CallLogs() {
         setLogs(res.callLogs ?? []);
         setPagination(res.pagination ?? { page: 1, totalPages: 1, total: res.callLogs?.length ?? 0 });
       })
-      .catch((e) => toast.error(e?.message ?? 'Failed to load call logs'))
+      .catch((e) => toast.error(e?.message ?? t('callLogs.loadFailed', 'Failed to load call logs')))
       .finally(() => setLoading(false));
   };
 
@@ -80,12 +80,12 @@ export default function CallLogs() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Voice"
+        eyebrow={t('callLogs.eyebrow', 'Voice')}
         title={t('callLogs.title', 'Call logs')}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportCsv} disabled={!filtered.length}>
-              <Download className="mr-2 h-4 w-4" /> CSV
+              <Download className="mr-2 h-4 w-4" /> {t('callLogs.csv', 'CSV')}
             </Button>
             <LogCallDialog onLogged={() => { setPage(1); load(); }} />
           </div>
@@ -93,10 +93,10 @@ export default function CallLogs() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile label={t('callLogs.totalCalls', 'This page')} value={filtered.length} hint={`${pagination.total} in range`} icon={Phone} />
+        <StatTile label={t('callLogs.thisPage', 'This page')} value={filtered.length} hint={t('callLogs.inRange', '{count} in range', { count: pagination.total })} icon={Phone} />
         <StatTile label={t('callLogs.completed', 'Completed')} value={completed} icon={CheckCircle} accent="#0B7A55" />
         <StatTile label={t('callLogs.missed', 'Missed')} value={missed} icon={XCircle} accent="#AE2E2D" />
-        <StatTile label="Call → ride" value={`${conversion}%`} hint={`Avg ${formatDuration(avg)}`} icon={Clock} />
+        <StatTile label={t('callLogs.callToRide', 'Call to ride')} value={`${conversion}%`} hint={t('callLogs.avgHint', 'Avg {duration}', { duration: formatDuration(avg) })} icon={Clock} />
       </div>
 
       <FilterBar>
@@ -143,7 +143,7 @@ export default function CallLogs() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  {[t('callLogs.time', 'Time'), t('callLogs.customer', 'Customer'), t('callLogs.phone', 'Phone'), t('callLogs.operator', 'Operator'), t('callLogs.status', 'Status'), t('callLogs.duration', 'Duration'), 'Converted', t('callLogs.notes', 'Notes')].map((h) => (
+                  {[t('callLogs.time', 'Time'), t('callLogs.customer', 'Customer'), t('callLogs.phone', 'Phone'), t('callLogs.operator', 'Operator'), t('callLogs.status', 'Status'), t('callLogs.duration', 'Duration'), t('callLogs.converted', 'Converted'), t('callLogs.notes', 'Notes')].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">{h}</th>
                   ))}
                 </tr>
@@ -161,7 +161,7 @@ export default function CallLogs() {
                       {log.rideId ? (
                         <span className="font-mono text-primary">#{String(log.rideId).slice(0, 8)}</span>
                       ) : (
-                        <span className="text-muted-foreground">No ride</span>
+                        <span className="text-muted-foreground">{t('callLogs.noRide', 'No ride')}</span>
                       )}
                     </td>
                     <td className="max-w-xs truncate px-4 py-3 text-sm text-muted-foreground">{log.notes ?? '-'}</td>
@@ -174,10 +174,10 @@ export default function CallLogs() {
       </Surface>
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Page {page} of {Math.max(1, pagination.totalPages)} · {pagination.total} calls</p>
+        <p className="text-sm text-muted-foreground">{t('callLogs.pageOf', 'Page {page} of {total} · {count} calls', { page, total: Math.max(1, pagination.totalPages), count: pagination.total })}</p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
-          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{t('common.previous', 'Previous')}</Button>
+          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>{t('common.next', 'Next')}</Button>
         </div>
       </div>
     </Page>

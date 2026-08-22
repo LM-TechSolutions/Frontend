@@ -1,0 +1,20 @@
+{
+  "driver": "Driver",
+  "profile": "Profile",
+  "details": "Details",
+  "email": "Email",
+  "status": "Status",
+  "couponBalance": "Coupon balance",
+  "coupons": "coupons",
+  "vehicleType": "Vehicle type",
+  "vehicleModel": "Vehicle model",
+  "licensePlate": "License plate",
+  "licenseNumber": "License number",
+  "rating": "Rating",
+  "completedRides": "Completed rides",
+  "lastLocation": "Last location",
+  "commission": "Tokuma commission",
+  "manageCoupons": "Manage coupons",
+  "notFound": "Driver not found",
+  "backToDrivers": "Back to drivers"
+}

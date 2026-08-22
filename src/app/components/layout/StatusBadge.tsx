@@ -34,8 +34,8 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
 }
 
 export function waitTone(createdAt: string | Date) {
-  const minutes = (Date.now() - new Date(createdAt).getTime()) / 60000;
-  if (minutes >= 8) return { className: 'text-destructive', label: `${Math.round(minutes)}m waiting`, alarm: true };
-  if (minutes >= 3) return { className: 'text-[color:var(--warning)]', label: `${Math.round(minutes)}m waiting`, alarm: false };
-  return { className: 'text-muted-foreground', label: `${Math.max(1, Math.round(minutes))}m`, alarm: false };
+  const minutes = Math.max(1, Math.round((Date.now() - new Date(createdAt).getTime()) / 60000));
+  if (minutes >= 8) return { className: 'text-destructive', minutes, alarm: true };
+  if (minutes >= 3) return { className: 'text-[color:var(--warning)]', minutes, alarm: false };
+  return { className: 'text-muted-foreground', minutes, alarm: false };
 }

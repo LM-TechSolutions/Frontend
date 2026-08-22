@@ -71,7 +71,7 @@ export default function Rides() {
       setPagination(res.pagination ?? { page: 1, totalPages: 1, total: 0 });
       setSelected(new Set());
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to load rides');
+      toast.error(e?.message ?? t('rides.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -131,11 +131,11 @@ export default function Rides() {
     setRedispatchingId(ride.id);
     try {
       const res = await api.rides.redispatch(ride.id);
-      if (res.dispatched) toast.success(`Re-notified ${res.candidates} nearby driver(s)`);
-      else toast.warning('No eligible nearby drivers right now');
+      if (res.dispatched) toast.success(t('rides.notifiedNearby', undefined, { count: res.candidates }));
+      else toast.warning(t('dashboard.noEligibleNearby'));
       load();
     } catch (e: any) {
-      toast.error(e?.message ?? 'Failed to re-notify drivers');
+      toast.error(e?.message ?? t('dashboard.redispatchFailed'));
     } finally {
       setRedispatchingId(null);
     }
@@ -144,14 +144,14 @@ export default function Rides() {
   const bulkRedispatch = async () => {
     const targets = selectedRides.filter((r) => PENDING_STATES.includes(r.status));
     if (!targets.length) {
-      toast.info('Select pending or dispatched rides to re-notify');
+      toast.info(t('rides.selectPending'));
       return;
     }
     setBusy(true);
     try {
       const results = await Promise.allSettled(targets.map((r) => api.rides.redispatch(r.id)));
       const ok = results.filter((r) => r.status === 'fulfilled').length;
-      toast.success(`Re-notified ${ok} of ${targets.length} rides`);
+      toast.success(t('rides.reNotifiedOf', undefined, { ok, total: targets.length }));
       load();
     } finally {
       setBusy(false);
@@ -161,15 +161,19 @@ export default function Rides() {
   const bulkCancel = async () => {
     const targets = selectedRides.filter((r) => r.status !== 'completed' && r.status !== 'cancelled');
     if (!targets.length) {
-      toast.info('Select open rides to cancel');
+      toast.info(t('rides.selectOpenCancel'));
       return;
     }
-    if (!confirm(`Cancel ${targets.length} ride${targets.length === 1 ? '' : 's'}?`)) return;
+    const confirmMsg =
+      targets.length === 1
+        ? t('rides.confirmCancelOne')
+        : t('rides.confirmCancelMany', undefined, { count: targets.length });
+    if (!confirm(confirmMsg)) return;
     setBusy(true);
     try {
-      const results = await Promise.allSettled(targets.map((r) => api.rides.cancel(r.id, 'Bulk cancel from rides list')));
+      const results = await Promise.allSettled(targets.map((r) => api.rides.cancel(r.id, t('rides.bulkCancelNote'))));
       const ok = results.filter((r) => r.status === 'fulfilled').length;
-      toast.success(`Cancelled ${ok} of ${targets.length} rides`);
+      toast.success(t('rides.cancelledOf', undefined, { ok, total: targets.length }));
       load();
     } finally {
       setBusy(false);
@@ -177,7 +181,17 @@ export default function Rides() {
   };
 
   const exportCsv = () => {
-    const header = ['id', 'customer', 'phone', 'pickup', 'dropoff', 'driver', 'status', 'created', 'fare'];
+    const header = [
+      t('rides.rideId'),
+      t('rides.customer'),
+      t('common.phone'),
+      t('rides.pickup'),
+      t('rides.dropoff'),
+      t('rides.driver'),
+      t('rides.status'),
+      t('rides.createdAt'),
+      t('rides.fare'),
+    ];
     const rows = rides.map((r) =>
       [r.id, r.customerName, r.customerPhone, r.pickupLocation, r.dropoffLocation, r.driverName ?? '', r.status, r.createdAt, r.fare ?? '']
         .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
@@ -190,18 +204,18 @@ export default function Rides() {
     link.download = `rides-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success('Exported this page');
+    toast.success(t('rides.exportedPage'));
   };
 
   return (
     <Page>
       <PageHeader
-        eyebrow="Operations"
+        eyebrow={t('rides.operations')}
         title={t('rides.title', 'Rides')}
         actions={
           <>
             <Button variant="outline" onClick={exportCsv} disabled={!rides.length}>
-              <Download className="mr-2 h-4 w-4" /> CSV
+              <Download className="mr-2 h-4 w-4" /> {t('rides.csv')}
             </Button>
             <Button onClick={() => setNewRideOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> {t('rides.addRide', 'New ride')}
@@ -240,12 +254,12 @@ export default function Rides() {
 
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/30 bg-primary/8 px-4 py-3 text-sm">
-          <span className="font-medium">{selected.size} selected</span>
+          <span className="font-medium">{t('common.selectedCount', undefined, { count: selected.size })}</span>
           <Button size="sm" variant="outline" disabled={busy} onClick={bulkRedispatch}>
-            <Bell className="mr-1.5 h-4 w-4" /> Re-dispatch
+            <Bell className="mr-1.5 h-4 w-4" /> {t('rides.reDispatch')}
           </Button>
           <Button size="sm" variant="outline" className="border-[#AE2E2D]/40 text-[#AE2E2D]" disabled={busy} onClick={bulkCancel}>
-            <Ban className="mr-1.5 h-4 w-4" /> Cancel
+            <Ban className="mr-1.5 h-4 w-4" /> {t('common.cancel')}
           </Button>
         </div>
       )}
@@ -321,7 +335,7 @@ export default function Rides() {
                           variant="outline"
                           size="sm"
                           className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                          title="Re-notify nearby drivers"
+                          title={t('rides.reNotifyNearby')}
                           onClick={() => handleRedispatch(ride)}
                           disabled={redispatchingId === ride.id}
                         >

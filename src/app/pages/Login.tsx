@@ -78,7 +78,7 @@ export default function Login() {
         toast.error(err.message);
         return;
       }
-      const message = err instanceof ApiError ? err.message : 'Unable to sign in. Please try again.';
+      const message = err instanceof ApiError ? err.message : t('auth.signInFailed');
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -88,16 +88,16 @@ export default function Login() {
   const sendReset = async () => {
     const target = (forgotEmail || email).trim();
     if (!target) {
-      toast.error('Enter the email on your staff account');
+      toast.error(t('auth.enterStaffEmail'));
       return;
     }
     setIsLoading(true);
     try {
       await api.auth.forgotPassword(target);
       setForgotSent(true);
-      toast.success('If that account exists, a reset link is on its way.');
+      toast.success(t('auth.resetEmailSent'));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Could not send reset email');
+      toast.error(err instanceof ApiError ? err.message : t('auth.resetEmailFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -119,11 +119,11 @@ export default function Login() {
         </div>
         <div className="relative max-w-lg space-y-5">
           <p className="font-display text-4xl font-semibold leading-tight tracking-tight">
-            The floor stays live.
-            <span className="mt-2 block text-[#7ee8ec]">Every ride. Every wallet.</span>
+            {t('auth.floorLive')}
+            <span className="mt-2 block text-[#7ee8ec]">{t('auth.floorLiveAccent')}</span>
           </p>
         </div>
-        <p className="relative text-xs text-white/45">Operations desk</p>
+        <p className="relative text-xs text-white/45">{t('auth.operationsDesk')}</p>
       </aside>
 
       <main className="relative flex items-center justify-center p-6 sm:p-10">
@@ -135,7 +135,7 @@ export default function Login() {
             <SelectContent>
               <SelectItem value="en">English</SelectItem>
               <SelectItem value="am">አማርኛ</SelectItem>
-              <SelectItem value="om">Oromiffa</SelectItem>
+              <SelectItem value="om">Afaan Oromoo</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -152,10 +152,8 @@ export default function Login() {
                   <Lock className="h-7 w-7" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-semibold">Account locked</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Too many failed attempts. This terminal will unlock automatically.
-                  </p>
+                  <h1 className="text-2xl font-semibold">{t('auth.accountLocked')}</h1>
+                  <p className="mt-2 text-sm text-muted-foreground">{t('auth.accountLockedBody')}</p>
                 </div>
                 <div className="relative mx-auto flex h-28 w-28 items-center justify-center">
                   <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
@@ -181,16 +179,16 @@ export default function Login() {
             ) : forgotOpen ? (
               <div className="space-y-5">
                 <div>
-                  <h1 className="text-2xl font-semibold">Reset your password</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">We’ll email a reset link.</p>
+                  <h1 className="text-2xl font-semibold">{t('auth.resetPassword')}</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('auth.resetPasswordHint')}</p>
                 </div>
                 {forgotSent ? (
                   <div className="rounded-2xl border border-primary/20 bg-primary/8 p-4 text-sm">
-                    Check your inbox. The link expires in 30 minutes.
+                    {t('auth.resetSent')}
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Label htmlFor="reset-email">Work email</Label>
+                    <Label htmlFor="reset-email">{t('auth.workEmail')}</Label>
                     <Input
                       id="reset-email"
                       type="email"
@@ -204,18 +202,18 @@ export default function Login() {
                 <div className="flex gap-2">
                   {!forgotSent && (
                     <Button className="flex-1 h-11" onClick={sendReset} disabled={isLoading}>
-                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send reset link'}
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('auth.sendResetLink')}
                     </Button>
                   )}
                   <Button variant="outline" className="h-11" onClick={() => { setForgotOpen(false); setForgotSent(false); }}>
-                    Back to sign in
+                    {t('auth.backToSignIn')}
                   </Button>
                 </div>
               </div>
             ) : (
               <>
                 <div className="mb-6">
-                  <h1 className="font-display text-2xl font-semibold tracking-tight">{needsCode ? 'Verify it’s you' : t('auth.welcome')}</h1>
+                  <h1 className="font-display text-2xl font-semibold tracking-tight">{needsCode ? t('auth.verifyItsYou') : t('auth.welcome')}</h1>
                   {needsCode ? (
                     <p className="mt-1.5 text-sm text-muted-foreground">{t('auth.twoFactorPrompt')}</p>
                   ) : null}
@@ -240,7 +238,7 @@ export default function Login() {
                         <div className="flex items-center justify-between">
                           <Label htmlFor="password">{t('auth.password')}</Label>
                           <button type="button" className="text-xs text-primary hover:underline" onClick={() => setForgotOpen(true)}>
-                            Forgot password?
+                            {t('auth.forgotPassword')}
                           </button>
                         </div>
                         <div className="relative">
@@ -257,7 +255,7 @@ export default function Login() {
                             type="button"
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                             onClick={() => setShowPassword((v) => !v)}
-                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                           >
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
@@ -265,7 +263,7 @@ export default function Login() {
                       </div>
                       <label className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 p-3 text-sm">
                         <Checkbox checked={rememberDevice} onCheckedChange={(v) => setRememberDevice(v === true)} />
-                        <span className="font-medium">Remember this device for 30 days</span>
+                        <span className="font-medium">{t('auth.rememberDevice')}</span>
                       </label>
                     </>
                   ) : (
