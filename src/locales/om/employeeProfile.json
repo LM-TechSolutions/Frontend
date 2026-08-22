@@ -1,0 +1,20 @@
+{
+  "driver": "Draayivara",
+  "profile": "Porofaayilii",
+  "details": "Bal'ina",
+  "email": "Emeelii",
+  "status": "Haala",
+  "couponBalance": "Madaallii Kuuponii",
+  "coupons": "kuuponii",
+  "vehicleType": "Gosa Konkolaataa",
+  "vehicleModel": "Moodela Konkolaataa",
+  "licensePlate": "Gabatee Lakkoofsa",
+  "licenseNumber": "Lakkoofsa Heyyama",
+  "rating": "Madaallii",
+  "completedRides": "Imala Xumurame",
+  "lastLocation": "Bakka Dhumaa",
+  "commission": "Komishinii Tokuma",
+  "manageCoupons": "Kuuponii Bulchi",
+  "notFound": "Draayivarri hin argamne",
+  "backToDrivers": "Gara Draayivarootti Deebi'i"
+}

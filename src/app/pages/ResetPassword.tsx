@@ -55,7 +55,7 @@ export default function ResetPassword() {
         onSubmit={submit}
         className="relative w-full max-w-md rounded-3xl border border-white/10 bg-white p-8 shadow-2xl"
       >
-        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#00BDC3]/10 text-[#00868C]">
+        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <ShieldCheck className="h-6 w-6" />
         </div>
         <h1 className="text-2xl font-semibold">Choose a new password</h1>
@@ -82,10 +82,10 @@ export default function ResetPassword() {
             <Label>Confirm password</Label>
             <Input type={show ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} className="h-11" />
           </div>
-          <Button type="submit" className="w-full h-11 bg-[#00BDC3] text-white hover:bg-[#009EA3]" disabled={busy || !token}>
+          <Button type="submit" className="w-full h-11" disabled={busy || !token}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update password'}
           </Button>
-          <Link to="/" className="block text-center text-sm text-[#00868C] hover:underline">
+          <Link to="/" className="block text-center text-sm text-primary hover:underline">
             Back to sign in
           </Link>
         </div>

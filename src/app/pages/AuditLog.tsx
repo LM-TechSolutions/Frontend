@@ -1,25 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Loader2, ScrollText, Search } from 'lucide-react';
-import { Card, CardContent } from '../components/ui/card';
+import { Loader2, Search } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { toast } from 'sonner';
 import { api, type AuditLogRow } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { Page, PageHeader, Surface } from '../components/layout/PageHeader';
 
 function actionTone(action: string) {
   if (action.includes('lockout') || action.includes('revoke') || action.includes('transfer')) {
-    return 'bg-destructive/10 text-destructive border-destructive/20';
+    return 'text-destructive';
   }
   if (action.includes('password') || action.includes('step_up') || action.includes('security')) {
-    return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20';
+    return 'text-[color:var(--warning)]';
   }
   if (action.includes('coupon') || action.includes('allocate')) {
-    return 'bg-[#00BDC3]/10 text-[#00868C] border-[#00BDC3]/20';
+    return 'text-primary';
   }
-  return 'bg-muted text-muted-foreground border-border';
+  return 'text-muted-foreground';
 }
 
 export default function AuditLog() {
@@ -58,23 +57,15 @@ export default function AuditLog() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#00BDC3]/10 px-3 py-1 text-xs font-medium text-[#00868C]">
-            <ScrollText className="h-3.5 w-3.5" />
-            Immutable trail
-          </div>
-          <h2 className="text-2xl font-semibold">Audit log</h2>
-          <p className="text-sm text-muted-foreground">
-            Every sensitive action already lands here. This is the viewer — including coupon allocations and fare changes.
-          </p>
-        </div>
-        <p className="text-sm tabular-nums text-muted-foreground">{total.toLocaleString()} events</p>
-      </div>
+    <Page>
+      <PageHeader
+        eyebrow="Immutable trail"
+        title="Audit log"
+        description="Every sensitive action already lands here, including coupon allocations and fare changes."
+        actions={<p className="text-sm tabular-nums text-muted-foreground">{total.toLocaleString()} events</p>}
+      />
 
-      <Card className="border-border/80 shadow-sm">
-        <CardContent className="p-4">
+      <Surface className="p-4">
           <form
             className="flex flex-col gap-3 sm:flex-row"
             onSubmit={(e) => {
@@ -87,27 +78,26 @@ export default function AuditLog() {
               <Input
                 value={action}
                 onChange={(e) => setAction(e.target.value)}
-                placeholder="Filter by action — auth.lockout, coupons.allocate…"
+                placeholder="Filter by action - auth.lockout, coupons.allocate…"
                 className="h-11 pl-9"
               />
             </div>
             <Input
               value={resource}
               onChange={(e) => setResource(e.target.value)}
-              placeholder="Resource — user, session, security"
+              placeholder="Resource - user, session, security"
               className="h-11 sm:w-56"
             />
-            <Button type="submit" className="h-11 bg-[#00BDC3] text-white hover:bg-[#009EA3]">
+            <Button type="submit" className="h-11">
               Search
             </Button>
           </form>
-        </CardContent>
-      </Card>
+      </Surface>
 
-      <Card className="overflow-hidden border-border/80">
+      <Surface>
         {loading ? (
           <div className="flex justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-[#00BDC3]" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : logs.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">No events match those filters.</div>
@@ -130,15 +120,15 @@ export default function AuditLog() {
                   </TableCell>
                   <TableCell className="text-sm">{log.user?.email ?? log.userId ?? 'system'}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={actionTone(log.action)}>
-                      {log.action}
-                    </Badge>
+                    <span className={`text-sm font-medium ${actionTone(log.action)}`}>
+                      {log.action.replace(/_/g, ' ')}
+                    </span>
                   </TableCell>
                   <TableCell className="text-sm">
                     {log.resource}
                     {log.resourceId ? <span className="ml-1 font-mono text-xs text-muted-foreground">#{log.resourceId.slice(0, 8)}</span> : null}
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{log.ipAddress ?? '—'}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{log.ipAddress ?? '-'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -159,7 +149,7 @@ export default function AuditLog() {
             </div>
           </div>
         )}
-      </Card>
-    </div>
+      </Surface>
+    </Page>
   );
 }

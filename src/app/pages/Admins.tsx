@@ -18,7 +18,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
-import { Badge } from '../components/ui/badge';
+import { StatusBadge } from '../components/layout/StatusBadge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import {
   AlertDialog,
@@ -35,6 +35,7 @@ import { api, type AdminAccount } from '../lib/api';
 import { withStepUp } from '../components/security/StepUpDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { EmptyState, Initials, RowSkeleton, StatTile } from '../components/coupons/CouponAtoms';
+import { Page, PageHeader } from '../components/layout/PageHeader';
 
 interface PermissionCatalog {
   permissions: Array<{ key: string; resource: string; action: string; description: string }>;
@@ -64,7 +65,7 @@ const RESOURCE_LABELS: Record<string, string> = {
 /**
  * Administrator accounts and what each of them may do.
  *
- * Exactly one account holds the Super Admin role — the database enforces that
+ * Exactly one account holds the Super Admin role - the database enforces that
  * with a partial unique index, so this screen offers *transfer*, never a second
  * grant. Everyone else is composed from roles, and the matrix below shows the
  * resulting capabilities rather than making anyone infer them from role names.
@@ -116,18 +117,17 @@ export default function Admins() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Administrators</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create administrator accounts and choose exactly what each of them can reach.
-          </p>
-        </div>
-        <Button className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={() => setCreateOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" /> New administrator
-        </Button>
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Access"
+        title="Administrators"
+        description="Create administrator accounts and choose exactly what each of them can reach."
+        actions={
+          <Button onClick={() => setCreateOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" /> New administrator
+          </Button>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile label="Administrators" value={stats.total} hint="Including the Super Admin" icon={UserCog} />
@@ -187,7 +187,7 @@ export default function Admins() {
             <AlertDialogDescription>
               <strong>{transferTarget?.name}</strong> becomes the Super Admin with unrestricted access, and you are
               demoted to a standard administrator. Exactly one account can hold this role, so this cannot be undone
-              from your side — only the new Super Admin can transfer it back.
+              from your side - only the new Super Admin can transfer it back.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -214,7 +214,7 @@ export default function Admins() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Page>
   );
 }
 
@@ -262,21 +262,17 @@ function AdminRow({
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-foreground">{admin.name}</p>
             {admin.isSuperAdmin ? (
-              <Badge className="gap-1 bg-[#F59E0B] text-white hover:bg-[#F59E0B]">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[color:var(--warning)]">
                 <Crown className="h-3 w-3" /> Super Admin
-              </Badge>
+              </span>
             ) : (
               admin.roles.map((role) => (
-                <Badge key={role} variant="outline" className="text-[10px] uppercase tracking-wide">
+                <span key={role} className="text-xs text-muted-foreground">
                   {ROLE_LABELS[role] ?? role}
-                </Badge>
+                </span>
               ))
             )}
-            {!admin.isActive && (
-              <Badge variant="outline" className="border-[#EF4444]/40 text-[10px] uppercase tracking-wide text-[#DC2626] dark:text-[#F87171]">
-                Deactivated
-              </Badge>
-            )}
+            {!admin.isActive && <StatusBadge status="inactive" label="Deactivated" />}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
@@ -447,13 +443,13 @@ function CreateAdminDialog({
                     }
                     className={`rounded-xl border p-3 text-left transition-all ${
                       checked
-                        ? 'border-[#00BDC3] bg-[#00BDC3]/10 ring-2 ring-[#00BDC3]/25'
-                        : 'border-border hover:border-[#00BDC3]/50 hover:bg-muted/50'
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/25'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-foreground">{ROLE_LABELS[role.name] ?? role.name}</p>
-                      {checked && <Check className="h-4 w-4 shrink-0 text-[#00BDC3]" />}
+                      {checked && <Check className="h-4 w-4 shrink-0 text-primary" />}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {role.description ?? `${role.permissions.length} permissions`}
@@ -469,7 +465,7 @@ function CreateAdminDialog({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={submit} disabled={!valid || saving}>
+          <Button onClick={submit} disabled={!valid || saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create administrator
           </Button>
@@ -499,7 +495,7 @@ function PermissionsDialog({
 
   const assignable = (catalog?.roles ?? []).filter((r) => r.name !== 'super-admin');
 
-  // The effective set is the union of the chosen roles — showing it resolved
+  // The effective set is the union of the chosen roles - showing it resolved
   // means nobody has to reason about overlapping role definitions.
   const effective = useMemo(() => {
     const keys = new Set<string>();
@@ -537,7 +533,7 @@ function PermissionsDialog({
     <Dialog open={!!admin} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>Permissions — {admin?.name}</DialogTitle>
+          <DialogTitle>Permissions - {admin?.name}</DialogTitle>
           <DialogDescription>
             Pick one or more roles. The matrix below shows what that actually grants.
           </DialogDescription>
@@ -558,13 +554,13 @@ function PermissionsDialog({
                   }
                   className={`rounded-xl border p-3 text-left transition-all ${
                     checked
-                      ? 'border-[#00BDC3] bg-[#00BDC3]/10 ring-2 ring-[#00BDC3]/25'
-                      : 'border-border hover:border-[#00BDC3]/50 hover:bg-muted/50'
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary/25'
+                      : 'border-border hover:border-primary/50 hover:bg-muted/50'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-foreground">{ROLE_LABELS[role.name] ?? role.name}</p>
-                    {checked && <Check className="h-4 w-4 shrink-0 text-[#00BDC3]" />}
+                    {checked && <Check className="h-4 w-4 shrink-0 text-primary" />}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{role.description}</p>
                 </button>
@@ -593,10 +589,8 @@ function PermissionsDialog({
                         <span
                           key={p.key}
                           title={p.description}
-                          className={`rounded-md px-2 py-1 text-[11px] font-medium ring-1 transition-colors ${
-                            granted
-                              ? 'bg-[#10B981]/12 text-[#059669] ring-[#10B981]/30 dark:text-[#34D399]'
-                              : 'bg-muted text-muted-foreground/70 ring-border'
+                          className={`text-[11px] font-medium ${
+                            granted ? 'text-[color:var(--success)]' : 'text-muted-foreground/50'
                           }`}
                         >
                           {p.action.replace(/_/g, ' ')}
@@ -611,7 +605,7 @@ function PermissionsDialog({
 
           {selectedRoles.length === 0 && (
             <p className="text-sm text-[#DC2626] dark:text-[#F87171]">
-              Select at least one role — an administrator with no role cannot reach anything.
+              Select at least one role - an administrator with no role cannot reach anything.
             </p>
           )}
         </div>
@@ -621,7 +615,6 @@ function PermissionsDialog({
             Cancel
           </Button>
           <Button
-            className="bg-[#00BDC3] text-white hover:bg-[#009EA3]"
             onClick={submit}
             disabled={selectedRoles.length === 0 || saving}
           >

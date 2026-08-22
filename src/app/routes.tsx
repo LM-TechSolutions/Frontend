@@ -16,6 +16,7 @@ import CallLogs from "./pages/CallLogs";
 import DriverReport from "./pages/DriverReport";
 import Admins from "./pages/Admins";
 import AuditLog from "./pages/AuditLog";
+import Notifications from "./pages/Notifications";
 
 export const router = createBrowserRouter([
   {
@@ -72,6 +73,10 @@ export const router = createBrowserRouter([
           {
             path: "settings",
             element: <Settings />,
+          },
+          {
+            path: "notifications",
+            element: <Notifications />,
           },
           {
             path: "audit-log",

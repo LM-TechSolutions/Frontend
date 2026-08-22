@@ -1,4 +1,4 @@
-/** Map backend ride status values to the spec's display labels. */
+import { formatEthiopian } from './ethiopian';
 const RIDE_STATUS_LABELS: Record<string, Record<string, string>> = {
   en: {
     pending: 'Pending',
@@ -42,9 +42,29 @@ export function rideStatusLabel(status?: string): string {
   return labels[status] ?? RIDE_STATUS_LABELS.en[status] ?? status;
 }
 
-export function formatETB(amount?: number | null): string {
-  if (amount == null) return '—';
-  return `${Number(amount).toLocaleString('en-US', { maximumFractionDigits: 2 })} ETB`;
+export function formatETB(amount?: number | null, currency = 'ETB'): string {
+  if (amount == null) return '-';
+  const lang = typeof window !== 'undefined' ? window.localStorage.getItem('language') : 'en';
+  const locale = lang === 'am' ? 'am-ET' : lang === 'om' ? 'om-ET' : 'en-ET';
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(amount));
+  } catch {
+    return `${Number(amount).toLocaleString(locale, { maximumFractionDigits: 2 })} ${currency}`;
+  }
+}
+
+export function formatDateTime(value?: string | Date | null): string {
+  if (!value) return '-';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  const lang = typeof window !== 'undefined' ? window.localStorage.getItem('language') : 'en';
+  const calendar = typeof window !== 'undefined' ? window.localStorage.getItem('calendar') : 'gregorian';
+  if (calendar === 'ethiopian') {
+    const locale = lang === 'am' || lang === 'om' ? lang : 'en';
+    return `${formatEthiopian(date, locale)} ${date.toLocaleTimeString(lang === 'am' ? 'am-ET' : 'en-ET', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  const locale = lang === 'am' ? 'am-ET' : lang === 'om' ? 'om-ET' : 'en-ET';
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 export function shortId(id?: string, len = 8): string {

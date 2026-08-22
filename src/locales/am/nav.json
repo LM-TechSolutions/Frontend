@@ -1,0 +1,13 @@
+{
+  "dashboard": "ዳሽቦርድ",
+  "analytics": "ትንታኔ",
+  "operators": "ኦፕሬተሮች",
+  "callLogs": "የጥሪ መዝገቦች",
+  "rides": "ጉዞዎች",
+  "drivers": "አሽከርካሪዎች",
+  "coupons": "ኩፖኖች",
+  "notifications": "መልእክቶች",
+  "admins": "አስተዳዳሪዎች",
+  "auditLog": "የኦዲት መዝገብ",
+  "settings": "ቅንብሮች"
+}

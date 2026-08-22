@@ -1,0 +1,22 @@
+{
+  "title": "Galmee Bilbilaa",
+  "subtitle": "Seenaa tarreeffama bilbila maamiltootaa",
+  "logCall": "Bilbila Galmeessi",
+  "totalCalls": "Waliigala Bilbilaa",
+  "completed": "Xumurame",
+  "missed": "Dagatame",
+  "abandoned": "Dhiifame",
+  "avgDuration": "Turtii Giddugaleessa",
+  "searchPlaceholder": "Maamila, bilbila, ykn opeeretaraan barbaadi…",
+  "allStatus": "Haala Hundumaa",
+  "history": "Seenaa Bilbilaa",
+  "time": "Yeroo",
+  "customer": "Maamila",
+  "phone": "Bilbila",
+  "operator": "Opeeretara",
+  "status": "Haala",
+  "duration": "Turtii",
+  "rideId": "ID Imalaa",
+  "notes": "Yaadannoo",
+  "noLogs": "Galmeen bilbilaa tokkollee hin argamne"
+}

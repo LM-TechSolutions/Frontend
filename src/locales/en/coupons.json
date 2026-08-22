@@ -1,0 +1,15 @@
+{
+  "title": "Coupon Management",
+  "subtitle": "Manage driver coupon balances and transactions",
+  "selectDriver": "Select Driver:",
+  "refill": "Refill Coupons",
+  "confirmRefill": "Confirm Refill",
+  "currentBalance": "Current Coupon Balance",
+  "lowBalance": "Low Balance Warning",
+  "moderateBalance": "Moderate Balance",
+  "goodBalance": "Good Balance",
+  "transactionHistory": "Transaction History",
+  "noTransactions": "No transactions found for this driver",
+  "enterAmount": "Enter number of coupons",
+  "validAmount": "Please enter a valid amount"
+}

@@ -57,11 +57,11 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
         pickupCoordinates: { lat: pickup.lat, lng: pickup.lng },
         dropoffLocation: dropoff.address,
         dropoffCoordinates: { lat: dropoff.lat, lng: dropoff.lng },
-        // Hint for ops — backend still recomputes via Gebeta on dispatch.
+        // Hint for ops - backend still recomputes via Gebeta on dispatch.
         estimatedDistanceKm: route?.distanceKm,
         estimatedDurationMinutes: route?.durationMinutes,
       });
-      toast.success('Ride created — dispatching to nearby drivers');
+      toast.success('Ride created - dispatching to nearby drivers');
       reset();
       onOpenChange(false);
       onCreated?.();
@@ -96,7 +96,7 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
         </div>
         <div className="flex gap-3 justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel', 'Cancel')}</Button>
-          <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={submit} disabled={creating}>
+          <Button onClick={submit} disabled={creating}>
             {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('rides.createRide', 'Create Ride')}
           </Button>
         </div>

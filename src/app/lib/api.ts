@@ -89,6 +89,8 @@ export interface AuthUser {
   require2FA?: boolean;
   twoFactorEnrollmentRequired?: boolean;
   createdAt?: string;
+  locale?: 'en' | 'am' | 'om' | string;
+  calendar?: 'gregorian' | 'ethiopian' | string;
 }
 
 export interface StaffSession {
@@ -111,6 +113,17 @@ export interface SecurityPolicy {
     agent: boolean;
   };
   idleTimeoutMinutes: number;
+}
+
+export interface InboxNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: unknown;
+  actionUrl?: string | null;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export interface AuditLogRow {
@@ -349,7 +362,10 @@ export const api = {
   },
 
   dashboard: {
-    stats: (period = 'today') => cc<any>('/analytics/dashboard', { query: { period } }),
+    stats: (periodOrQuery: string | { period?: string; startDate?: string; endDate?: string } = 'today') =>
+      cc<any>('/analytics/dashboard', {
+        query: typeof periodOrQuery === 'string' ? { period: periodOrQuery } : periodOrQuery,
+      }),
     performance: () => cc<any>('/analytics/performance'),
     revenue: (query?: Record<string, string>) => cc<any>('/analytics/revenue', { query }),
   },
@@ -378,6 +394,10 @@ export const api = {
     update: (driverId: string, body: any) => cc<any>(`/drivers/${driverId}`, { method: 'PATCH', body }),
     remove: (driverId: string) => cc<any>(`/drivers/${driverId}`, { method: 'DELETE' }),
     locationHistory: (driverId: string) => cc<any>(`/drivers/${driverId}/location-history`),
+    approve: (driverId: string) => v1<any>(`/drivers/${driverId}/approve`, { method: 'POST' }),
+    suspend: (driverId: string, reason: string, suspendedBy: string) =>
+      v1<any>(`/drivers/${driverId}/suspend`, { method: 'POST', body: { reason, suspendedBy } }),
+    reinstate: (driverId: string) => v1<any>(`/drivers/${driverId}/reinstate`, { method: 'POST' }),
     /** Activity report for a custom date range (inclusive of both days). */
     performance: (driverId: string, query: { startDate?: string; endDate?: string; page?: number; limit?: number }) =>
       v1<DriverPerformanceReport>(`/drivers/${driverId}/performance`, { query }),
@@ -398,7 +418,7 @@ export const api = {
       v1<any[]>(`/coupons/${driverId}/transactions`, { query: { limit } }),
   },
 
-  /** Operator coupon inventory — the middle tier of the distribution hierarchy. */
+  /** Operator coupon inventory - the middle tier of the distribution hierarchy. */
   operatorCoupons: {
     listWallets: () => cc<{ wallets: OperatorWallet[] }>('/operator-coupons'),
     wallet: (operatorId = 'me') => cc<OperatorWallet>(`/operator-coupons/${operatorId}`),
@@ -472,9 +492,58 @@ export const api = {
     getSystem: () => v1<any[]>('/admin/settings'),
     updateSystem: (settings: Record<string, string>) =>
       v1<any>('/admin/settings', { method: 'PUT', body: settings }),
+    opsConfig: () =>
+      v1<{
+        currency: string;
+        minCouponBalance: number;
+        startingBalance: number;
+        defaultCommission: number;
+        urbanSpeedKmh: number;
+        staleDriverMinutes: number;
+      }>('/admin/settings/ops'),
+    commissionDistribution: () =>
+      v1<{ distribution: Array<{ percent: number; drivers: number }> }>('/admin/settings/commission/distribution'),
+    applyCommissionToFleet: () =>
+      v1<{ percent: number; updated: number }>('/admin/settings/commission/apply', { method: 'POST' }),
     securityPolicy: () => cc<SecurityPolicy>('/security/policy'),
     updateSecurityPolicy: (body: Partial<SecurityPolicy>) =>
       cc<SecurityPolicy>('/security/policy', { method: 'PUT', body }),
+    updateLocale: (body: { locale?: string; calendar?: string }) =>
+      cc<{ locale: string; calendar: string }>('/notifications/locale', { method: 'PUT', body }),
+  },
+
+  notifications: {
+    list: (query?: { page?: number; limit?: number; unreadOnly?: boolean; type?: string }) =>
+      cc<{
+        notifications: InboxNotification[];
+        pagination: { page: number; limit: number; total: number; totalPages: number };
+      }>('/notifications', { query }),
+    unreadCount: () => cc<{ count: number }>('/notifications/unread-count'),
+    markRead: (id: string) => cc<{ id: string; isRead: boolean }>(`/notifications/${id}/read`, { method: 'POST' }),
+    markAllRead: () => cc<{ ok: boolean }>('/notifications/read-all', { method: 'POST' }),
+    remove: (id: string) => cc<{ id: string; deleted: boolean }>(`/notifications/${id}`, { method: 'DELETE' }),
+    preferences: () =>
+      cc<{
+        locale: string;
+        calendar: string;
+        quietHoursStart: string | null;
+        quietHoursEnd: string | null;
+        digest: string;
+        vapidPublicKey: string | null;
+        channels: Array<{ type: string; channel: string; enabled: boolean }>;
+        types: string[];
+      }>('/notifications/preferences'),
+    updatePreferences: (body: {
+      quietHoursStart?: string | null;
+      quietHoursEnd?: string | null;
+      digest?: string;
+      channels?: Array<{ type: string; channel: string; enabled: boolean }>;
+    }) => cc<unknown>('/notifications/preferences', { method: 'PUT', body }),
+    vapidKey: () => cc<{ publicKey: string | null }>('/notifications/push/vapid-public-key'),
+    subscribePush: (sub: PushSubscriptionJSON) =>
+      cc<unknown>('/notifications/push/subscribe', { method: 'POST', body: sub }),
+    unsubscribePush: (endpoint: string) =>
+      cc<unknown>('/notifications/push/subscribe', { method: 'DELETE', body: { endpoint } }),
   },
 
   auditLogs: {

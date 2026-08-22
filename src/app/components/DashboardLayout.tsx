@@ -1,5 +1,27 @@
 import { Outlet, useNavigate, useLocation } from 'react-router';
-import { LayoutDashboard, Car, Users, Wallet, Settings, Bell, User, LogOut, Shield, BarChart3, UserCog, PhoneCall, Moon, Sun, Check, AlertCircle, Info, Sparkles, ScrollText } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Car,
+  Users,
+  Wallet,
+  Settings,
+  Bell,
+  User,
+  LogOut,
+  Shield,
+  BarChart3,
+  UserCog,
+  PhoneCall,
+  Moon,
+  Sun,
+  Check,
+  AlertCircle,
+  Info,
+  ScrollText,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
   DropdownMenu,
@@ -9,31 +31,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '../components/ui/popover';
-import { Badge } from '../components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { cn } from './ui/utils';
 import { useAppContext } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { api, type InboxNotification } from '../lib/api';
 import { connectSocket, getSocket } from '../lib/socket';
-import { rideStatusLabel } from '../lib/format';
+import { rideStatusLabel, formatDateTime } from '../lib/format';
+import { CommandPalette } from './layout/CommandPalette';
+import { ConnectionDot } from './layout/ConnectionDot';
 
 const operatorNavigation = [
   { nameKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
   { nameKey: 'nav.rides', href: '/rides', icon: Car },
   { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
   { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
+  { nameKey: 'nav.notifications', href: '/notifications', icon: Bell },
   { nameKey: 'nav.settings', href: '/settings', icon: Settings },
 ];
 
@@ -45,19 +63,12 @@ const adminNavigation = [
   { nameKey: 'nav.rides', href: '/rides', icon: Car },
   { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
   { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
+  { nameKey: 'nav.notifications', href: '/notifications', icon: Bell },
   { nameKey: 'nav.auditLog', href: '/audit-log', icon: ScrollText },
   { nameKey: 'nav.settings', href: '/settings', icon: Settings },
 ];
 
-export interface WebNotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  type: 'status' | 'completed' | 'alert' | 'driver' | 'coupon';
-  time: Date;
-  read: boolean;
-  link?: string;
-}
+const SIDEBAR_KEY = 'tokuma.sidebarCollapsed';
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
@@ -65,127 +76,66 @@ export default function DashboardLayout() {
   const { user, role: userRole, logout, isSuperAdmin } = useAuth();
   const userName = user?.name ?? 'User';
   const { t, language, setLanguage, theme, setTheme } = useAppContext();
-  const [notifications, setNotifications] = useState<WebNotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<InboxNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const pushNotification = (item: Omit<WebNotificationItem, 'id' | 'time' | 'read'>) => {
-    const newItem: WebNotificationItem = {
-      id: Math.random().toString(36).slice(2, 9),
-      time: new Date(),
-      read: false,
-      ...item,
-    };
-    setNotifications((prev) => [newItem, ...prev.slice(0, 49)]);
+  const setCollapsedPersist = (next: boolean) => {
+    setCollapsed(next);
+    localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0');
   };
 
-  // Live dispatch & system notifications over WebSockets
+  const refreshInbox = () => {
+    api.notifications
+      .list({ limit: 20 })
+      .then((res) => setNotifications(res.notifications ?? []))
+      .catch(() => undefined);
+    api.notifications
+      .unreadCount()
+      .then((res) => setUnreadCount(res.count ?? 0))
+      .catch(() => undefined);
+  };
+
   useEffect(() => {
+    refreshInbox();
     const socket = getSocket() ?? connectSocket();
+
+    const onNew = (payload: any) => {
+      toast.info(payload.title ?? 'Notification', { description: payload.message });
+      refreshInbox();
+    };
 
     const onStatus = (data: any) => {
       const label = data?.statusLabel ?? rideStatusLabel(data?.status);
-      const rideIdStr = String(data?.rideId ?? '').slice(0, 8);
-      const title = `Ride Status: ${label}`;
-      const message = `Ride #${rideIdStr} status updated to ${label}`;
-
-      toast.info(title, { description: message });
-      pushNotification({
-        title,
-        message,
-        type: 'status',
-        link: data?.rideId ? `/rides/${data.rideId}` : '/rides',
-      });
+      toast.info(`Ride #${String(data?.rideId ?? '').slice(0, 8)}`, { description: label });
     };
-
     const onCompleted = (data: any) => {
-      const rideIdStr = String(data?.rideId ?? '').slice(0, 8);
-      const title = 'Ride Completed 🎉';
-      const message = `Ride #${rideIdStr} finished. Fare: ${data?.fare ?? 0} ${data?.currency ?? 'ETB'}`;
-
-      toast.success(title, { description: message });
-      pushNotification({
-        title,
-        message,
-        type: 'completed',
-        link: data?.rideId ? `/rides/${data.rideId}` : '/rides',
+      toast.success('Ride completed', {
+        description: `Fare: ${data?.fare ?? 0} ${data?.currency ?? 'ETB'}`,
       });
     };
 
-    const onDriverStatus = (data: any) => {
-      const title = `Driver Status Changed`;
-      const message = `Driver ${data?.driverId ? '#' + String(data.driverId).slice(0, 8) : ''} is now ${data?.status || (data?.isOnline ? 'Online' : 'Offline')}`;
-
-      toast(title, { description: message });
-      pushNotification({
-        title,
-        message,
-        type: 'driver',
-        link: '/drivers',
-      });
-    };
-
-    const onSystemAlert = (data: any) => {
-      const title = `System Alert`;
-      const message = data?.message ?? 'System alert emitted';
-
-      toast.warning(title, { description: message });
-      pushNotification({
-        title,
-        message,
-        type: 'alert',
-      });
-    };
-
-    const onCouponAlert = (data: any) => {
-      const title = `Coupon Alert`;
-      const message = data?.balance === 0 ? `Driver ${data?.driverId} has 0 coupons remaining` : `Driver ${data?.driverId} coupon balance low: ${data?.balance}`;
-
-      toast.warning(title, { description: message });
-      pushNotification({
-        title,
-        message,
-        type: 'coupon',
-        link: '/coupons',
-      });
-    };
-
+    socket.on('notification:new', onNew);
     socket.on('ride:status', onStatus);
-    socket.on('ride:accepted', onStatus);
-    socket.on('ride:arrived', onStatus);
-    socket.on('ride:started', onStatus);
     socket.on('ride:completed', onCompleted);
-    socket.on('ride:cancelled', onStatus);
-    socket.on('driver:status', onDriverStatus);
-    socket.on('system:alert', onSystemAlert);
-    socket.on('coupon:low', onCouponAlert);
-    socket.on('coupon:empty', onCouponAlert);
+    socket.io.on('reconnect', refreshInbox);
 
     return () => {
+      socket.off('notification:new', onNew);
       socket.off('ride:status', onStatus);
-      socket.off('ride:accepted', onStatus);
-      socket.off('ride:arrived', onStatus);
-      socket.off('ride:started', onStatus);
       socket.off('ride:completed', onCompleted);
-      socket.off('ride:cancelled', onStatus);
-      socket.off('driver:status', onDriverStatus);
-      socket.off('system:alert', onSystemAlert);
-      socket.off('coupon:low', onCouponAlert);
-      socket.off('coupon:empty', onCouponAlert);
+      socket.io.off('reconnect', refreshInbox);
     };
   }, []);
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const clearNotifications = () => {
-    setNotifications([]);
-  };
-
-  // Administrators is Super-Admin-only: it is the one screen that can create
-  // other administrators, so it appears only for the account that may use it.
   const navigation = useMemo(() => {
     const base = userRole === 'admin' ? adminNavigation : operatorNavigation;
     if (!isSuperAdmin) return base;
@@ -199,228 +149,286 @@ export default function DashboardLayout() {
     return withAdmins;
   }, [userRole, isSuperAdmin]);
 
+  const current = navigation.find(
+    (item) => location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
+  );
+
   const handleLogout = () => {
     logout();
     navigate('/', { replace: true });
   };
 
-  return (
-    <div className="min-h-screen flex bg-background">
-      {/* Sidebar */}
-      <aside className="w-[260px] bg-sidebar border-r border-sidebar-border flex flex-col">
-        <div className="h-16 flex items-center justify-center border-b border-sidebar-border">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-[#00BDC3] flex items-center justify-center">
-              <span className="text-white font-bold">T</span>
-            </div>
-            <span className="text-xl font-bold text-sidebar-foreground">TEKUMMA</span>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-1">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <button
-                key={item.nameKey}
-                onClick={() => navigate(item.href)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-[#00BDC3] text-white'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="font-medium">{t(item.nameKey)}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center">
-              {userRole === 'admin' ? (
-                <Shield className="w-5 h-5 text-[#00BDC3]" />
-              ) : (
-                <User className="w-5 h-5 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm text-sidebar-foreground truncate">{userName}</p>
-              <p className="text-xs text-muted-foreground">
-                {userRole === 'admin' ? t('auth.admin', 'Administrator') : t('common.callCenter', 'Call Center')}
-              </p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
-        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-foreground">
-              {t(navigation.find(item => item.href === location.pathname)?.nameKey || 'nav.dashboard') || 'TEKUMMA'}
-            </h1>
-            {userRole === 'admin' && (
-              <Badge className="bg-[#00BDC3] text-white hover:bg-[#00BDC3]">
-                <Shield className="w-3 h-3 mr-1" />
-                {t('common.adminBadge', 'Admin')}
-              </Badge>
+  const NavList = ({ onNavigate, compact }: { onNavigate?: () => void; compact?: boolean }) => (
+    <nav className={cn('min-h-0 flex-1 space-y-1 overflow-y-auto', compact ? 'px-2 py-3' : 'p-3')}>
+      {navigation.map((item) => {
+        const isActive = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
+        const label = t(item.nameKey);
+        const button = (
+          <button
+            key={item.nameKey}
+            onClick={() => {
+              navigate(item.href);
+              onNavigate?.();
+            }}
+            className={cn(
+              'flex w-full items-center rounded-xl text-left transition-all',
+              compact ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5',
+              isActive
+                ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_10px_24px_-12px_rgba(0,212,219,.9)]'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
+          >
+            <item.icon className="h-5 w-5 shrink-0" />
+            {!compact && <span className="truncate text-[0.95rem] font-semibold">{label}</span>}
+          </button>
+        );
+        if (!compact) return button;
+        return (
+          <Tooltip key={item.nameKey}>
+            <TooltipTrigger asChild>{button}</TooltipTrigger>
+            <TooltipContent side="right" sideOffset={10}>
+              {label}
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </nav>
+  );
+
+  const SidebarBody = ({ onNavigate, compact }: { onNavigate?: () => void; compact?: boolean }) => (
+    <>
+      <div className={cn('flex h-16 items-center border-b border-sidebar-border', compact ? 'justify-center px-2' : 'gap-3 px-4')}>
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sidebar-primary text-lg font-bold text-sidebar-primary-foreground shadow-[0_0_28px_rgba(0,212,219,0.45)]">
+          T
+        </div>
+        {!compact && (
+          <div className="min-w-0">
+            <p className="font-display text-lg font-semibold tracking-[0.16em] text-sidebar-foreground">TEKUMMA</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50">Live ops</p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <Select value={language} onValueChange={(value) => setLanguage(value as 'en' | 'am' | 'om')}>
-              <SelectTrigger className="w-[140px] h-10">
-                <SelectValue placeholder={t('common.language')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="am">አማርኛ</SelectItem>
-                <SelectItem value="om">Oromiffa</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={theme === 'dark' ? t('common.lightMode') : t('common.darkMode')}
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <Moon className="w-5 h-5 text-muted-foreground" />
-              )}
-            </Button>
-
-            {/* Notifications Popover */}
-            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="w-5 h-5 text-muted-foreground" />
-                  {unreadCount > 0 && (
-                    <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-[#EF4444] text-white text-xs font-bold animate-pulse">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-96 p-0 border border-border bg-card shadow-xl rounded-xl">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-                  <div className="flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-[#00BDC3]" />
-                    <span className="font-semibold text-sm">Notifications</span>
-                    {unreadCount > 0 && (
-                      <Badge className="bg-[#00BDC3] text-white text-xs py-0.5 px-2">
-                        {unreadCount} new
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    {unreadCount > 0 && (
-                      <button onClick={markAllRead} className="text-[#00BDC3] hover:underline font-medium">
-                        Mark read
-                      </button>
-                    )}
-                    {notifications.length > 0 && (
-                      <button onClick={clearNotifications} className="text-muted-foreground hover:underline">
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="max-h-80 overflow-y-auto divide-y divide-border">
-                  {notifications.length === 0 ? (
-                    <div className="py-8 text-center text-muted-foreground">
-                      <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-40 text-[#00BDC3]" />
-                      <p className="text-sm font-medium">No new notifications</p>
-                      <p className="text-xs text-muted-foreground">Live ride & system alerts will appear here</p>
-                    </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => {
-                          if (n.link) navigate(n.link);
-                          setPopoverOpen(false);
-                        }}
-                        className={`p-3.5 flex items-start gap-3 transition-colors cursor-pointer ${
-                          n.read ? 'hover:bg-muted/40' : 'bg-[#00BDC3]/5 hover:bg-[#00BDC3]/10'
-                        }`}
-                      >
-                        <div className="mt-0.5 p-2 rounded-lg bg-background border border-border">
-                          {n.type === 'completed' ? (
-                            <Check className="w-4 h-4 text-emerald-500" />
-                          ) : n.type === 'alert' || n.type === 'coupon' ? (
-                            <AlertCircle className="w-4 h-4 text-amber-500" />
-                          ) : (
-                            <Info className="w-4 h-4 text-[#00BDC3]" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-foreground truncate">{n.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
-                          <span className="text-[10px] text-muted-foreground/80 mt-1 block">
-                            {new Date(n.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </span>
-                        </div>
-                        {!n.read && <span className="w-2 h-2 rounded-full bg-[#00BDC3] mt-1.5" />}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Button variant="outline" size="icon" onClick={handleLogout} className="border-border text-foreground hover:bg-accent">
-              <LogOut className="w-5 h-5" />
-            </Button>
-
-            {/* User Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
-                    {userRole === 'admin' ? (
-                      <Shield className="w-4 h-4 text-[#00BDC3]" />
-                    ) : (
-                      <User className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  <span className="text-sm font-medium text-foreground">{userName}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>{t('common.account', 'My Account')}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="w-4 h-4 mr-2" />
-                  {t('common.profile', 'Profile')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/settings')}>
-                  <Settings className="w-4 h-4 mr-2" />
-                  {t('nav.settings', 'Settings')}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  {t('common.logout', 'Logout')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto">
-          <Outlet />
-        </main>
+        )}
       </div>
-    </div>
+      <NavList onNavigate={onNavigate} compact={compact} />
+      <div className={cn('shrink-0 border-t border-sidebar-border', compact ? 'p-2' : 'p-3')}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            {compact ? (
+              <button
+                type="button"
+                className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-sidebar-primary transition hover:bg-sidebar-accent"
+                aria-label={userName}
+              >
+                {userRole === 'admin' ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 rounded-2xl bg-white/5 px-3 py-2.5 text-left transition hover:bg-sidebar-accent"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary/20 text-sidebar-primary">
+                  {userRole === 'admin' ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-sidebar-foreground">{userName}</p>
+                  <p className="text-xs text-sidebar-foreground/50">
+                    {userRole === 'admin' ? t('auth.admin', 'Administrator') : t('common.callCenter', 'Call Center')}
+                  </p>
+                </div>
+              </button>
+            )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={compact ? 'right' : 'top'}
+            align={compact ? 'end' : 'start'}
+            sideOffset={10}
+            className="w-48"
+          >
+            <DropdownMenuLabel>{t('common.account', 'My Account')}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                navigate('/settings');
+                onNavigate?.();
+              }}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              {t('nav.settings', 'Settings')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              {t('common.logout', 'Logout')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </>
+  );
+
+  return (
+    <TooltipProvider delayDuration={80}>
+      <div className="flex h-svh overflow-hidden">
+        <aside
+          className={cn(
+            'relative hidden h-svh shrink-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out lg:flex',
+            collapsed ? 'w-[80px]' : 'w-[264px]'
+          )}
+        >
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="ambient-blob absolute -left-10 top-10 h-40 w-40 rounded-full bg-sidebar-primary/20 blur-3xl" />
+            <div className="absolute -right-8 bottom-24 h-32 w-32 rounded-full bg-[#e08a14]/10 blur-3xl" />
+          </div>
+          <div className="relative flex h-full min-h-0 flex-col">
+            <SidebarBody compact={collapsed} />
+            <button
+              type="button"
+              onClick={() => setCollapsedPersist(!collapsed)}
+              className="absolute -right-3 top-[4.75rem] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-md hover:bg-sidebar-accent"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        </aside>
+
+        <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <SheetContent side="left" className="w-[280px] border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation</SheetTitle>
+            </SheetHeader>
+            <div className="flex h-full flex-col">
+              <SidebarBody onNavigate={() => setDrawerOpen(false)} />
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <header className="z-20 flex h-[4.25rem] shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/75 px-4 backdrop-blur-xl sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setDrawerOpen(true)}>
+                <Menu className="h-5 w-5" />
+              </Button>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">TEKUMMA</p>
+                <h1 className="truncate font-display text-lg font-semibold text-foreground sm:text-xl">
+                  {t(current?.nameKey || 'nav.dashboard')}
+                </h1>
+              </div>
+              <ConnectionDot />
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <CommandPalette />
+              <Select value={language} onValueChange={(value) => setLanguage(value as 'en' | 'am' | 'om')}>
+                <SelectTrigger className="h-9 w-[118px] rounded-full bg-card">
+                  <SelectValue placeholder={t('common.language')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="am">አማርኛ</SelectItem>
+                  <SelectItem value="om">Oromiffa</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                title={theme === 'dark' ? t('common.lightMode') : t('common.darkMode')}
+              >
+                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+
+              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative rounded-full">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-card" />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-96 p-0">
+                  <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold">Notifications</p>
+                      {unreadCount > 0 && (
+                        <p className="text-xs text-muted-foreground">{unreadCount} unread</p>
+                      )}
+                    </div>
+                    <div className="flex gap-3 text-xs font-semibold">
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={() => {
+                            void api.notifications.markAllRead().then(refreshInbox);
+                          }}
+                          className="text-primary hover:underline"
+                        >
+                          Mark read
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setPopoverOpen(false);
+                          navigate('/notifications');
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        Inbox
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-10 text-center text-muted-foreground">
+                        <p className="text-sm font-medium">{t('inbox.noneNew', 'No new notifications')}</p>
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <button
+                          key={n.id}
+                          type="button"
+                          onClick={() => {
+                            if (!n.isRead) void api.notifications.markRead(n.id).then(refreshInbox);
+                            if (n.actionUrl) navigate(n.actionUrl);
+                            else navigate('/notifications');
+                            setPopoverOpen(false);
+                          }}
+                          className={cn(
+                            'flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent/50',
+                            !n.isRead && 'bg-primary/5'
+                          )}
+                        >
+                          <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-secondary">
+                            {n.type.includes('coupon') || n.type.includes('alert') ? (
+                              <AlertCircle className="h-4 w-4 text-[color:var(--warning)]" />
+                            ) : n.type.includes('completed') ? (
+                              <Check className="h-4 w-4 text-[color:var(--success)]" />
+                            ) : (
+                              <Info className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold">{n.title}</p>
+                            <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{n.message}</p>
+                            <p className="mt-1 font-mono text-[10px] text-muted-foreground">{formatDateTime(n.createdAt)}</p>
+                          </div>
+                          {!n.isRead && <span className="mt-2 h-2 w-2 rounded-full bg-primary" />}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </header>
+
+          <main className="min-h-0 flex-1 overflow-y-auto">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    </TooltipProvider>
   );
 }

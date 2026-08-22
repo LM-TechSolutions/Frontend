@@ -1,0 +1,22 @@
+{
+  "title": "Call Logs",
+  "subtitle": "Detailed history of all customer calls",
+  "logCall": "Log Call",
+  "totalCalls": "Total Calls",
+  "completed": "Completed",
+  "missed": "Missed",
+  "abandoned": "Abandoned",
+  "avgDuration": "Avg Duration",
+  "searchPlaceholder": "Search by customer, phone, or operator…",
+  "allStatus": "All Status",
+  "history": "Call History",
+  "time": "Time",
+  "customer": "Customer",
+  "phone": "Phone",
+  "operator": "Operator",
+  "status": "Status",
+  "duration": "Duration",
+  "rideId": "Ride ID",
+  "notes": "Notes",
+  "noLogs": "No call logs found"
+}

@@ -1,33 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Phone, X, MapPin, Navigation, User, Car, Clock, Loader2, Route } from 'lucide-react';
+import { ArrowLeft, Phone, X, MapPin, Navigation, User, Car, Clock, Loader2, Route, Ticket } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
-import { connectSocket, subscribeRide, unsubscribeRide } from '../lib/socket';
+import { connectSocket, subscribeRide, unsubscribeRide, subscribeMap, unsubscribeMap } from '../lib/socket';
 import { rideStatusLabel, formatETB } from '../lib/format';
 import type { RoadRoute } from '../lib/route';
 import GebetaMapView, { type MapPoint } from '../components/GebetaMapView';
+import AssignFromMapDialog from '../components/AssignFromMapDialog';
 import { useAppContext } from '../contexts/AppContext';
+import { StatusBadge } from '../components/layout/StatusBadge';
+import { EmptyState } from '../components/coupons/CouponAtoms';
 
 const rideStatuses = ['pending', 'dispatched', 'accepted', 'arrived', 'in_progress', 'completed'];
-
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    pending: 'bg-[#F59E0B]',
-    dispatched: 'bg-[#00BDC3]',
-    accepted: 'bg-[#00BDC3]',
-    arrived: 'bg-[#00BDC3]',
-    in_progress: 'bg-[#00BDC3]',
-    completed: 'bg-[#10B981]',
-    cancelled: 'bg-[#EF4444]',
-  };
-  return colors[status] || 'bg-gray-500';
-};
 
 export default function RideTracking() {
   const { rideId } = useParams();
@@ -35,12 +24,25 @@ export default function RideTracking() {
   const { t } = useAppContext();
 
   const [ride, setRide] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [driverPos, setDriverPos] = useState<MapPoint | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
   const rideIdRef = useRef(rideId);
   rideIdRef.current = rideId;
+
+  const fetchHistory = async () => {
+    if (!rideId) return;
+    try {
+      const data = await api.rides.history(rideId);
+      const rows = Array.isArray(data) ? data : data?.history ?? data?.items ?? [];
+      setHistory(rows);
+    } catch {
+      setHistory([]);
+    }
+  };
 
   const fetchRide = async (silent = false) => {
     if (!rideId) return;
@@ -50,6 +52,7 @@ export default function RideTracking() {
       if (data?.currentLocation) {
         setDriverPos({ lng: data.currentLocation.lng, lat: data.currentLocation.lat });
       }
+      if (!silent) await fetchHistory();
     } catch {
       if (!silent) setRide(null);
     } finally {
@@ -60,8 +63,6 @@ export default function RideTracking() {
   useEffect(() => {
     setLoading(true);
     fetchRide();
-    const poll = setInterval(() => fetchRide(true), 12000);
-    return () => clearInterval(poll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideId]);
 
@@ -69,6 +70,7 @@ export default function RideTracking() {
     if (!rideId) return;
     const socket = connectSocket();
     subscribeRide(rideId);
+    subscribeMap();
 
     const onProgress = (data: any) => {
       if (data?.rideId !== rideIdRef.current) return;
@@ -80,6 +82,7 @@ export default function RideTracking() {
       if (data?.rideId !== rideIdRef.current) return;
       setRide((prev: any) => (prev ? { ...prev, status: data.status } : prev));
       fetchRide(true);
+      fetchHistory();
     };
 
     socket.on('ride:progress', onProgress);
@@ -99,6 +102,7 @@ export default function RideTracking() {
       socket.off('ride:completed', onStatus);
       socket.off('ride:cancelled', onStatus);
       unsubscribeRide(rideId);
+      unsubscribeMap();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideId]);
@@ -119,8 +123,8 @@ export default function RideTracking() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#00BDC3]" />
+      <div className="flex h-[60vh] items-center justify-center p-6">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -128,12 +132,15 @@ export default function RideTracking() {
   if (!ride) {
     return (
       <div className="p-6">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">{t('rides.rideNotFound', 'Ride not found')}</p>
-          <Button onClick={() => navigate('/rides')} className="mt-4 bg-[#00BDC3] hover:bg-[#009EA3] text-white">
-            {t('rides.backToDashboard', 'Back to Rides')}
-          </Button>
-        </div>
+        <EmptyState
+          icon={Car}
+          title={t('rides.rideNotFound', 'Ride not found')}
+          action={
+            <Button onClick={() => navigate('/rides')}>
+              {t('rides.backToDashboard', 'Back to rides')}
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -146,195 +153,238 @@ export default function RideTracking() {
     ? { lng: ride.dropoffCoordinates.lng, lat: ride.dropoffCoordinates.lat }
     : null;
   const hasDriver = !!ride.driverId;
-  const displayDistanceKm =
-    roadRoute?.distanceKm ?? (ride.distance != null ? Number(ride.distance) : null);
-  const displayDurationMin = roadRoute?.durationMinutes ?? null;
+  const displayDistanceKm = roadRoute?.distanceKm ?? (ride.distance != null ? Number(ride.distance) : null);
+  const displayDurationMin = roadRoute?.durationMinutes ?? ride.duration ?? null;
+  const canAssign = !['completed', 'cancelled'].includes(ride.status);
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/rides')}>
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">{t('rides.rideTitle', 'Ride #{0}', { 0: String(ride.id).slice(0, 8) })}</h2>
-            <p className="text-muted-foreground">{t('rides.subtitle', 'Track ride progress in real-time')}</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Live tracking</p>
+            <h2 className="font-display text-2xl font-semibold tracking-tight">
+              {t('rides.rideTitle', 'Ride #{0}', { 0: String(ride.id).slice(0, 8) })}
+            </h2>
           </div>
         </div>
-        <Badge className={`${getStatusColor(ride.status)} text-white text-base px-4 py-2`}>
-          {rideStatusLabel(ride.status)}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
+          {canAssign && (
+            <Button onClick={() => setAssignOpen(true)}>
+              {hasDriver ? 'Reassign' : t('dashboard.assign', 'Assign')}
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Card className="mb-6">
+      <Card className="overflow-hidden rounded-2xl border-border/80">
         <CardHeader>
-          <CardTitle>{t('rides.rideProgress', 'Ride Progress')}</CardTitle>
+          <CardTitle>{t('rides.rideProgress', 'Ride progress')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            {rideStatuses.map((status, index) => {
-              const isPast = index <= currentStatusIndex;
-              const isCurrent = index === currentStatusIndex;
-              return (
-                <div key={status} className="flex-1 flex items-center">
-                  <div className="flex flex-col items-center flex-1">
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center border-4 ${
-                        isPast
-                          ? 'bg-[#00BDC3] border-[#00BDC3] text-white'
-                          : 'bg-card border-border text-muted-foreground'
-                      } ${isCurrent ? 'ring-4 ring-[#00BDC3]/30 scale-110' : ''}`}
-                    >
-                      <span className="font-bold">{index + 1}</span>
-                    </div>
-                    <p className={`mt-2 text-sm font-medium text-center ${isPast ? 'text-foreground' : 'text-muted-foreground'}`}>
-                      {rideStatusLabel(status)}
-                    </p>
+          {history.length > 0 ? (
+            <ol className="space-y-0">
+              {history.map((event, index) => (
+                <li key={event.id ?? index} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <span
+                      className={`mt-1 h-3 w-3 rounded-full ${
+                        index === history.length - 1 ? 'bg-primary ring-4 ring-primary/20' : 'bg-sidebar'
+                      }`}
+                    />
+                    {index < history.length - 1 && <span className="w-px flex-1 bg-border" />}
                   </div>
-                  {index < rideStatuses.length - 1 && (
-                    <div className={`h-1 flex-1 mx-2 mt-[-30px] ${index < currentStatusIndex ? 'bg-[#00BDC3]' : 'bg-border'}`} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  <div className="pb-5">
+                    <p className="text-sm font-semibold">{rideStatusLabel(event.toStatus ?? event.status)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {event.createdAt ? format(new Date(event.createdAt), 'MMM dd, HH:mm') : ''}
+                      {event.actorType ? ` · ${event.actorType}` : ''}
+                    </p>
+                    {event.notes && <p className="mt-1 text-xs text-muted-foreground">{event.notes}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="flex items-center justify-between">
+              {rideStatuses.map((status, index) => {
+                const isPast = index <= currentStatusIndex;
+                const isCurrent = index === currentStatusIndex;
+                return (
+                  <div key={status} className="flex flex-1 items-center">
+                    <div className="flex flex-1 flex-col items-center">
+                      <div
+                        className={`flex h-12 w-12 items-center justify-center rounded-full border-4 ${
+                          isPast ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground'
+                        } ${isCurrent ? 'scale-110 ring-4 ring-primary/30' : ''}`}
+                      >
+                        <span className="font-bold">{index + 1}</span>
+                      </div>
+                      <p className={`mt-2 text-center text-sm font-medium ${isPast ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {rideStatusLabel(status)}
+                      </p>
+                    </div>
+                    {index < rideStatuses.length - 1 && (
+                      <div className={`mx-2 mt-[-30px] h-1 flex-1 ${index < currentStatusIndex ? 'bg-primary' : 'bg-border'}`} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="rounded-2xl border-border/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5 text-[#00BDC3]" /> {t('rides.customerInformation', 'Customer Information')}
+              <User className="h-5 w-5 text-primary" /> {t('rides.customerInformation', 'Customer')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">{t('rides.name', 'Name')}</p>
-              <p className="font-semibold text-card-foreground">{ride.customerName}</p>
+              <p className="mb-1 text-sm text-muted-foreground">{t('rides.name', 'Name')}</p>
+              <p className="font-semibold">{ride.customerName}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Phone Number</p>
-              <p className="font-semibold text-card-foreground">{ride.customerPhone}</p>
+              <p className="mb-1 text-sm text-muted-foreground">Phone</p>
+              <a href={`tel:${ride.customerPhone}`} className="inline-flex items-center gap-2 font-semibold text-primary hover:underline">
+                <Phone className="h-4 w-4" /> {ride.customerPhone}
+              </a>
             </div>
             <Separator />
             <div className="space-y-3">
               <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-[#10B981] mt-1 flex-shrink-0" />
+                <MapPin className="mt-1 h-4 w-4 shrink-0 text-[color:var(--success)]" />
                 <div>
                   <p className="text-xs text-muted-foreground">{t('rides.pickup', 'Pickup')}</p>
-                  <p className="text-sm font-medium text-card-foreground">{ride.pickupLocation}</p>
+                  <p className="text-sm font-medium">{ride.pickupLocation}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
-                <Navigation className="w-4 h-4 text-[#EF4444] mt-1 flex-shrink-0" />
+                <Navigation className="mt-1 h-4 w-4 shrink-0 text-destructive" />
                 <div>
                   <p className="text-xs text-muted-foreground">{t('rides.destination', 'Destination')}</p>
-                  <p className="text-sm font-medium text-card-foreground">{ride.dropoffLocation}</p>
+                  <p className="text-sm font-medium">{ride.dropoffLocation}</p>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-border/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Car className="w-5 h-5 text-[#00BDC3]" /> {t('rides.driverInformation', 'Driver Information')}
+              <Car className="h-5 w-5 text-primary" /> {t('rides.driverInformation', 'Driver')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {hasDriver ? (
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">{t('rides.driverName', 'Driver Name')}</p>
-                  <p className="font-semibold text-card-foreground">{ride.driverName}</p>
+                  <p className="mb-1 text-sm text-muted-foreground">{t('rides.driverName', 'Driver name')}</p>
+                  <p className="font-semibold">{ride.driverName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">{t('rides.phoneNumber', 'Phone Number')}</p>
-                  <p className="font-semibold text-card-foreground">{ride.driverPhone ?? '—'}</p>
+                  <p className="mb-1 text-sm text-muted-foreground">{t('rides.phoneNumber', 'Phone')}</p>
+                  <p className="font-semibold">{ride.driverPhone ?? '-'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">{t('rides.vehicle', 'Vehicle')}</p>
-                  <p className="font-semibold text-card-foreground">{ride.vehicleInfo ?? '—'}</p>
+                  <p className="mb-1 text-sm text-muted-foreground">{t('rides.vehicle', 'Vehicle')}</p>
+                  <p className="font-semibold">{ride.vehicleInfo ?? '-'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">{t('rides.licensePlate', 'License Plate')}</p>
-                  <p className="font-semibold text-card-foreground">{ride.licensePlate ?? '—'}</p>
+                  <p className="mb-1 text-sm text-muted-foreground">{t('rides.licensePlate', 'License plate')}</p>
+                  <p className="font-mono font-semibold">{ride.licensePlate ?? '-'}</p>
                 </div>
                 {ride.driverPhone && (
-                  <Button className="w-full bg-[#00BDC3] hover:bg-[#009EA3] text-white" asChild>
+                  <Button className="w-full" asChild>
                     <a href={`tel:${ride.driverPhone}`}>
-                      <Phone className="w-4 h-4 mr-2" /> {t('rides.callDriver', 'Call Driver')}
+                      <Phone className="mr-2 h-4 w-4" /> {t('rides.callDriver', 'Call driver')}
                     </a>
                   </Button>
                 )}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">{t('rides.noDriverAssigned', 'No driver assigned yet')}</p>
+              <div className="py-6 text-center">
+                <p className="mb-3 text-muted-foreground">{t('rides.noDriverAssigned', 'No driver assigned yet')}</p>
+                <Button onClick={() => setAssignOpen(true)}>
+                  Assign from map
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-border/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-[#00BDC3]" /> {t('rides.rideDetails', 'Ride Details')}
+              <Clock className="h-5 w-5 text-primary" /> {t('rides.rideDetails', 'Ride details')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">{t('rides.rideIdLabel', 'Ride ID')}</p>
-              <p className="font-semibold text-card-foreground">#{String(ride.id).slice(0, 8)}</p>
+              <p className="mb-1 text-sm text-muted-foreground">{t('rides.rideIdLabel', 'Ride ID')}</p>
+              <p className="font-mono font-semibold">#{String(ride.id).slice(0, 8)}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-sm text-muted-foreground mb-1">{t('rides.createdAt', 'Created')}</p>
-                <p className="font-semibold text-card-foreground">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</p>
+                <p className="mb-1 text-sm text-muted-foreground">{t('rides.createdAt', 'Created')}</p>
+                <p className="font-semibold">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">{t('rides.updated', 'Updated')}</p>
-                <p className="font-semibold text-card-foreground">{format(new Date(ride.updatedAt), 'MMM dd, HH:mm')}</p>
+                <p className="mb-1 text-sm text-muted-foreground">{t('rides.updated', 'Updated')}</p>
+                <p className="font-semibold">{format(new Date(ride.updatedAt), 'MMM dd, HH:mm')}</p>
               </div>
             </div>
             {displayDistanceKm != null && (
               <div className="flex items-center gap-2">
-                <Route className="w-4 h-4 text-[#00BDC3]" />
+                <Route className="h-4 w-4 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground mb-0.5">{t('rides.roadDistance', 'Road distance')}</p>
-                  <p className="font-semibold text-card-foreground">
+                  <p className="mb-0.5 text-sm text-muted-foreground">{t('rides.roadDistance', 'Road distance')}</p>
+                  <p className="font-semibold">
                     {Number(displayDistanceKm).toFixed(2)} km
-                    {displayDurationMin != null ? ` · ~${displayDurationMin} min` : ''}
+                    {displayDurationMin != null ? ` · ~${displayDurationMin} min ETA` : ''}
                   </p>
                 </div>
               </div>
             )}
             <div>
-              <p className="text-sm text-muted-foreground mb-1">{ride.status === 'completed' ? t('rides.finalFare', 'Final Fare') : t('rides.fare', 'Fare')}</p>
-              <p className="text-2xl font-bold text-[#00BDC3]">{formatETB(ride.fare)}</p>
+              <p className="mb-1 text-sm text-muted-foreground">
+                {ride.status === 'completed' ? t('rides.finalFare', 'Final fare') : t('rides.fare', 'Fare')}
+              </p>
+              <p className="text-2xl font-bold text-primary">{formatETB(ride.fare)}</p>
             </div>
+            {(ride.couponDeduction != null || ride.couponsUsed != null) && (
+              <div className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-sm">
+                <Ticket className="h-4 w-4 text-primary" />
+                {ride.couponDeduction ?? ride.couponsUsed} coupons on this trip
+              </div>
+            )}
             <Separator />
             {ride.status !== 'completed' && ride.status !== 'cancelled' && (
               <Button
                 variant="outline"
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="w-full border-[#EF4444] text-[#EF4444] hover:bg-[#EF4444] hover:text-white"
+                className="w-full border-destructive text-destructive hover:bg-destructive hover:text-white"
               >
-                {cancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <X className="w-4 h-4 mr-2" />}
-                {t('rides.cancelRide', 'Cancel Ride')}
+                {cancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
+                {t('rides.cancelRide', 'Cancel ride')}
               </Button>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="overflow-hidden rounded-2xl border-border/80">
         <CardHeader>
-          <CardTitle>{t('rides.liveTracking', 'Live Tracking')}</CardTitle>
+          <CardTitle>{t('rides.liveTracking', 'Live tracking')}</CardTitle>
         </CardHeader>
         <CardContent>
           <GebetaMapView
@@ -347,6 +397,8 @@ export default function RideTracking() {
           />
         </CardContent>
       </Card>
+
+      <AssignFromMapDialog ride={assignOpen ? ride : null} onClose={() => setAssignOpen(false)} onAssigned={() => fetchRide()} />
     </div>
   );
 }

@@ -46,7 +46,7 @@ export function StatTile({
   value,
   hint,
   icon: Icon,
-  accent = '#00BDC3',
+  accent = '#00b4bb',
   onClick,
 }: {
   label: string;
@@ -61,14 +61,15 @@ export function StatTile({
     <Card
       onClick={onClick}
       className={cn(
-        'overflow-hidden border-border/70 transition-all',
-        interactive && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5'
+        'relative overflow-hidden transition-all',
+        interactive && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_rgba(5,50,54,.4)]'
       )}
     >
+      <div className="absolute inset-y-0 left-0 w-1" style={{ background: accent }} />
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-[0.09em] text-muted-foreground">{label}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
             <p
               className="mt-2 text-[28px] font-semibold leading-none tabular-nums text-foreground"
               style={{ color: accent }}
@@ -78,8 +79,8 @@ export function StatTile({
             {hint && <p className="mt-2 text-xs text-muted-foreground truncate">{hint}</p>}
           </div>
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-            style={{ background: `${accent}1a` }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+            style={{ background: `${accent}1f` }}
           >
             <Icon className="h-5 w-5" style={{ color: accent }} />
           </div>
@@ -89,7 +90,7 @@ export function StatTile({
   );
 }
 
-/** Compact balance readout — the same chip everywhere a wallet is shown. */
+/** Compact balance readout. Same tone everywhere a wallet is shown. */
 export function BalancePill({
   balance,
   threshold,
@@ -101,37 +102,28 @@ export function BalancePill({
 }) {
   const tone = TONE_STYLES[couponTone(balance, threshold)];
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full font-semibold tabular-nums ring-1',
-        tone.bg,
-        tone.text,
-        tone.ring,
-        size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
-      )}
-    >
+    <span className={cn('inline-flex items-baseline gap-1 font-semibold tabular-nums', tone.text, size === 'sm' ? 'text-sm' : 'text-base')}>
       {balance.toLocaleString()}
-      <span className="font-normal opacity-70">{balance === 1 ? 'coupon' : 'coupons'}</span>
+      <span className="font-normal text-muted-foreground">{balance === 1 ? 'coupon' : 'coupons'}</span>
     </span>
   );
 }
 
-const REQUEST_STATUS: Record<string, { label: string; className: string }> = {
-  pending: { label: 'Pending', className: 'bg-[#F59E0B]/12 text-[#B45309] dark:text-[#FBBF24] ring-[#F59E0B]/30' },
-  approved: { label: 'Approved', className: 'bg-[#10B981]/12 text-[#059669] dark:text-[#34D399] ring-[#10B981]/30' },
-  rejected: { label: 'Rejected', className: 'bg-[#EF4444]/12 text-[#DC2626] dark:text-[#F87171] ring-[#EF4444]/30' },
-  cancelled: { label: 'Withdrawn', className: 'bg-muted text-muted-foreground ring-border' },
+const REQUEST_STATUS: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Pending', color: '#e08a14' },
+  approved: { label: 'Approved', color: '#1aa37a' },
+  rejected: { label: 'Rejected', color: '#e24b4a' },
+  cancelled: { label: 'Withdrawn', color: '#7a9193' },
 };
 
 export function RequestStatusChip({ status }: { status: string }) {
   const meta = REQUEST_STATUS[status] ?? REQUEST_STATUS.cancelled;
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1',
-        meta.className
-      )}
-    >
+    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+      <span
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{ background: meta.color, boxShadow: `0 0 0 3px color-mix(in srgb, ${meta.color} 22%, transparent)` }}
+      />
       {meta.label}
     </span>
   );
@@ -150,7 +142,7 @@ export function Initials({ name, className }: { name: string; className?: string
   return (
     <div
       className={cn(
-        'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00BDC3]/10 text-sm font-semibold text-[#00868C] dark:text-[#3AD2D8]',
+        'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-sm font-semibold text-primary',
         className
       )}
     >
@@ -159,7 +151,7 @@ export function Initials({ name, className }: { name: string; className?: string
   );
 }
 
-/** Consistent empty state — an icon, a headline, and what to do about it. */
+/** Consistent empty state - an icon, a headline, and what to do about it. */
 export function EmptyState({
   icon: Icon,
   title,
@@ -173,7 +165,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 px-6 py-14 text-center">
-      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
         <Icon className="h-6 w-6 text-muted-foreground" />
       </div>
       <p className="font-medium text-foreground">{title}</p>

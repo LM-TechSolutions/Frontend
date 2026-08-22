@@ -2,37 +2,44 @@
 @import './tailwind.css';
 @import './theme.css';
 
-/* Custom animations and transitions */
 button {
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
 }
 
-button:active {
-  transform: scale(0.98);
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
-/* Smooth scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--secondary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
-  border-radius: 4px;
-  opacity: 0.5;
+  background: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--foreground);
-  opacity: 0.4;
+@keyframes live-pulse {
+  0% { background-color: color-mix(in srgb, var(--primary) 22%, transparent); }
+  100% { background-color: transparent; }
 }
 
-/* Card hover effects */
-.hover\:shadow-md:hover {
-  transition: box-shadow 0.2s ease-in-out;
+.live-pulse {
+  animation: live-pulse 1.8s ease-out;
+}
+
+@keyframes ambient {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.ambient-blob {
+  animation: ambient 7s ease-in-out infinite;
 }

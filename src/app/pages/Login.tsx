@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Eye, EyeOff, Loader2, Lock, ShieldCheck, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { useAppContext } from '../contexts/AppContext';
+import { useAppContext, type Language } from '../contexts/AppContext';
 import { api, ApiError } from '../lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 function formatCountdown(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -19,7 +20,7 @@ function formatCountdown(seconds: number) {
 export default function Login() {
   const navigate = useNavigate();
   const { login, isAuthenticated, isReady, needsTwoFactorEnrollment } = useAuth();
-  const { t } = useAppContext();
+  const { t, language, setLanguage } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -103,52 +104,51 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] bg-background">
+    <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr]">
       <aside className="relative hidden overflow-hidden lg:flex flex-col justify-between p-12 text-white bg-[#042f32]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(0,189,195,0.35),transparent_42%),radial-gradient(circle_at_80%_80%,rgba(0,134,140,0.45),transparent_40%)]" />
-        <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:48px_48px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(0,212,219,0.45),transparent_42%),radial-gradient(circle_at_88%_88%,rgba(224,138,20,0.22),transparent_40%)]" />
         <div className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#00BDC3] text-xl font-bold shadow-[0_0_40px_rgba(0,189,195,0.45)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#00d4db] text-xl font-bold text-[#042f32] shadow-[0_0_40px_rgba(0,212,219,0.45)]">
               T
             </div>
             <div>
-              <p className="text-lg font-semibold tracking-[0.28em]">TEKUMMA</p>
-              <p className="text-xs uppercase tracking-[0.22em] text-white/60">Dispatch command</p>
+              <p className="font-display text-lg font-semibold tracking-[0.22em]">TEKUMMA</p>
             </div>
           </div>
         </div>
-        <div className="relative max-w-lg space-y-6">
-          <p className="text-4xl font-semibold leading-tight tracking-tight">
-            Command the city.
-            <span className="block text-[#7ee8ec]">Protect every session.</span>
+        <div className="relative max-w-lg space-y-5">
+          <p className="font-display text-4xl font-semibold leading-tight tracking-tight">
+            The floor stays live.
+            <span className="mt-2 block text-[#7ee8ec]">Every ride. Every wallet.</span>
           </p>
-          <p className="text-sm leading-6 text-white/70">
-            Staff sign-in now carries lockout, trusted devices, and an audit trail — the same bar as the money moving through coupons and fares.
+          <p className="text-sm leading-7 text-white/70">
+            Sign in to the same command desk that assigns drivers, watches coupons, and keeps the city moving.
           </p>
-          <div className="flex flex-wrap gap-2">
-            {['15-minute lockout', 'Remember this device', 'Step-up for fares'].map((label) => (
-              <span
-                key={label}
-                className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs text-white/80 backdrop-blur"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
         </div>
-        <p className="relative text-xs text-white/45">Addis Ababa · live operations</p>
+        <p className="relative text-xs text-white/45">Operations desk</p>
       </aside>
 
       <main className="relative flex items-center justify-center p-6 sm:p-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,189,195,0.08),transparent_32%)]" />
+        <div className="absolute right-6 top-6">
+          <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
+            <SelectTrigger className="h-9 w-[132px] rounded-full bg-card">
+              <SelectValue placeholder={t('common.language')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="am">አማርኛ</SelectItem>
+              <SelectItem value="om">Oromiffa</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="relative w-full max-w-[440px]">
-          <div className="mb-8 lg:hidden flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#00BDC3] text-white font-bold">T</div>
-            <span className="text-xl font-semibold tracking-tight">TEKUMMA</span>
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground">T</div>
+            <span className="font-display text-xl font-semibold tracking-tight">TEKUMMA</span>
           </div>
 
-          <div className="rounded-3xl border border-border/80 bg-card/90 p-8 shadow-[0_24px_80px_-32px_rgba(0,134,140,0.45)] backdrop-blur">
+          <div className="rounded-3xl border border-border/70 bg-card/90 p-8 shadow-[0_24px_80px_-32px_rgba(5,50,54,0.45)]">
             {locked ? (
               <div className="space-y-5 text-center">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive">
@@ -170,7 +170,7 @@ export default function Login() {
                       strokeWidth="3"
                     />
                     <path
-                      className="text-[#00BDC3]"
+                      className="text-primary"
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                       fill="none"
                       stroke="currentColor"
@@ -190,7 +190,7 @@ export default function Login() {
                   </p>
                 </div>
                 {forgotSent ? (
-                  <div className="rounded-2xl border border-[#00BDC3]/20 bg-[#00BDC3]/8 p-4 text-sm">
+                  <div className="rounded-2xl border border-primary/20 bg-primary/8 p-4 text-sm">
                     Check your inbox. The link expires in 30 minutes.
                   </div>
                 ) : (
@@ -208,7 +208,7 @@ export default function Login() {
                 )}
                 <div className="flex gap-2">
                   {!forgotSent && (
-                    <Button className="flex-1 h-11 bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={sendReset} disabled={isLoading}>
+                    <Button className="flex-1 h-11" onClick={sendReset} disabled={isLoading}>
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send reset link'}
                     </Button>
                   )}
@@ -220,12 +220,8 @@ export default function Login() {
             ) : (
               <>
                 <div className="mb-6">
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#00BDC3]/10 px-3 py-1 text-xs font-medium text-[#00868C]">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Staff access
-                  </div>
-                  <h1 className="text-2xl font-semibold tracking-tight">{needsCode ? 'Verify it’s you' : t('auth.welcome')}</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <h1 className="font-display text-2xl font-semibold tracking-tight">{needsCode ? 'Verify it’s you' : t('auth.welcome')}</h1>
+                  <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
                     {needsCode ? t('auth.twoFactorPrompt') : t('auth.description')}
                   </p>
                 </div>
@@ -248,7 +244,7 @@ export default function Login() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label htmlFor="password">{t('auth.password')}</Label>
-                          <button type="button" className="text-xs text-[#00868C] hover:underline" onClick={() => setForgotOpen(true)}>
+                          <button type="button" className="text-xs text-primary hover:underline" onClick={() => setForgotOpen(true)}>
                             Forgot password?
                           </button>
                         </div>
@@ -277,7 +273,7 @@ export default function Login() {
                         <span>
                           <span className="font-medium">Remember this device for 30 days</span>
                           <span className="block text-xs text-muted-foreground">
-                            Trusted terminals skip the authenticator prompt — the reason 2FA stays on.
+                            Trusted terminals skip the authenticator prompt so 2FA stays on for new devices.
                           </span>
                         </span>
                       </label>
@@ -285,7 +281,7 @@ export default function Login() {
                   ) : (
                     <div className="space-y-2">
                       <Label htmlFor="code" className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-[#00BDC3]" /> {t('auth.code')}
+                        <ShieldCheck className="w-4 h-4 text-primary" /> {t('auth.code')}
                       </Label>
                       <Input
                         id="code"
@@ -309,7 +305,7 @@ export default function Login() {
                       </button>
                     </div>
                   )}
-                  <Button type="submit" className="w-full h-11 bg-[#00BDC3] hover:bg-[#009EA3] text-white" disabled={isLoading}>
+                  <Button type="submit" className="w-full h-11" disabled={isLoading}>
                     {isLoading ? (
                       <span className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" /> {needsCode ? t('auth.verifying') : t('auth.loggingIn')}
@@ -326,7 +322,7 @@ export default function Login() {
           </div>
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Need a new password from a reset email?{' '}
-            <Link to="/reset-password" className="text-[#00868C] hover:underline">
+            <Link to="/reset-password" className="text-primary hover:underline">
               Open reset
             </Link>
           </p>

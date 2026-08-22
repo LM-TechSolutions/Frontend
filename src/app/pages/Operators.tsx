@@ -1,23 +1,42 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Phone, Mail, PhoneCall, Users, Plus, Search, UserCog, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
-import { Phone, Mail, PhoneCall, Users, Plus, Search, UserCog, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { useAppContext } from '../contexts/AppContext';
+import { Page, PageHeader, FilterBar } from '../components/layout/PageHeader';
+import { StatusBadge } from '../components/layout/StatusBadge';
+import { EmptyState, Initials, StatTile, timeAgo } from '../components/coupons/CouponAtoms';
 
-const statusColor = (active: boolean) => (active ? 'bg-[#10B981] text-white' : 'bg-[#6B7280] text-white');
+function onShift(shift: string) {
+  const hour = new Date().getHours();
+  if (shift === 'morning') return hour >= 6 && hour < 14;
+  if (shift === 'afternoon') return hour >= 14 && hour < 22;
+  if (shift === 'night') return hour >= 22 || hour < 6;
+  return false;
+}
 
 export default function Operators() {
   const { t } = useAppContext();
   const [operators, setOperators] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editing, setEditing] = useState<any | null>(null);
+  const [removing, setRemoving] = useState<any | null>(null);
 
   const load = async () => {
     try {
@@ -35,7 +54,6 @@ export default function Operators() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Client-side filter by name, email, and phone
   const visible = operators.filter((o) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -49,78 +67,125 @@ export default function Operators() {
   const onlineCount = operators.filter((o) => o.status === 'active').length;
   const totalCalls = operators.reduce((s, o) => s + (o.totalCalls ?? 0), 0);
   const totalCustomers = operators.reduce((s, o) => s + (o.totalRidesCreated ?? 0), 0);
+  const conversion = totalCalls ? Math.round((totalCustomers / totalCalls) * 100) : 0;
+
+  const handleDelete = async () => {
+    if (!removing) return;
+    try {
+      await api.operators.remove(removing.id);
+      toast.success(`${removing.name} removed`);
+      setRemoving(null);
+      load();
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not delete operator');
+    }
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('operators.title', 'Operators Management')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('operators.subtitle', 'Manage call center operators and track performance')}</p>
+    <Page>
+      <PageHeader
+        eyebrow="Staff"
+        title={t('operators.title', 'Operators')}
+        description={t('operators.subtitle', 'Call-centre desks, shifts, and conversion.')}
+        actions={<AddOperatorDialog onCreated={load} />}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label={t('operators.totalOperators', 'Total operators')} value={operators.length} icon={UserCog} />
+        <StatTile label={t('operators.onlineNow', 'Active accounts')} value={onlineCount} icon={Users} accent="#0B7A55" />
+        <StatTile label={t('operators.totalRidesCreated', 'Rides created')} value={totalCustomers} icon={Users} />
+        <StatTile label="Call → ride" value={`${conversion}%`} hint={`${totalCalls} logged calls`} icon={PhoneCall} />
+      </div>
+
+      <FilterBar>
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder={t('operators.searchPlaceholder', 'Search by name, email, or phone…')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-10 pl-10" />
         </div>
-        <AddOperatorDialog onCreated={load} />
-      </div>
-
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: t('operators.totalOperators', 'Total Operators'), value: operators.length, icon: UserCog, color: '#00BDC3' },
-          { label: t('operators.onlineNow', 'Online Now'), value: onlineCount, icon: Users, color: '#10B981' },
-          { label: t('operators.totalRidesCreated', 'Total Rides Created'), value: totalCustomers, icon: Users, color: '#00BDC3' },
-          { label: t('operators.totalCalls', 'Total Calls'), value: totalCalls, icon: PhoneCall, color: '#00BDC3' },
-        ].map((s) => (
-          <Card key={s.label}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-muted-foreground">{s.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: s.color }}>{s.value}</p></div>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: `${s.color}1a` }}><s.icon className="w-6 h-6" style={{ color: s.color }} /></div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder={t('operators.searchPlaceholder', 'Search by name, email, or phone…')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
-          </div>
-        </CardContent>
-      </Card>
+      </FilterBar>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>
+        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : visible.length === 0 ? (
+        <EmptyState icon={Users} title={t('operators.noOperators', 'No operators found')} />
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {visible.map((op) => (
-            <Card key={op.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
+        <div className="grid gap-4 md:grid-cols-2">
+          {visible.map((op) => {
+            const calls = op.totalCalls ?? 0;
+            const rides = op.totalRidesCreated ?? 0;
+            const rate = calls ? Math.round((rides / calls) * 100) : rides ? 100 : 0;
+            const working = onShift(op.shift);
+            return (
+              <article key={op.id} className="rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_rgba(15,26,27,.04)]">
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-[#00BDC3]/10 flex items-center justify-center">
-                      <span className="text-lg font-semibold text-[#00BDC3]">{String(op.name).split(' ').map((n: string) => n[0]).join('')}</span>
+                    <Initials name={op.name} />
+                    <div>
+                      <p className="font-semibold">{op.name}</p>
+                      <p className="text-xs capitalize text-muted-foreground">{op.shift} shift</p>
                     </div>
-                    <div><CardTitle className="text-base">{op.name}</CardTitle><p className="text-xs text-muted-foreground mt-1 capitalize">{op.shift}</p></div>
                   </div>
-                  <Badge className={statusColor(op.status === 'active')}>{op.status === 'active' ? t('operators.active', 'Active') : t('operators.inactive', 'Inactive')}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusBadge status={op.status === 'active' ? 'active' : 'inactive'} label={op.status === 'active' ? t('operators.active', 'Active') : t('operators.inactive', 'Inactive')} />
+                    <span className={`text-[12px] font-medium ${working ? 'text-[color:var(--success)]' : 'text-muted-foreground'}`}>
+                      {working ? 'On shift' : 'Off shift'}
+                    </span>
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Mail className="w-4 h-4" /><span>{op.email}</span></div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Phone className="w-4 h-4" /><span>{op.phone}</span></div>
-                <div className="pt-3 border-t border-border grid grid-cols-2 gap-4 text-sm">
-                  <div><p className="text-muted-foreground">{t('operators.totalCalls', 'Total Calls')}</p><p className="font-semibold text-foreground">{(op.totalCalls ?? 0).toLocaleString()}</p></div>
-                  <div><p className="text-muted-foreground">{t('operators.totalRidesCreated', 'Total Rides Created')}</p><p className="font-semibold text-foreground">{(op.totalRidesCreated ?? 0).toLocaleString()}</p></div>
+                <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> {op.email}</p>
+                  <a href={`tel:${op.phone}`} className="flex items-center gap-2 text-primary hover:underline">
+                    <Phone className="h-4 w-4" /> {op.phone}
+                  </a>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Calls</p>
+                    <p className="font-semibold tabular-nums">{calls.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Rides</p>
+                    <p className="font-semibold tabular-nums">{rides.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Conversion</p>
+                    <p className="font-semibold tabular-nums">{rate}%</p>
+                  </div>
+                </div>
+                {op.lastActive && (
+                  <p className="mt-3 text-xs text-muted-foreground">Last active {timeAgo(op.lastActive)}</p>
+                )}
+                <div className="mt-4 flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditing(op)}>
+                    <Pencil className="mr-1.5 h-4 w-4" /> Edit
+                  </Button>
+                  <Button variant="outline" size="sm" className="border-[#AE2E2D]/40 text-[#AE2E2D]" onClick={() => setRemoving(op)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
-      {!loading && visible.length === 0 && (
-        <div className="text-center py-12"><Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">{t('operators.noOperators', 'No operators found')}</p></div>
-      )}
-    </div>
+      <EditOperatorDialog operator={editing} onClose={() => setEditing(null)} onSaved={load} />
+
+      <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>Their operator profile and login will be deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep</AlertDialogCancel>
+            <AlertDialogAction className="bg-[#AE2E2D] text-white hover:bg-[#8f2423]" onClick={handleDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Page>
   );
 }
 
@@ -153,15 +218,20 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white"><Plus className="w-4 h-4 mr-2" /> {t('operators.addButton', 'Add Operator')}</Button>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" /> {t('operators.addButton', 'Add operator')}
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader><DialogTitle>{t('operators.addNewTitle', 'Add New Operator')}</DialogTitle><DialogDescription>{t('operators.addNewDescription', 'Add a new call center operator to the system')}</DialogDescription></DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="space-y-2"><Label>{t('operators.fullName', 'Full Name')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" required /></div>
-          <div className="space-y-2"><Label>{t('operators.email', 'Email')}</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@tokuma.et" required /></div>
-          <div className="space-y-2"><Label>{t('operators.phone', 'Phone')}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0911 123456" required /></div>
-          <div className="space-y-2"><Label>{t('operators.password', 'Password')}</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" required /></div>
+        <DialogHeader>
+          <DialogTitle>{t('operators.addNewTitle', 'Add new operator')}</DialogTitle>
+          <DialogDescription>{t('operators.addNewDescription', 'Add a call-centre operator to the system')}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <div className="space-y-2"><Label>{t('operators.fullName', 'Full name')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
+          <div className="space-y-2"><Label>{t('operators.email', 'Email')}</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
+          <div className="space-y-2"><Label>{t('operators.phone', 'Phone')}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required /></div>
+          <div className="space-y-2"><Label>{t('operators.password', 'Password')}</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required /></div>
           <div className="space-y-2">
             <Label>{t('operators.shift', 'Shift')}</Label>
             <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
@@ -175,8 +245,94 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
           </div>
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">{t('operators.cancel', 'Cancel')}</Button>
-            <Button type="submit" className="flex-1 bg-[#00BDC3] hover:bg-[#009EA3] text-white" disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('operators.addOperator', 'Add Operator')}
+            <Button type="submit" className="flex-1" disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('operators.addOperator', 'Add operator')}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditOperatorDialog({
+  operator,
+  onClose,
+  onSaved,
+}: {
+  operator: any | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', shift: 'morning', status: 'active' });
+
+  useEffect(() => {
+    if (operator) {
+      setForm({
+        name: operator.name ?? '',
+        email: operator.email ?? '',
+        phone: operator.phone ?? '',
+        shift: operator.shift ?? 'morning',
+        status: operator.status ?? 'active',
+      });
+    }
+  }, [operator]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!operator) return;
+    setSaving(true);
+    try {
+      await api.operators.update(operator.id, form);
+      toast.success('Operator updated');
+      onClose();
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to update operator');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!operator} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Edit operator</DialogTitle>
+          <DialogDescription>Name, contact, shift, and whether the account is active.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="mt-4 space-y-4">
+          <div className="space-y-2"><Label>Full name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+          <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Shift</Label>
+              <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="morning">Morning</SelectItem>
+                  <SelectItem value="afternoon">Afternoon</SelectItem>
+                  <SelectItem value="night">Night</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Account</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="submit" className="flex-1" disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Save
             </Button>
           </div>
         </form>

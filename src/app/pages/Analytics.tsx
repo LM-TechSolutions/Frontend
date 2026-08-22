@@ -1,126 +1,185 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { PhoneCall, Users, Car, DollarSign, CheckCircle, XCircle, Activity, Loader2 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { PhoneCall, Users, Car, DollarSign, CheckCircle, XCircle, Activity, Loader2, Download } from 'lucide-react';
+import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { api } from '../lib/api';
 import { formatETB } from '../lib/format';
+import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import { useAppContext } from '../contexts/AppContext';
+import { Page, PageHeader, Surface } from '../components/layout/PageHeader';
+import { StatusBadge } from '../components/layout/StatusBadge';
+import { StatTile } from '../components/coupons/CouponAtoms';
+
+const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 
 export default function Analytics() {
   const { t } = useAppContext();
-  const [timeRange, setTimeRange] = useState('today');
+  const [range, setRange] = useState<DateRange | undefined>({ from: new Date(), to: new Date() });
   const [stats, setStats] = useState<any>(null);
   const [operators, setOperators] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([api.dashboard.stats(timeRange), api.operators.list({ limit: 100 }).catch(() => ({ operators: [] }))])
+    Promise.all([
+      api.dashboard.stats({
+        startDate: range?.from ? iso(range.from) : undefined,
+        endDate: range?.to ? iso(range.to) : undefined,
+      }),
+      api.operators.list({ limit: 100 }).catch(() => ({ operators: [] })),
+    ])
       .then(([s, ops]) => {
         setStats(s);
         setOperators(ops.operators ?? []);
       })
       .catch((e) => toast.error(e?.message ?? 'Failed to load analytics'))
       .finally(() => setLoading(false));
-  }, [timeRange]);
-
-  if (loading || !stats) {
-    return <div className="p-6 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>;
-  }
+  }, [range]);
 
   const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
-  const metrics = [
-    { label: t('analytics.totalRides', 'Total Rides'), value: stats.totalRides ?? 0, icon: Car, color: '#00BDC3' },
-    { label: t('analytics.totalRevenue', 'Total Revenue'), value: formatETB(stats.totalRevenue), icon: DollarSign, color: '#10B981' },
-    { label: t('analytics.activeDrivers', 'Active Drivers'), value: `${stats.activeDrivers ?? 0}/${stats.totalDrivers ?? 0}`, icon: Users, color: '#00BDC3' },
-    { label: t('analytics.totalCalls', 'Total Calls'), value: stats.totalCalls ?? 0, icon: PhoneCall, color: '#00BDC3' },
-  ];
+  const exportCsv = () => {
+    const header = ['operator', 'status', 'shift', 'rides', 'calls', 'conversion'];
+    const rows = operators.map((op) => {
+      const calls = op.totalCalls ?? 0;
+      const rides = op.totalRidesCreated ?? 0;
+      const rate = calls ? Math.round((rides / calls) * 100) : 0;
+      return [op.name, op.status, op.shift, rides, calls, `${rate}%`].join(',');
+    });
+    const blob = new Blob([[header.join(','), ...rows].join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-operators-${iso(new Date())}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (loading || !stats) {
+    return (
+      <div className="flex justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const completion = pct(stats.completedRides, stats.totalRides);
+  const cancel = pct(stats.cancelledRides, stats.totalRides);
+  const leaderboard = [...operators].sort((a, b) => (b.totalRidesCreated ?? 0) - (a.totalRidesCreated ?? 0));
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('analytics.title', 'Analytics & Reports')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('analytics.subtitle', 'Overview of dispatch performance')}</p>
-        </div>
-        <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">{t('analytics.today', 'Today')}</SelectItem>
-            <SelectItem value="week">{t('analytics.week', 'This Week')}</SelectItem>
-            <SelectItem value="month">{t('analytics.month', 'This Month')}</SelectItem>
-            <SelectItem value="year">{t('analytics.year', 'This Year')}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-4 gap-4">
-        {metrics.map((m) => (
-          <Card key={m.label}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-muted-foreground">{m.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: m.color }}>{m.value}</p></div>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: `${m.color}1a` }}><m.icon className="w-6 h-6" style={{ color: m.color }} /></div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-6 flex items-center justify-between">
-            <div><p className="text-sm text-muted-foreground">{t('analytics.completedRides', 'Completed Rides')}</p><p className="text-2xl font-semibold text-[#10B981] mt-1">{stats.completedRides ?? 0}</p><p className="text-xs text-muted-foreground mt-1">{t('analytics.completedPercent', '{0}% of total', { 0: pct(stats.completedRides, stats.totalRides) })}</p></div>
-            <CheckCircle className="w-10 h-10 text-[#10B981]" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 flex items-center justify-between">
-            <div><p className="text-sm text-muted-foreground">{t('analytics.cancelledRides', 'Cancelled Rides')}</p><p className="text-2xl font-semibold text-[#EF4444] mt-1">{stats.cancelledRides ?? 0}</p><p className="text-xs text-muted-foreground mt-1">{t('analytics.completedPercent', '{0}% of total', { 0: pct(stats.cancelledRides, stats.totalRides) })}</p></div>
-            <XCircle className="w-10 h-10 text-[#EF4444]" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 flex items-center justify-between">
-            <div><p className="text-sm text-muted-foreground">{t('analytics.activeRides', 'Active Rides')}</p><p className="text-2xl font-semibold text-[#00BDC3] mt-1">{stats.activeRides ?? 0}</p><p className="text-xs text-muted-foreground mt-1">{t('analytics.avgFare', 'Avg fare {0}', { 0: formatETB(stats.averageFare) })}</p></div>
-            <Activity className="w-10 h-10 text-[#00BDC3]" />
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader><CardTitle className="text-lg">{t('analytics.operatorPerformance', 'Operator Performance')}</CardTitle></CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  {[t('analytics.operator', 'Operator'), t('analytics.status', 'Status'), t('analytics.shift', 'Shift'), t('analytics.ridesCreated', 'Rides Created'), t('analytics.totalCalls', 'Total Calls')].map((h) => (
-                    <th key={h} className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {operators.map((op) => (
-                  <tr key={op.id} className="border-b border-border hover:bg-muted/50">
-                    <td className="py-3 px-4 text-sm font-medium text-foreground">{op.name}</td>
-                    <td className="py-3 px-4"><Badge className={op.status === 'active' ? 'bg-[#10B981] text-white' : 'bg-[#6B7280] text-white'}>{op.status === 'active' ? t('analytics.active', 'active') : op.status}</Badge></td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground capitalize">{op.shift === 'morning' ? t('analytics.morning', 'Morning') : op.shift}</td>
-                    <td className="py-3 px-4 text-sm text-foreground">{op.totalRidesCreated ?? 0}</td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground">{(op.totalCalls ?? 0).toLocaleString()}</td>
-                  </tr>
-                ))}
-                {operators.length === 0 && (
-                  <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('analytics.noOperators', 'No operators yet')}</td></tr>
-                )}
-              </tbody>
-            </table>
+    <Page>
+      <PageHeader
+        eyebrow="Performance"
+        title={t('analytics.title', 'Analytics')}
+        description={t('analytics.subtitle', 'Choose a date range - figures are live from rides and calls.')}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <DateRangePicker value={range} onChange={setRange} align="end" />
+            <Button variant="outline" onClick={exportCsv} disabled={!operators.length}>
+              <Download className="mr-2 h-4 w-4" /> Export
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label={t('analytics.totalRides', 'Total rides')} value={stats.totalRides ?? 0} icon={Car} />
+        <StatTile label={t('analytics.totalRevenue', 'Revenue')} value={formatETB(stats.totalRevenue)} icon={DollarSign} accent="#0B7A55" />
+        <StatTile
+          label={t('analytics.activeDrivers', 'Active drivers')}
+          value={`${stats.activeDrivers ?? 0}/${stats.totalDrivers ?? 0}`}
+          icon={Users}
+        />
+        <StatTile label={t('analytics.totalCalls', 'Calls')} value={stats.totalCalls ?? 0} icon={PhoneCall} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Surface className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">{t('analytics.completedRides', 'Completed')}</p>
+              <p className="mt-1 text-2xl font-semibold text-[#0B7A55]">{stats.completedRides ?? 0}</p>
+            </div>
+            <CheckCircle className="h-9 w-9 text-[#0B7A55]" />
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-[#0B7A55]" style={{ width: `${completion}%` }} />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">{completion}% of rides in range</p>
+        </Surface>
+        <Surface className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">{t('analytics.cancelledRides', 'Cancelled')}</p>
+              <p className="mt-1 text-2xl font-semibold text-[#AE2E2D]">{stats.cancelledRides ?? 0}</p>
+            </div>
+            <XCircle className="h-9 w-9 text-[#AE2E2D]" />
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-[#AE2E2D]" style={{ width: `${cancel}%` }} />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">{cancel}% of rides in range</p>
+        </Surface>
+        <Surface className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">{t('analytics.activeRides', 'Active now')}</p>
+              <p className="mt-1 text-2xl font-semibold text-primary">{stats.activeRides ?? 0}</p>
+            </div>
+            <Activity className="h-9 w-9 text-primary" />
+          </div>
+          <p className="mt-6 text-xs text-muted-foreground">
+            {t('analytics.avgFare', 'Avg fare {0}', { 0: formatETB(stats.averageFare) })}
+          </p>
+        </Surface>
+      </div>
+
+      <Surface>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="font-display text-base font-semibold">{t('analytics.operatorPerformance', 'Operator productivity')}</h3>
+          <p className="text-xs text-muted-foreground">Ranked by rides created</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                {['#', t('analytics.operator', 'Operator'), t('analytics.status', 'Status'), t('analytics.shift', 'Shift'), t('analytics.ridesCreated', 'Rides'), t('analytics.totalCalls', 'Calls'), 'Conversion'].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((op, index) => {
+                const calls = op.totalCalls ?? 0;
+                const rides = op.totalRidesCreated ?? 0;
+                const rate = calls ? Math.round((rides / calls) * 100) : 0;
+                return (
+                  <tr key={op.id} className="border-b border-border hover:bg-muted/50">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{index + 1}</td>
+                    <td className="px-4 py-3 text-sm font-medium">{op.name}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={op.status === 'active' ? 'active' : 'inactive'} />
+                    </td>
+                    <td className="px-4 py-3 text-sm capitalize text-muted-foreground">{op.shift}</td>
+                    <td className="px-4 py-3 text-sm tabular-nums">{rides}</td>
+                    <td className="px-4 py-3 text-sm tabular-nums text-muted-foreground">{calls.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm font-semibold tabular-nums">{rate}%</td>
+                  </tr>
+                );
+              })}
+              {operators.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                    {t('analytics.noOperators', 'No operators yet')}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Surface>
+    </Page>
   );
 }

@@ -74,7 +74,7 @@ export default function LogCallDialog({ onLogged, className }: { onLogged?: () =
         </div>
         <div className="flex gap-3 justify-end">
           <Button variant="outline" onClick={() => setOpen(false)}>{t('common.cancel', 'Cancel')}</Button>
-          <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={submit} disabled={saving}>
+          <Button onClick={submit} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('dashboard.saveCall', 'Save Call')}
           </Button>
         </div>

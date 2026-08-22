@@ -143,7 +143,7 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
           placeholder={active === 'pickup' ? t('dashboard.searchPickup', 'Search pickup...') : t('dashboard.searchDestination', 'Search destination...')}
           className="pl-10 pr-9"
         />
-        {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00BDC3] animate-spin" />}
+        {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin" />}
 
         {open && suggestions.length > 0 && (
           <div className="absolute z-[500] mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
@@ -165,13 +165,13 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
         )}
         {open && !searching && query.trim().length >= 2 && suggestions.length === 0 && (
           <div className="absolute z-[500] mt-1 w-full bg-card border border-border rounded-lg shadow-lg px-3 py-2 text-sm text-muted-foreground">
-            No matches — click the map to drop a pin.
+            No matches - click the map to drop a pin.
           </div>
         )}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {active === 'pickup' ? t('dashboard.settingPickup', 'Setting pickup') : t('dashboard.settingDestination', 'Setting destination')} — pick a suggestion above, or click the map.
+        {active === 'pickup' ? t('dashboard.settingPickup', 'Setting pickup') : t('dashboard.settingDestination', 'Setting destination')} - pick a suggestion above, or click the map.
       </p>
 
       <GebetaMapView
@@ -184,15 +184,15 @@ export default function RideLocationPicker({ pickup, dropoff, onChange, onRouteC
       />
 
       {route && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#00BDC3]/25 bg-[#00BDC3]/8 px-3 py-2.5 text-sm">
-          <Route className="w-4 h-4 text-[#00BDC3] flex-shrink-0" />
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/25 bg-primary/8 px-3 py-2.5 text-sm">
+          <Route className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="font-semibold text-foreground">{route.distanceKm.toFixed(1)} km</span>
           <span className="text-muted-foreground">·</span>
           <span className="text-muted-foreground">~{route.durationMinutes} min</span>
           {farePreview != null && (
             <>
               <span className="text-muted-foreground">·</span>
-              <span className="font-semibold text-[#00BDC3]">Est. {formatETB(farePreview)}</span>
+              <span className="font-semibold text-primary">Est. {formatETB(farePreview)}</span>
             </>
           )}
           <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">

@@ -1,0 +1,8 @@
+{
+  "title": "Operators Management",
+  "subtitle": "Manage call center operators and track performance",
+  "searchPlaceholder": "Search by name, email, or phone...",
+  "addButton": "Add Operator",
+  "viewDetails": "View Details",
+  "noOperators": "No operators found matching your criteria"
+}

@@ -1,0 +1,13 @@
+{
+  "dashboard": "Dashboard",
+  "analytics": "Analytics",
+  "operators": "Operators",
+  "callLogs": "Call Logs",
+  "rides": "Rides",
+  "drivers": "Drivers",
+  "coupons": "Coupons",
+  "notifications": "Inbox",
+  "admins": "Administrators",
+  "auditLog": "Audit log",
+  "settings": "Settings"
+}

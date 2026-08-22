@@ -1,0 +1,16 @@
+{
+  "title": "Beeksisoota",
+  "eyebrow": "Sanduuqa",
+  "description": "Seenaan kuufameera - haaromsa irra hin dhumu. Lakkoofsi hin dubbifamne server irraa dhufa.",
+  "markAllRead": "Hunda dubbifameera godhi",
+  "unreadOnly": "Hin dubbifamne qofa",
+  "empty": "Sanduuqni qulqulluu dha",
+  "emptyHint": "Beeksisoonni kallatti asitti fi dirra bilbilaatti ni dhufu.",
+  "groupAll": "Hunda",
+  "groupRides": "Imala",
+  "groupCoupons": "Kuuponoota",
+  "groupDrivers": "Draayivaroota",
+  "groupSecurity": "Nageenya",
+  "groupSystem": "Sirna",
+  "noneNew": "Beeksisa haaraan hin jiru"
+}

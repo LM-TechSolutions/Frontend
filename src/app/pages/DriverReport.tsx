@@ -25,7 +25,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
+import { StatusBadge } from '../components/layout/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { toast } from 'sonner';
 import { api, type DriverPerformanceReport } from '../lib/api';
@@ -127,7 +127,7 @@ export default function DriverReport() {
       r.completedAt ?? r.cancelledAt ?? '',
     ]);
 
-    // Quote every cell — addresses contain commas.
+    // Quote every cell - addresses contain commas.
     const csv = [header, ...rows]
       .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n');
@@ -145,7 +145,7 @@ export default function DriverReport() {
   if (loading && !report) {
     return (
       <div className="flex h-[60vh] items-center justify-center p-6">
-        <Loader2 className="h-8 w-8 animate-spin text-[#00BDC3]" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -158,7 +158,7 @@ export default function DriverReport() {
           title="Driver not found"
           description="This driver may have been removed."
           action={
-            <Button className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={() => navigate('/drivers')}>
+            <Button onClick={() => navigate('/drivers')}>
               Back to drivers
             </Button>
           }
@@ -176,11 +176,12 @@ export default function DriverReport() {
           </Button>
           <Initials name={name} className="h-12 w-12" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{name}</h1>
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Driver report</p>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">{name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <span className="capitalize">
-                {report?.driver?.vehicleType ?? driver?.vehicleType ?? '—'} ·{' '}
-                {report?.driver?.vehiclePlate ?? driver?.licensePlate ?? '—'}
+                {report?.driver?.vehicleType ?? driver?.vehicleType ?? '-'} ·{' '}
+                {report?.driver?.vehiclePlate ?? driver?.licensePlate ?? '-'}
               </span>
               <span className="inline-flex items-center gap-1">
                 <Star className="h-3.5 w-3.5" />
@@ -255,7 +256,7 @@ export default function DriverReport() {
             <CardTitle className="text-base">Daily activity</CardTitle>
             <span className="text-xs text-muted-foreground">
               {range?.from && range?.to
-                ? `${format(range.from, 'd MMM')} – ${format(range.to, 'd MMM yyyy')}`
+                ? `${format(range.from, 'd MMM')} - ${format(range.to, 'd MMM yyyy')}`
                 : 'Selected period'}
             </span>
           </CardHeader>
@@ -326,7 +327,7 @@ export default function DriverReport() {
             <Measure
               icon={TrendingUp}
               label="Acceptance rate"
-              value={summary?.acceptanceRate != null ? `${summary.acceptanceRate}%` : '—'}
+              value={summary?.acceptanceRate != null ? `${summary.acceptanceRate}%` : '-'}
               hint={
                 summary?.offeredRides
                   ? `${summary.acceptedRides} of ${summary.offeredRides} offers`
@@ -336,7 +337,7 @@ export default function DriverReport() {
             <Measure
               icon={Star}
               label="Rider rating"
-              value={summary?.averageCustomerRating != null ? summary.averageCustomerRating.toFixed(1) : '—'}
+              value={summary?.averageCustomerRating != null ? summary.averageCustomerRating.toFixed(1) : '-'}
               hint={`Lifetime average ${(summary?.currentRating ?? 0).toFixed(1)}`}
             />
             <Measure
@@ -417,22 +418,13 @@ export default function DriverReport() {
                         </p>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right tabular-nums">
-                        {ride.fare != null ? formatETB(ride.fare) : '—'}
+                        {ride.fare != null ? formatETB(ride.fare) : '-'}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right font-medium tabular-nums text-[#059669] dark:text-[#34D399]">
-                        {ride.driverEarnings != null ? formatETB(ride.driverEarnings) : '—'}
+                        {ride.driverEarnings != null ? formatETB(ride.driverEarnings) : '-'}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            ride.status === 'completed'
-                              ? 'border-[#10B981]/40 text-[#059669] dark:text-[#34D399]'
-                              : 'border-[#EF4444]/40 text-[#DC2626] dark:text-[#F87171]'
-                          }
-                        >
-                          {rideStatusLabel(ride.status)}
-                        </Badge>
+                        <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -471,7 +463,7 @@ export default function DriverReport() {
             />
           ) : (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              No location reported — this driver hasn’t gone online with GPS on.
+              No location reported - this driver hasn’t gone online with GPS on.
             </p>
           )}
         </CardContent>

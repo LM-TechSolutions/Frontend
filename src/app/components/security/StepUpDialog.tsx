@@ -87,10 +87,10 @@ export function StepUpHost() {
   return (
     <Dialog open={!!action} onOpenChange={(open) => !open && close(false)}>
       <DialogContent className="sm:max-w-[420px] overflow-hidden border-0 bg-card p-0 shadow-2xl">
-        <div className="h-1 w-full bg-gradient-to-r from-[#00868C] via-[#00BDC3] to-[#3AD2D8]" />
+        <div className="h-1 w-full bg-gradient-to-r from-sidebar via-primary to-[var(--primary-hover)]" />
         <div className="p-6">
           <DialogHeader>
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#00BDC3]/10 text-[#00868C]">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <ShieldAlert className="h-6 w-6" />
             </div>
             <DialogTitle className="text-xl">{copy.title}</DialogTitle>
@@ -113,7 +113,7 @@ export function StepUpHost() {
             <Button variant="outline" onClick={() => close(false)} disabled={busy}>
               Cancel
             </Button>
-            <Button className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={submit} disabled={busy}>
+            <Button onClick={submit} disabled={busy}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Confirm
             </Button>

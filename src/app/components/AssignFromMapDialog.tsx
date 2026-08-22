@@ -13,7 +13,6 @@ import {
   Zap,
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { toast } from 'sonner';
 import { api, type AssignmentCandidate, type NearbyDriversResponse } from '../lib/api';
@@ -32,7 +31,7 @@ interface AssignFromMapDialogProps {
  *
  * The pin *is* the control: the map and the ranked list are two views of one
  * selection, so clicking a marker highlights its row and vice versa. Drivers
- * who cannot take the ride are still shown — greyed, with the reason — because
+ * who cannot take the ride are still shown - greyed, with the reason - because
  * an operator looking at an empty map cannot tell "nobody nearby" from
  * "everybody nearby is out of coupons".
  */
@@ -48,7 +47,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
     try {
       const res = await api.rides.nearbyDrivers(ride.id);
       setData(res);
-      // Preselect the nearest assignable driver — the answer the operator
+      // Preselect the nearest assignable driver - the answer the operator
       // wanted most of the time, still one confirmation away from happening.
       setSelectedId((current) => current ?? res.candidates.find((c) => c.isEligible)?.driverId ?? null);
     } catch (e: any) {
@@ -135,8 +134,8 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
       <DialogContent className="max-w-[min(1100px,95vw)] gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-4">
           <DialogTitle className="flex items-center gap-2">
-            <Navigation className="h-5 w-5 text-[#00BDC3]" />
-            Assign a driver{ride?.customerName ? ` — ${ride.customerName}` : ''}
+            <Navigation className="h-5 w-5 text-primary" />
+            Assign a driver{ride?.customerName ? ` - ${ride.customerName}` : ''}
           </DialogTitle>
           <DialogDescription className="flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-[#10B981]" />
@@ -162,7 +161,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
             )}
             {loading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70">
-                <Loader2 className="h-6 w-6 animate-spin text-[#00BDC3]" />
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
             )}
 
@@ -211,7 +210,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                   <p className="font-medium text-foreground">No drivers are available</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {blocked.length > 0
-                      ? `${blocked.length} nearby driver${blocked.length === 1 ? ' is' : 's are'} blocked — show them to see why.`
+                      ? `${blocked.length} nearby driver${blocked.length === 1 ? ' is' : 's are'} blocked - show them to see why.`
                       : 'Nobody is online with a GPS fix right now.'}
                   </p>
                 </div>
@@ -247,7 +246,6 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#00BDC3] text-white hover:bg-[#009EA3]"
                   disabled={!selected || assigning}
                   onClick={assign}
                 >
@@ -284,10 +282,10 @@ function CandidateRow({
       aria-pressed={selected}
       className={`w-full rounded-xl border p-3 text-left transition-all ${
         selected
-          ? 'border-[#00BDC3] bg-[#00BDC3]/10 ring-2 ring-[#00BDC3]/25'
+          ? 'border-primary bg-primary/10 ring-2 ring-primary/25'
           : disabled
           ? 'cursor-not-allowed border-border/60 bg-muted/30 opacity-70'
-          : 'border-border hover:border-[#00BDC3]/50 hover:bg-muted/50'
+          : 'border-border hover:border-primary/50 hover:bg-muted/50'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -304,7 +302,7 @@ function CandidateRow({
           <div className="flex items-center justify-between gap-2">
             <p className="truncate font-medium text-foreground">{candidate.name}</p>
             {candidate.distanceKm != null && (
-              <span className="shrink-0 text-sm font-semibold tabular-nums text-[#00868C] dark:text-[#3AD2D8]">
+              <span className="shrink-0 text-sm font-semibold tabular-nums text-primary">
                 {candidate.distanceKm} km
               </span>
             )}
@@ -326,7 +324,7 @@ function CandidateRow({
             </span>
             <span className="inline-flex items-center gap-1">
               <Star className="h-3 w-3" />
-              <span className="tabular-nums">{candidate.rating?.toFixed(1) ?? '—'}</span>
+              <span className="tabular-nums">{candidate.rating?.toFixed(1) ?? '-'}</span>
             </span>
             {candidate.phoneNumber && (
               <span className="inline-flex items-center gap-1">
@@ -337,13 +335,10 @@ function CandidateRow({
           </div>
 
           {disabled && candidate.blockedReason && (
-            <Badge
-              variant="outline"
-              className="mt-2 gap-1 border-[#EF4444]/30 text-[10px] uppercase tracking-wide text-[#DC2626] dark:text-[#F87171]"
-            >
+            <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-destructive">
               <Ban className="h-3 w-3" />
               {candidate.blockedReason}
-            </Badge>
+            </p>
           )}
         </div>
       </div>

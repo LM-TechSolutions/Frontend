@@ -15,7 +15,7 @@ export function WelcomeMessage() {
 
   if (userRole === 'admin') {
     return (
-      <Card className="bg-gradient-to-r from-[#00BDC3] to-[#009EA3] text-white border-0">
+      <Card className="bg-gradient-to-r from-primary to-[var(--primary-hover)] text-white border-0">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -44,7 +44,7 @@ export function WelcomeMessage() {
   }
 
   return (
-    <Card className="bg-gradient-to-r from-[#00BDC3] to-[#009EA3] text-white border-0">
+    <Card className="bg-gradient-to-r from-primary to-[var(--primary-hover)] text-white border-0">
       <CardContent className="p-6">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">

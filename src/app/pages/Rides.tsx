@@ -1,47 +1,60 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { format } from 'date-fns';
-import { Search, Filter, Eye, Plus, Bell, Loader2 } from 'lucide-react';
+import { Search, Eye, Plus, Bell, Loader2, Download, Ban, Car } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Badge } from '../components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { connectSocket, getSocket } from '../lib/socket';
 import { rideStatusLabel, formatETB } from '../lib/format';
 import NewRideDialog from '../components/NewRideDialog';
+import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import { useAppContext } from '../contexts/AppContext';
+import { Page, PageHeader, FilterBar, Surface, Facet } from '../components/layout/PageHeader';
+import { StatusBadge } from '../components/layout/StatusBadge';
+import { EmptyState } from '../components/coupons/CouponAtoms';
 
 const PENDING_STATES = ['pending', 'unassigned', 'dispatched'];
-
-const statusBadge = (status: string) =>
-  ({
-    pending: 'bg-[#F59E0B] text-white',
-    unassigned: 'bg-[#F59E0B] text-white',
-    dispatched: 'bg-[#00BDC3] text-white',
-    accepted: 'bg-[#00BDC3] text-white',
-    arrived: 'bg-[#00BDC3] text-white',
-    in_progress: 'bg-[#00BDC3] text-white',
-    completed: 'bg-[#10B981] text-white',
-    cancelled: 'bg-[#EF4444] text-white',
-    expired: 'bg-[#6B7280] text-white',
-  } as any)[status] || 'bg-gray-500 text-white';
-
+const STATUSES = ['all', 'pending', 'dispatched', 'accepted', 'arrived', 'in_progress', 'completed', 'cancelled', 'expired'];
 const PAGE_SIZE = 20;
+const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 
 export default function Rides() {
   const navigate = useNavigate();
   const { t } = useAppContext();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rides, setRides] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? 'all');
+  const [page, setPage] = useState(Number(searchParams.get('page') || 1));
+  const [range, setRange] = useState<DateRange | undefined>();
   const [newRideOpen, setNewRideOpen] = useState(false);
   const [redispatchingId, setRedispatchingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [liveIds, setLiveIds] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (searchQuery) next.set('q', searchQuery);
+    if (statusFilter !== 'all') next.set('status', statusFilter);
+    if (page > 1) next.set('page', String(page));
+    setSearchParams(next, { replace: true });
+  }, [searchQuery, statusFilter, page, setSearchParams]);
 
   const load = async () => {
     setLoading(true);
@@ -50,9 +63,13 @@ export default function Rides() {
         status: statusFilter === 'all' ? undefined : statusFilter,
         page,
         limit: PAGE_SIZE,
+        search: searchQuery || undefined,
+        startDate: range?.from ? iso(range.from) : undefined,
+        endDate: range?.to ? iso(range.to) : undefined,
       });
       setRides(res.rides ?? []);
       setPagination(res.pagination ?? { page: 1, totalPages: 1, total: 0 });
+      setSelected(new Set());
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to load rides');
     } finally {
@@ -63,44 +80,52 @@ export default function Rides() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, page]);
+  }, [statusFilter, page, searchQuery, range]);
 
   useEffect(() => {
     const socket = getSocket() ?? connectSocket();
-    let t: ReturnType<typeof setTimeout> | null = null;
-    const refresh = () => {
-      if (t) clearTimeout(t);
-      t = setTimeout(() => load(), 400);
+    const refresh = (data?: any) => {
+      const id = data?.rideId ?? data?.id;
+      if (data?.event === 'ride:created' || (id && data?.status == null && data?.event !== 'ride:status')) {
+        if (!id) {
+          void load();
+          return;
+        }
+        setLiveIds((prev) => new Set(prev).add(id));
+        setRides((prev) => (prev.some((r) => r.id === id) ? prev : [{ ...data, id, status: data.status ?? 'pending' }, ...prev]));
+        return;
+      }
+      if (id) {
+        setLiveIds((prev) => new Set(prev).add(id));
+        setTimeout(() => {
+          setLiveIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }, 1800);
+        setRides((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, status: data.status ?? r.status } : r))
+        );
+      }
     };
-    const events = [
-      'ride:status',
-      'ride:completed',
-      'ride:accepted',
-      'ride:arrived',
-      'ride:started',
-      'ride:cancelled',
-    ] as const;
+    const events = ['ride:created', 'ride:status', 'ride:completed', 'ride:accepted', 'ride:arrived', 'ride:started', 'ride:cancelled'] as const;
     events.forEach((ev) => socket.on(ev, refresh));
-    const poll = setInterval(() => load(), 12000);
+    const onReconnect = () => void load();
+    socket.io.on('reconnect', onReconnect);
     return () => {
-      if (t) clearTimeout(t);
       events.forEach((ev) => socket.off(ev, refresh));
-      clearInterval(poll);
+      socket.io.off('reconnect', onReconnect);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [statusFilter, page, searchQuery, range]);
 
-  const visible = rides.filter((r) => {
-    const q = searchQuery.toLowerCase().replace(/^#/, ''); // strip leading # if user types it
-    if (!q) return true;
-    return (
-      String(r.id).toLowerCase().includes(q) ||
-      String(r.id).slice(0, 8).toLowerCase().includes(q) ||
-      (r.customerName ?? '').toLowerCase().includes(q) ||
-      (r.customerPhone ?? '').toLowerCase().includes(q) ||
-      (r.driverName ?? '').toLowerCase().includes(q)
-    );
-  });
+  const allSelected = rides.length > 0 && rides.every((r) => selected.has(r.id));
+  const selectedRides = useMemo(() => rides.filter((r) => selected.has(r.id)), [rides, selected]);
+
+  const toggleAll = (checked: boolean) => {
+    setSelected(checked ? new Set(rides.map((r) => r.id)) : new Set());
+  };
 
   const handleRedispatch = async (ride: any) => {
     setRedispatchingId(ride.id);
@@ -116,77 +141,189 @@ export default function Rides() {
     }
   };
 
+  const bulkRedispatch = async () => {
+    const targets = selectedRides.filter((r) => PENDING_STATES.includes(r.status));
+    if (!targets.length) {
+      toast.info('Select pending or dispatched rides to re-notify');
+      return;
+    }
+    setBusy(true);
+    try {
+      const results = await Promise.allSettled(targets.map((r) => api.rides.redispatch(r.id)));
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      toast.success(`Re-notified ${ok} of ${targets.length} rides`);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bulkCancel = async () => {
+    const targets = selectedRides.filter((r) => r.status !== 'completed' && r.status !== 'cancelled');
+    if (!targets.length) {
+      toast.info('Select open rides to cancel');
+      return;
+    }
+    if (!confirm(`Cancel ${targets.length} ride${targets.length === 1 ? '' : 's'}?`)) return;
+    setBusy(true);
+    try {
+      const results = await Promise.allSettled(targets.map((r) => api.rides.cancel(r.id, 'Bulk cancel from rides list')));
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      toast.success(`Cancelled ${ok} of ${targets.length} rides`);
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const exportCsv = () => {
+    const header = ['id', 'customer', 'phone', 'pickup', 'dropoff', 'driver', 'status', 'created', 'fare'];
+    const rows = rides.map((r) =>
+      [r.id, r.customerName, r.customerPhone, r.pickupLocation, r.dropoffLocation, r.driverName ?? '', r.status, r.createdAt, r.fare ?? '']
+        .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
+        .join(',')
+    );
+    const blob = new Blob([[header.join(','), ...rows].join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `rides-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exported this page');
+  };
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">{t('rides.title', 'Ride History')}</h2>
-        <p className="text-muted-foreground">{t('rides.subtitle', 'View and manage all ride records')}</p>
+    <Page>
+      <PageHeader
+        eyebrow="Operations"
+        title={t('rides.title', 'Rides')}
+        description={t('rides.subtitle', 'Search, filter, and act on every trip - live.')}
+        actions={
+          <>
+            <Button variant="outline" onClick={exportCsv} disabled={!rides.length}>
+              <Download className="mr-2 h-4 w-4" /> CSV
+            </Button>
+            <Button onClick={() => setNewRideOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> {t('rides.addRide', 'New ride')}
+            </Button>
+          </>
+        }
+      />
+
+      <FilterBar>
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={t('rides.searchPlaceholder', 'Search by ride ID, customer, or phone…')}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="h-10 pl-10"
+          />
+        </div>
+        <DateRangePicker value={range} onChange={(next) => { setRange(next); setPage(1); }} />
+      </FilterBar>
+
+      <div className="flex flex-wrap gap-2">
+        {STATUSES.map((status) => (
+          <Facet
+            key={status}
+            active={statusFilter === status}
+            onClick={() => {
+              setStatusFilter(status);
+              setPage(1);
+            }}
+          >
+            {status === 'all' ? t('rides.allStatus', 'All') : rideStatusLabel(status)}
+          </Facet>
+        ))}
       </div>
 
-      <div className="bg-card rounded-lg shadow-sm border border-border p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-          <div className="flex-1 relative min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder={t('rides.searchPlaceholder', 'Search by Ride ID, Customer, Driver…')} value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} className="pl-10" />
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[200px]"><Filter className="w-4 h-4 mr-2" /><SelectValue placeholder={t('rides.filterStatus', 'Filter by Status')} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('rides.allStatus', 'All Status')}</SelectItem>
-                <SelectItem value="pending">{t('rides.pendingStatus', 'Pending')}</SelectItem>
-                <SelectItem value="dispatched">{t('rides.assignedStatus', 'Assigned')}</SelectItem>
-                <SelectItem value="accepted">{t('rides.acceptedStatus', 'Accepted')}</SelectItem>
-                <SelectItem value="arrived">{t('rides.driverArrivingStatus', 'Driver Arriving')}</SelectItem>
-                <SelectItem value="in_progress">{t('rides.inProgressStatus', 'In Progress')}</SelectItem>
-                <SelectItem value="completed">{t('rides.completedStatus', 'Completed')}</SelectItem>
-                <SelectItem value="cancelled">{t('rides.cancelledStatus', 'Cancelled')}</SelectItem>
-                <SelectItem value="expired">{t('rides.expiredStatus', 'Expired')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={() => setNewRideOpen(true)}><Plus className="w-4 h-4 mr-2" /> {t('rides.addRide', 'New Ride')}</Button>
-          </div>
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/30 bg-primary/8 px-4 py-3 text-sm">
+          <span className="font-medium">{selected.size} selected</span>
+          <Button size="sm" variant="outline" disabled={busy} onClick={bulkRedispatch}>
+            <Bell className="mr-1.5 h-4 w-4" /> Re-dispatch
+          </Button>
+          <Button size="sm" variant="outline" className="border-[#AE2E2D]/40 text-[#AE2E2D]" disabled={busy} onClick={bulkCancel}>
+            <Ban className="mr-1.5 h-4 w-4" /> Cancel
+          </Button>
         </div>
-      </div>
+      )}
 
       <NewRideDialog open={newRideOpen} onOpenChange={setNewRideOpen} onCreated={() => { setPage(1); load(); }} />
 
-      <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+      <Surface>
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : rides.length === 0 ? (
+          <div className="p-6">
+            <EmptyState icon={Car} title={t('rides.noRides', 'No rides found')} description="Try another status, date range, or search term." />
+          </div>
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted">
+              <TableRow className="bg-muted/60">
+                <TableHead className="w-10">
+                  <Checkbox checked={allSelected} onCheckedChange={(v) => toggleAll(v === true)} />
+                </TableHead>
                 {[t('rides.rideId', 'Ride ID'), t('rides.customer', 'Customer'), t('rides.pickup', 'Pickup'), t('rides.dropoff', 'Dropoff'), t('rides.driver', 'Driver'), t('rides.status', 'Status'), t('rides.time', 'Time'), t('rides.fare', 'Fare'), t('rides.actions', 'Actions')].map((h) => (
                   <TableHead key={h} className="font-semibold">{h}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visible.map((ride) => (
-                <TableRow key={ride.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">#{String(ride.id).slice(0, 8)}</TableCell>
-                  <TableCell><div><p className="font-medium text-foreground">{ride.customerName}</p><p className="text-xs text-muted-foreground">{ride.customerPhone}</p></div></TableCell>
-                  <TableCell className="max-w-[200px]"><p className="text-sm text-muted-foreground truncate">{ride.pickupLocation}</p></TableCell>
-                  <TableCell className="max-w-[200px]"><p className="text-sm text-muted-foreground truncate">{ride.dropoffLocation}</p></TableCell>
-                  <TableCell>{ride.driverName ? <p className="text-sm text-foreground">{ride.driverName}</p> : <p className="text-sm text-muted-foreground italic">{t('rides.notAssigned', 'Not assigned')}</p>}</TableCell>
-                  <TableCell><Badge className={statusBadge(ride.status)}>{rideStatusLabel(ride.status)}</Badge></TableCell>
+              {rides.map((ride) => (
+                <TableRow key={ride.id} className={`hover:bg-muted/50 ${liveIds.has(ride.id) ? 'live-pulse' : ''}`}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(ride.id)}
+                      onCheckedChange={(v) => {
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (v === true) next.add(ride.id);
+                          else next.delete(ride.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell className="font-mono text-xs font-medium">#{String(ride.id).slice(0, 8)}</TableCell>
+                  <TableCell>
+                    <p className="font-medium text-foreground">{ride.customerName}</p>
+                    <p className="text-xs text-muted-foreground">{ride.customerPhone}</p>
+                  </TableCell>
+                  <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{ride.pickupLocation}</TableCell>
+                  <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{ride.dropoffLocation}</TableCell>
+                  <TableCell>
+                    {ride.driverName ? (
+                      <p className="text-sm">{ride.driverName}</p>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">{t('rides.notAssigned', 'Not assigned')}</p>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</TableCell>
-                  <TableCell className="font-medium text-foreground">{ride.fare != null ? formatETB(ride.fare) : '-'}</TableCell>
+                  <TableCell className="font-medium">{ride.fare != null ? formatETB(ride.fare) : '-'}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/rides/${ride.id}`)} title={t('rides.track', 'Track')}><Eye className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/rides/${ride.id}`)} title={t('rides.track', 'Track')}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {PENDING_STATES.includes(ride.status) && (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-[#00BDC3] text-[#00BDC3] hover:bg-[#00BDC3] hover:text-white"
+                          className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                           title="Re-notify nearby drivers"
                           onClick={() => handleRedispatch(ride)}
                           disabled={redispatchingId === ride.id}
                         >
-                          {redispatchingId === ride.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                          {redispatchingId === ride.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                         </Button>
                       )}
                     </div>
@@ -196,17 +333,22 @@ export default function Rides() {
             </TableBody>
           </Table>
         )}
-        {!loading && visible.length === 0 && <div className="text-center py-12"><p className="text-muted-foreground">{t('rides.noRides', 'No rides found')}</p></div>}
-      </div>
+      </Surface>
 
-      <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t('rides.showingCount', 'Showing {0} of {1} rides', { 0: visible.length, 1: pagination.total })}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {t('rides.showingCount', 'Showing {0} of {1} rides', { 0: rides.length, 1: pagination.total })}
+        </p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{t('rides.previous', 'Previous')}</Button>
-          <Button variant="outline" size="sm" className="bg-[#00BDC3] text-white hover:bg-[#009EA3]">{page}</Button>
-          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>{t('rides.next', 'Next')}</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            {t('rides.previous', 'Previous')}
+          </Button>
+          <Button size="sm">{page}</Button>
+          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+            {t('rides.next', 'Next')}
+          </Button>
         </div>
       </div>
-    </div>
+    </Page>
   );
 }

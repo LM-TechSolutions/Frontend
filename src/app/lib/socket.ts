@@ -3,11 +3,11 @@ import { config } from './config';
 import { getToken } from './api';
 
 let socket: Socket | null = null;
+let mapSubs = 0;
 
 /**
  * Connect to the backend `/admin` namespace (Admins + Call Center agents).
- * Same-origin through the Vite proxy, so the session cookie is sent automatically;
- * the bearer token is also passed as a fallback.
+ * Exponential backoff with jitter so a reconnect storm does not hammer the API.
  */
 export function connectSocket(): Socket {
   if (socket) {
@@ -20,8 +20,10 @@ export function connectSocket(): Socket {
     withCredentials: true,
     transports: ['websocket', 'polling'],
     reconnection: true,
-    reconnectionAttempts: 10,
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
+    reconnectionDelayMax: 15000,
+    randomizationFactor: 0.5,
   });
 
   return socket;
@@ -37,9 +39,9 @@ export function disconnectSocket() {
     socket.disconnect();
     socket = null;
   }
+  mapSubs = 0;
 }
 
-// --- Admin monitoring helpers ---
 export function subscribeRide(rideId: string) {
   socket?.emit('subscribe:ride', rideId);
 }
@@ -48,4 +50,18 @@ export function unsubscribeRide(rideId: string) {
 }
 export function subscribeDriver(driverId: string) {
   socket?.emit('subscribe:driver', driverId);
+}
+export function unsubscribeDriver(driverId: string) {
+  socket?.emit('unsubscribe:driver', driverId);
+}
+
+export function subscribeMap() {
+  const s = getSocket() ?? connectSocket();
+  mapSubs += 1;
+  if (mapSubs === 1) s.emit('subscribe:map');
+}
+
+export function unsubscribeMap() {
+  mapSubs = Math.max(0, mapSubs - 1);
+  if (mapSubs === 0) socket?.emit('unsubscribe:map');
 }

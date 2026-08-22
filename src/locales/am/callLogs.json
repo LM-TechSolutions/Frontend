@@ -1,0 +1,22 @@
+{
+  "title": "የጥሪ መዝገቦች",
+  "subtitle": "የሁሉም የደንበኛ ጥሪዎች ዝርዝር ታሪክ",
+  "logCall": "ጥሪ መዝግብ",
+  "totalCalls": "ጠቅላላ ጥሪዎች",
+  "completed": "ተጠናቋል",
+  "missed": "ያመለጠ",
+  "abandoned": "ተትቷል",
+  "avgDuration": "አማካይ ቆይታ",
+  "searchPlaceholder": "በደንበኛ፣ ስልክ ወይም ኦፕሬተር ፈልግ…",
+  "allStatus": "ሁሉም ሁኔታ",
+  "history": "የጥሪ ታሪክ",
+  "time": "ሰዓት",
+  "customer": "ደንበኛ",
+  "phone": "ስልክ",
+  "operator": "ኦፕሬተር",
+  "status": "ሁኔታ",
+  "duration": "ቆይታ",
+  "rideId": "የጉዞ መታወቂያ",
+  "notes": "ማስታወሻ",
+  "noLogs": "የጥሪ መዝገብ አልተገኘም"
+}

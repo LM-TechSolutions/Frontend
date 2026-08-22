@@ -19,7 +19,7 @@ const PRESETS: Array<{ label: string; build: () => DateRange }> = [
 /**
  * Start/end date picker with the presets people actually reach for.
  *
- * Both endpoints are inclusive, which the label reflects — "1 – 15 Aug" reports
+ * Both endpoints are inclusive, which the label reflects - "1 - 15 Aug" reports
  * all fifteen days. The range only commits once both ends are chosen, so a
  * half-finished selection never fires a query.
  */
@@ -39,7 +39,7 @@ export default function DateRangePicker({
 
   const label = value?.from
     ? value.to
-      ? `${format(value.from, 'd MMM')} – ${format(value.to, 'd MMM yyyy')}`
+      ? `${format(value.from, 'd MMM')} - ${format(value.to, 'd MMM yyyy')}`
       : format(value.from, 'd MMM yyyy')
     : 'Select dates';
 

@@ -1,0 +1,16 @@
+{
+  "title": "Notifications",
+  "eyebrow": "Inbox",
+  "description": "Persisted history - survives a refresh. Unread count comes from the server.",
+  "markAllRead": "Mark all read",
+  "unreadOnly": "Unread only",
+  "empty": "Inbox is clear",
+  "emptyHint": "Live alerts land here and in the header bell.",
+  "groupAll": "All",
+  "groupRides": "Rides",
+  "groupCoupons": "Coupons",
+  "groupDrivers": "Drivers",
+  "groupSecurity": "Security",
+  "groupSystem": "System",
+  "noneNew": "No new notifications"
+}

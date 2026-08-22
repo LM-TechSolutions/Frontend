@@ -22,7 +22,6 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Switch } from '../components/ui/switch';
@@ -44,8 +43,8 @@ import {
   couponTone,
   timeAgo,
 } from '../components/coupons/CouponAtoms';
+import { PageHeader } from '../components/layout/PageHeader';
 
-const LOW_DRIVER_BALANCE = 15;
 
 /**
  * The coupon economy console.
@@ -77,6 +76,7 @@ export default function Coupons() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [minCouponBalance, setMinCouponBalance] = useState(10);
 
   const load = useCallback(async () => {
     const tasks: Promise<unknown>[] = [
@@ -101,6 +101,10 @@ export default function Coupons() {
             .wallet('me')
             .then(setMyWallet)
             .catch(() => undefined),
+      api.settings
+        .opsConfig()
+        .then((ops) => setMinCouponBalance(ops.minCouponBalance ?? 10))
+        .catch(() => undefined),
     ];
 
     await Promise.all(tasks);
@@ -111,7 +115,7 @@ export default function Coupons() {
     load();
   }, [load]);
 
-  // Keep balances and the request queue live — a refill approved at another
+  // Keep balances and the request queue live - a refill approved at another
   // desk should land here without a reload.
   useEffect(() => {
     const socket = getSocket() ?? connectSocket();
@@ -122,17 +126,31 @@ export default function Coupons() {
     };
 
     const events = [
-      'coupon:balance',
-      'coupon:operator:balance',
       'coupon:request',
       'coupon:request:resolved',
       'coupon:low',
       'coupon:empty',
     ];
     events.forEach((e) => socket.on(e, refresh));
+    const onReconnect = () => void load();
+    socket.io.on('reconnect', onReconnect);
+    const onBalance = (data: any) => {
+      if (data?.driverId && typeof data.balance === 'number') {
+        setDrivers((prev) => prev.map((d) => (d.id === data.driverId ? { ...d, couponBalance: data.balance } : d)));
+      }
+      if (data?.operatorId && typeof data.balance === 'number') {
+        setWallets((prev) => prev.map((w) => (w.operatorId === data.operatorId ? { ...w, balance: data.balance } : w)));
+        setMyWallet((prev) => (prev && prev.operatorId === data.operatorId ? { ...prev, balance: data.balance } : prev));
+      }
+    };
+    socket.on('coupon:balance', onBalance);
+    socket.on('coupon:operator:balance', onBalance);
     return () => {
       if (timer) clearTimeout(timer);
       events.forEach((e) => socket.off(e, refresh));
+      socket.off('coupon:balance', onBalance);
+      socket.off('coupon:operator:balance', onBalance);
+      socket.io.off('reconnect', onReconnect);
     };
   }, [load]);
 
@@ -152,40 +170,41 @@ export default function Coupons() {
   const totals = useMemo(
     () => ({
       inCirculation: drivers.reduce((sum, d) => sum + (d.couponBalance ?? 0), 0),
-      lowDrivers: drivers.filter((d) => (d.couponBalance ?? 0) < LOW_DRIVER_BALANCE).length,
+      lowDrivers: drivers.filter((d) => (d.couponBalance ?? 0) < minCouponBalance).length,
       operatorStock: wallets.reduce((sum, w) => sum + w.balance, 0),
     }),
-    [drivers, wallets]
+    [drivers, wallets, minCouponBalance]
   );
 
   return (
     <div className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('coupons.title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isAdminView
-              ? 'Allocate packages to operators, refill drivers, and settle refill requests.'
-              : 'Sell coupons to your drivers and request more stock when you run low.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {!isAdminView && (
-            <Button
-              variant="outline"
-              className="border-[#00BDC3]/40 text-[#00868C] hover:bg-[#00BDC3]/10 dark:text-[#3AD2D8]"
-              onClick={() => setRequestOpen(true)}
-            >
-              <Send className="mr-2 h-4 w-4" /> Request stock
-            </Button>
-          )}
-          {canManagePackages && (
-            <Button className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={() => setPackageDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> New package
-            </Button>
-          )}
-        </div>
-      </header>
+      <PageHeader
+        eyebrow="Economy"
+        title={t('coupons.title')}
+        description={
+          isAdminView
+            ? 'Allocate packages to operators, refill drivers, and settle refill requests.'
+            : 'Sell coupons to your drivers and request more stock when you run low.'
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            {!isAdminView && (
+              <Button
+                variant="outline"
+                className="border-primary/40 text-primary hover:bg-primary/10"
+                onClick={() => setRequestOpen(true)}
+              >
+                <Send className="mr-2 h-4 w-4" /> Request stock
+              </Button>
+            )}
+            {canManagePackages && (
+              <Button onClick={() => setPackageDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> New package
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* An operator's own stock is the number they live by, so it leads. */}
       {!isAdminView && <InventoryHero wallet={myWallet} onRequest={() => setRequestOpen(true)} />}
@@ -208,7 +227,7 @@ export default function Coupons() {
           <StatTile
             label="Drivers running low"
             value={totals.lowDrivers.toLocaleString()}
-            hint={`Below ${LOW_DRIVER_BALANCE} coupons`}
+            hint={`Below ${minCouponBalance} coupons`}
             icon={AlertTriangle}
             accent={totals.lowDrivers > 0 ? '#EF4444' : '#10B981'}
             onClick={() => setTab('drivers')}
@@ -232,9 +251,7 @@ export default function Coupons() {
           <TabsTrigger value="requests" className="gap-2 data-[state=active]:bg-background">
             <Inbox className="h-4 w-4" /> Requests
             {pendingRequests.length > 0 && (
-              <Badge className="ml-1 h-5 min-w-5 justify-center bg-[#F59E0B] px-1.5 text-white">
-                {pendingRequests.length}
-              </Badge>
+              <span className="text-[11px] font-semibold text-[color:var(--warning)]">{pendingRequests.length}</span>
             )}
           </TabsTrigger>
           {isAdminView && (
@@ -270,7 +287,7 @@ export default function Coupons() {
           ) : (
             <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
               {visibleDrivers.map((driver) => (
-                <DriverCouponCard key={driver.id} driver={driver} onSell={() => setSellTarget(driver)} />
+                <DriverCouponCard key={driver.id} driver={driver} threshold={minCouponBalance} onSell={() => setSellTarget(driver)} />
               ))}
             </div>
           )}
@@ -300,7 +317,7 @@ export default function Coupons() {
               <EmptyState
                 icon={Users}
                 title="No operators yet"
-                description="Create call-centre operators first — then allocate coupon packages to them here."
+                description="Create call-centre operators first - then allocate coupon packages to them here."
               />
             ) : (
               <div className="grid gap-3 lg:grid-cols-2">
@@ -329,7 +346,6 @@ export default function Coupons() {
               action={
                 canManagePackages ? (
                   <Button
-                    className="bg-[#00BDC3] text-white hover:bg-[#009EA3]"
                     onClick={() => setPackageDialogOpen(true)}
                   >
                     <Plus className="mr-2 h-4 w-4" /> Create the first package
@@ -375,7 +391,7 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
 
   return (
     <Card className="overflow-hidden border-border/70">
-      <div className="relative bg-gradient-to-br from-[#00BDC3] via-[#009EA3] to-[#0B5A60] p-6 text-white">
+      <div className="relative bg-gradient-to-br from-primary via-[var(--primary-hover)] to-sidebar p-6 text-white">
         <div
           className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl"
           aria-hidden="true"
@@ -385,7 +401,7 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/70">My coupon inventory</p>
             <p className="mt-2 text-5xl font-semibold leading-none tabular-nums">{balance.toLocaleString()}</p>
             <p className="mt-2 text-sm text-white/80">
-              {isLow ? 'Low stock — request more before your drivers run dry.' : 'Available to sell to your drivers.'}
+              {isLow ? 'Low stock - request more before your drivers run dry.' : 'Available to sell to your drivers.'}
             </p>
           </div>
 
@@ -400,7 +416,7 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
               <p className="text-[11px] uppercase tracking-[0.09em] text-white/60">Sold</p>
               <p className="mt-1 text-xl font-semibold tabular-nums">{(wallet?.totalSold ?? 0).toLocaleString()}</p>
             </div>
-            <Button onClick={onRequest} className="bg-white text-[#00868C] shadow-sm hover:bg-white/90">
+            <Button onClick={onRequest} className="bg-white text-primary shadow-sm hover:bg-white/90">
               <Send className="mr-2 h-4 w-4" /> Request more
             </Button>
           </div>
@@ -411,7 +427,7 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
         <CardContent className={`flex items-center gap-2 border-t border-border/60 p-3 ${TONE_STYLES[tone].bg}`}>
           <AlertTriangle className={`h-4 w-4 ${TONE_STYLES[tone].text}`} />
           <p className={`text-sm font-medium ${TONE_STYLES[tone].text}`}>
-            {TONE_STYLES[tone].label} — {balance} coupons against a working level of {threshold}.
+            {TONE_STYLES[tone].label} - {balance} coupons against a working level of {threshold}.
           </p>
         </CardContent>
       )}
@@ -421,9 +437,9 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
 
 /* ------------------------------------------------------------- cards ---- */
 
-function DriverCouponCard({ driver, onSell }: { driver: any; onSell: () => void }) {
+function DriverCouponCard({ driver, threshold, onSell }: { driver: any; threshold: number; onSell: () => void }) {
   const balance = driver.couponBalance ?? 0;
-  const tone = couponTone(balance, LOW_DRIVER_BALANCE);
+  const tone = couponTone(balance, threshold);
 
   return (
     <Card className="group overflow-hidden border-border/70 transition-all hover:-translate-y-0.5 hover:shadow-md">
@@ -433,7 +449,7 @@ function DriverCouponCard({ driver, onSell }: { driver: any; onSell: () => void 
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-foreground">{driver.name}</p>
             <p className="mt-0.5 truncate text-xs capitalize text-muted-foreground">
-              {driver.vehicleType ?? '—'} · {driver.licensePlate}
+              {driver.vehicleType ?? '-'} · {driver.licensePlate}
             </p>
           </div>
           <span
@@ -460,7 +476,7 @@ function DriverCouponCard({ driver, onSell }: { driver: any; onSell: () => void 
               {balance.toLocaleString()}
             </p>
           </div>
-          <Button size="sm" className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={onSell}>
+          <Button size="sm" onClick={onSell}>
             <Plus className="mr-1.5 h-4 w-4" /> Refill
           </Button>
         </div>
@@ -489,7 +505,7 @@ function OperatorWalletCard({
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-foreground">{name}</p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {wallet.operator?.employeeId} · {wallet.operator?.user?.email ?? '—'}
+              {wallet.operator?.employeeId} · {wallet.operator?.user?.email ?? '-'}
             </p>
           </div>
           <BalancePill balance={wallet.balance} threshold={wallet.lowBalanceThreshold} size="sm" />
@@ -519,7 +535,7 @@ function OperatorWalletCard({
         {canAllocate && (
           <Button
             variant="outline"
-            className="w-full border-[#00BDC3]/40 text-[#00868C] hover:bg-[#00BDC3]/10 dark:text-[#3AD2D8]"
+            className="w-full border-primary/40 text-primary hover:bg-primary/10"
             onClick={onAllocate}
           >
             <Boxes className="mr-2 h-4 w-4" /> Allocate coupons
@@ -686,11 +702,9 @@ function RequestRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-foreground">{who}</p>
-            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
-              {fromDriver ? 'Driver' : 'Operator'}
-            </Badge>
+            <span className="text-xs text-muted-foreground">{fromDriver ? 'Driver' : 'Operator'}</span>
             {request.autoCreated && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#6366F1]/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#6366F1]">
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
                 <Sparkles className="h-3 w-3" /> Auto
               </span>
             )}
@@ -839,9 +853,9 @@ function SellDialog({
           </div>
 
           {valid && !exceedsStock && (
-            <div className="rounded-xl border border-[#00BDC3]/30 bg-[#00BDC3]/10 p-3">
+            <div className="rounded-xl border border-primary/30 bg-primary/10 p-3">
               <p className="text-xs text-muted-foreground">New balance</p>
-              <p className="text-2xl font-semibold tabular-nums text-[#00868C] dark:text-[#3AD2D8]">
+              <p className="text-2xl font-semibold tabular-nums text-primary">
                 {((driver?.couponBalance ?? 0) + parsed).toLocaleString()}
               </p>
             </div>
@@ -863,7 +877,6 @@ function SellDialog({
             Cancel
           </Button>
           <Button
-            className="bg-[#00BDC3] text-white hover:bg-[#009EA3]"
             onClick={submit}
             disabled={!valid || exceedsStock || saving}
           >
@@ -953,12 +966,12 @@ function AllocateDialog({
                       }}
                       className={`rounded-xl border p-3 text-left transition-all ${
                         isSelected
-                          ? 'border-[#00BDC3] bg-[#00BDC3]/10 ring-2 ring-[#00BDC3]/25'
-                          : 'border-border hover:border-[#00BDC3]/50 hover:bg-muted/50'
+                          ? 'border-primary bg-primary/10 ring-2 ring-primary/25'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
                       }`}
                     >
                       <p className="text-sm font-medium text-foreground">{pkg.name}</p>
-                      <p className="mt-1 text-xl font-semibold tabular-nums text-[#00868C] dark:text-[#3AD2D8]">
+                      <p className="mt-1 text-xl font-semibold tabular-nums text-primary">
                         {pkg.couponCount.toLocaleString()}
                       </p>
                       {pkg.price != null && <p className="text-xs text-muted-foreground">{formatETB(pkg.price)}</p>}
@@ -988,9 +1001,9 @@ function AllocateDialog({
           </div>
 
           {valid && (
-            <div className="rounded-xl border border-[#00BDC3]/30 bg-[#00BDC3]/10 p-3">
+            <div className="rounded-xl border border-primary/30 bg-primary/10 p-3">
               <p className="text-xs text-muted-foreground">New inventory</p>
-              <p className="text-2xl font-semibold tabular-nums text-[#00868C] dark:text-[#3AD2D8]">
+              <p className="text-2xl font-semibold tabular-nums text-primary">
                 {((wallet?.balance ?? 0) + granted).toLocaleString()}
               </p>
             </div>
@@ -1001,7 +1014,7 @@ function AllocateDialog({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={submit} disabled={!valid || saving}>
+          <Button onClick={submit} disabled={!valid || saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Allocate
           </Button>
@@ -1086,7 +1099,7 @@ function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose:
               id="request-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Why you need them — helps the admin prioritise."
+              placeholder="Why you need them - helps the admin prioritise."
               rows={3}
             />
           </div>
@@ -1096,7 +1109,7 @@ function RequestStockDialog({ open, onClose, onDone }: { open: boolean; onClose:
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={submit} disabled={!valid || saving}>
+          <Button onClick={submit} disabled={!valid || saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Send request
           </Button>
@@ -1198,7 +1211,7 @@ function PackageDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={submit} disabled={!valid || saving}>
+          <Button onClick={submit} disabled={!valid || saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create package
           </Button>

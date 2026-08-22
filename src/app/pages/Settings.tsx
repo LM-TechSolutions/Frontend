@@ -3,36 +3,88 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../co
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Badge } from '../components/ui/badge';
+import { StatusBadge } from '../components/layout/StatusBadge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Switch } from '../components/ui/switch';
-import { Loader2, ShieldCheck, ShieldOff, KeyRound, Copy, Languages, Ticket, MonitorSmartphone, Shield } from 'lucide-react';
+import { Loader2, ShieldCheck, ShieldOff, KeyRound, Copy, Languages, Ticket, MonitorSmartphone, Shield, Bell, User, Wallet, CircleDollarSign, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, ApiError, type SecurityPolicy, type StaffSession } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { useAppContext, type Language } from '../contexts/AppContext';
+import { useAppContext, type Language, type CalendarMode } from '../contexts/AppContext';
+import { connectSocket, getSocket } from '../lib/socket';
+import { NotificationPrefsCard } from '../components/settings/NotificationPrefsCard';
 import { withStepUp } from '../components/security/StepUpDialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Page, PageHeader } from '../components/layout/PageHeader';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 // The configurable Tokuma business settings surfaced for editing.
-const EDITABLE: { key: string; labelKey: string }[] = [
+const EDITABLE: { key: string; labelKey?: string }[] = [
   { key: 'fare.baseFare', labelKey: 'settings.baseFare' },
   { key: 'fare.perKm', labelKey: 'settings.perKm' },
   { key: 'fare.timeBlockCharge', labelKey: 'settings.timeBlockCharge' },
   { key: 'fare.timeBlockMinutes', labelKey: 'settings.timeBlockMinutes' },
   { key: 'fare.minimumFare', labelKey: 'settings.minimumFare' },
+  { key: 'fare.currency' },
   { key: 'dispatch.radiusKm', labelKey: 'settings.dispatchRadius' },
   { key: 'dispatch.maxDrivers', labelKey: 'settings.maxDriversNotified' },
   { key: 'dispatch.offerTtlSeconds', labelKey: 'settings.offerTimeout' },
+  { key: 'dispatch.enforceRadius' },
+  { key: 'dispatch.urbanSpeedKmh' },
+  { key: 'dispatch.staleDriverMinutes' },
   { key: 'coupon.minBalanceThreshold', labelKey: 'settings.minCouponBalance' },
+  { key: 'coupon.startingBalance' },
   { key: 'commission.defaultPercent', labelKey: 'settings.defaultCommission' },
 ];
+
+type FieldMeta = { label: string; hint: string; unit?: string; min?: number; max?: number };
+
+const FIELD_META: Record<string, FieldMeta> = {
+  'fare.baseFare': { label: 'Base fare', hint: 'Charged before distance and time.', unit: 'currency', min: 0, max: 50000 },
+  'fare.perKm': { label: 'Per kilometre', hint: 'Added for every kilometre of the trip.', unit: 'currency', min: 0, max: 5000 },
+  'fare.timeBlockCharge': { label: 'Time-block charge', hint: 'Added for each time block.', unit: 'currency', min: 0, max: 5000 },
+  'fare.timeBlockMinutes': { label: 'Time-block length', hint: 'Minutes in one time block.', unit: 'min', min: 1, max: 60 },
+  'fare.minimumFare': { label: 'Minimum fare', hint: 'Floor applied after the calculation.', unit: 'currency', min: 0, max: 50000 },
+  'fare.currency': { label: 'Currency', hint: 'ISO code shown on every receipt and payout.' },
+  'commission.defaultPercent': {
+    label: 'Default commission for new drivers',
+    hint: 'Stamped when a driver is created. Existing drivers keep their own rate until you apply it to the fleet.',
+    unit: '%',
+    min: 0,
+    max: 100,
+  },
+  'dispatch.radiusKm': {
+    label: 'Dispatch radius',
+    hint: 'Only drivers inside this ring are offered the ride. If none are found, the ring expands automatically.',
+    unit: 'km',
+    min: 0.5,
+    max: 50,
+  },
+  'dispatch.maxDrivers': { label: 'Max drivers notified', hint: 'Closest N eligible drivers receive the offer.', min: 1, max: 100 },
+  'dispatch.offerTtlSeconds': { label: 'Offer lifetime', hint: 'How long a driver has to accept before the offer expires.', unit: 'sec', min: 15, max: 900 },
+  'dispatch.urbanSpeedKmh': { label: 'Urban speed for ETA', hint: 'Used when routing is unavailable - this is what operators and drivers see as ETA.', unit: 'km/h', min: 5, max: 80 },
+  'dispatch.staleDriverMinutes': { label: 'Stale-driver threshold', hint: 'An online driver with no GPS fix for this long is dropped from dispatch.', unit: 'min', min: 1, max: 60 },
+  'coupon.minBalanceThreshold': { label: 'Minimum coupon balance', hint: 'Drivers at or below this cannot receive new rides. Also the dashboard “low” cutoff.', min: 0, max: 1000 },
+  'coupon.startingBalance': { label: 'New-driver starting coupons', hint: 'Granted when a driver account is created. Zero means they cannot take a ride until someone refills them.', min: 0, max: 1000 },
+  'coupon.perRideDeduction': { label: 'Coupons per completed ride', hint: 'Deducted automatically when a driver ends a trip.', min: 0, max: 100 },
+  'coupon.operatorLowBalanceThreshold': { label: 'Operator low-stock warning', hint: 'Inventory level at which an operator is prompted to restock.', min: 0, max: 10000 },
+};
 
 /**
  * Coupon economy controls.
  *
  * The deduction mode is the consequential one: it decides whether a completed
  * ride costs the driver a fixed number of coupons, a percentage of the fare, or
- * both — so it gets an explanation rather than a bare dropdown.
+ * both - so it gets an explanation rather than a bare dropdown.
  */
 const DEDUCTION_MODES = [
   {
@@ -85,226 +137,521 @@ const COUPON_KEYS = [
 ];
 
 export default function Settings() {
-  const { user, role } = useAuth();
-  const { t, language, setLanguage } = useAppContext();
+  const { user, role, can } = useAuth();
+  const { t, language, setLanguage, calendar, setCalendar } = useAppContext();
+  const canWrite = can('settings', 'write');
   const [values, setValues] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState<Record<string, string>>({});
+  const [defaults, setDefaults] = useState<Record<string, string>>({});
+  const [lastChange, setLastChange] = useState<{ at: string; who: string } | null>(null);
+  const [distribution, setDistribution] = useState<Array<{ percent: number; drivers: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [stale, setStale] = useState(false);
 
-  useEffect(() => {
-    api.settings
-      .getSystem()
-      .then((rows) => {
+  const load = () => {
+    Promise.all([
+      api.settings.getSystem(),
+      api.settings.commissionDistribution().catch(() => ({ distribution: [] })),
+      api.auditLogs.list({ resource: 'settings', limit: 1 }).catch(() => ({ logs: [] })),
+    ])
+      .then(([rows, dist, audit]) => {
         const map: Record<string, string> = {};
-        (rows ?? []).forEach((r: any) => (map[r.key] = String(r.value)));
+        const defs: Record<string, string> = {};
+        (rows ?? []).forEach((r: any) => {
+          map[r.key] = String(r.value);
+          defs[r.key] = String(r.defaultValue ?? r.value);
+        });
         setValues(map);
+        setSaved(map);
+        setDefaults(defs);
+        setDistribution(dist.distribution ?? []);
+        const log = audit.logs?.[0];
+        if (log) setLastChange({ at: log.createdAt, who: log.user?.email ?? 'system' });
       })
       .catch((e) => toast.error(e?.message ?? 'Failed to load system settings'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const socket = getSocket() ?? connectSocket();
+    const onChange = (payload: { performedBy?: string }) => {
+      if (payload?.performedBy && payload.performedBy === user?.id) return;
+      setStale(true);
+    };
+    socket.on('settings:changed', onChange);
+    return () => {
+      socket.off('settings:changed', onChange);
+    };
+  }, [user?.id]);
+
+  const dirtyKeys = [...EDITABLE.map((f) => f.key), ...COUPON_KEYS];
+  const dirty = dirtyKeys.some((key) => (values[key] ?? '') !== (saved[key] ?? ''));
+
   const handleSave = async () => {
+    const error = validateSettings(values);
+    if (error) {
+      toast.error(error);
+      return;
+    }
     setSaving(true);
     try {
       const payload: Record<string, string> = {};
-      [...EDITABLE.map((f) => f.key), ...COUPON_KEYS].forEach((key) => {
+      dirtyKeys.forEach((key) => {
         if (values[key] !== undefined) payload[key] = values[key];
       });
       await withStepUp('fare_change', () => api.settings.updateSystem(payload));
-      toast.success('System settings saved');
+      setSaved(values);
+      toast.success('System settings saved - dispatch and fares pick them up within 30 seconds');
+      load();
     } catch (e: any) {
-      toast.error(e?.status === 403 ? 'Only admins can change system settings' : e?.message ?? 'Failed to save');
+      toast.error(e?.status === 403 ? 'You need settings:write to change these' : e?.message ?? 'Failed to save');
     } finally {
       setSaving(false);
     }
   };
 
+  const resetField = (key: string) => {
+    if (defaults[key] === undefined) return;
+    setValues({ ...values, [key]: defaults[key] });
+  };
+
+  const applyCommission = async () => {
+    setApplying(true);
+    try {
+      const result = await withStepUp('fare_change', () => api.settings.applyCommissionToFleet());
+      toast.success(`Applied ${result.percent}% to ${result.updated} driver(s)`);
+      setApplyOpen(false);
+      load();
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not apply commission');
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const saveButton = canWrite ? (
+    <Button onClick={handleSave} disabled={saving || !dirty}>
+      {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+      {dirty ? 'Save changes' : 'Saved'}
+    </Button>
+  ) : null;
+
+  const currency = (values['fare.currency'] || 'ETB').toUpperCase();
+  const numberField = (key: string) => (
+    <NumberField
+      key={key}
+      keyName={key}
+      value={values[key] ?? ''}
+      disabled={!canWrite}
+      currency={currency}
+      onChange={(next) => setValues({ ...values, [key]: next })}
+      onReset={() => resetField(key)}
+    />
+  );
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">{t('settings.title', 'Settings')}</h2>
-        <p className="text-muted-foreground">{t('settings.subtitle', 'Manage your account and Tokuma system configuration')}</p>
-      </div>
+    <Page>
+      <PageHeader
+        eyebrow="Workspace"
+        title={t('settings.title', 'Settings')}
+        description={
+          lastChange
+            ? `Profile, security, pricing, dispatch, coupons, and language. Last saved ${new Date(lastChange.at).toLocaleString()} by ${lastChange.who}.`
+            : t('settings.subtitle', 'Profile, security, pricing, dispatch, coupons, and language.')
+        }
+        actions={saveButton}
+      />
+      {stale ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E9C89A] bg-[#FBEEDF] px-4 py-3 text-sm text-[#B4560B]">
+          <span>{t('settings.staleSettings', 'Settings were updated elsewhere. Reload to see the latest.')}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setStale(false);
+              load();
+            }}
+          >
+            {t('settings.reload', 'Reload')}
+          </Button>
+        </div>
+      ) : null}
 
-      <div className="max-w-4xl space-y-6">
-        {/* Profile */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('settings.profile', 'Profile')}</CardTitle>
-            <CardDescription>{t('settings.yourAccountInfo', 'Your account information')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>{t('settings.name', 'Name')}</Label><Input defaultValue={user?.name ?? ''} readOnly /></div>
-              <div className="space-y-2"><Label>{t('settings.role', 'Role')}</Label><Input value={role === 'admin' ? t('settings.administrator', 'Administrator') : t('settings.callCenter', 'Call Center')} readOnly /></div>
-            </div>
-            <div className="space-y-2"><Label>{t('settings.email', 'Email')}</Label><Input defaultValue={user?.email ?? ''} readOnly /></div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="profile" className="max-w-4xl gap-4">
+        <TabsList className="h-auto flex-wrap gap-1 bg-muted/60 p-1">
+          <TabsTrigger value="profile" className="gap-1.5"><User className="h-4 w-4" /> Profile</TabsTrigger>
+          <TabsTrigger value="security" className="gap-1.5"><Shield className="h-4 w-4" /> Security</TabsTrigger>
+          <TabsTrigger value="pricing" className="gap-1.5"><CircleDollarSign className="h-4 w-4" /> Pricing</TabsTrigger>
+          <TabsTrigger value="dispatch" className="gap-1.5">Dispatch</TabsTrigger>
+          <TabsTrigger value="coupons" className="gap-1.5"><Wallet className="h-4 w-4" /> Coupons</TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-1.5"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
+          <TabsTrigger value="localization" className="gap-1.5"><Languages className="h-4 w-4" /> Language</TabsTrigger>
+        </TabsList>
 
-        {/* Language */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Languages className="w-4 h-4 text-[#00BDC3]" /> {t('common.language')}
-            </CardTitle>
-            <CardDescription>Choose the language used across the dashboard.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
-              <SelectTrigger className="w-[200px] h-10">
-                <SelectValue placeholder={t('common.language')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="am">አማርኛ</SelectItem>
-                <SelectItem value="om">Oromiffa</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Security: change password + two-factor */}
-        <SecurityCard />
-        <SessionsCard />
-        <SecurityPolicyCard />
-
-        {/* System (Pricing / Dispatch / Commission) */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('settings.pricingDispatchCommission', 'Pricing, Dispatch & Commission')}</CardTitle>
-            <CardDescription>
-              {t('settings.businessRules', 'Live Tokuma business rules')}{role !== 'admin' ? ` (${t('settings.readOnly', 'read-only — admin access required to edit')})` : ''}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loading ? (
-              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  {EDITABLE.map(({ key, labelKey }) => (
-                    <div className="space-y-2" key={key}>
-                      <Label>{t(labelKey)}</Label>
-                      <Input
-                        type="number"
-                        value={values[key] ?? ''}
-                        disabled={role !== 'admin'}
-                        onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-                      />
-                    </div>
-                  ))}
-                </div>
-                {role === 'admin' && (
-                  <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} {t('settings.saveSettings', 'Save System Settings')}
-                  </Button>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Coupon economy — how a completed ride is charged. */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Ticket className="w-4 h-4 text-[#00BDC3]" /> Coupon economy
-            </CardTitle>
-            <CardDescription>
-              What every completed ride costs a driver, and how they get more coupons
-              {role !== 'admin' ? ' (read-only — admin access required to edit)' : ''}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" />
+        <TabsContent value="profile" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('settings.profile', 'Profile')}</CardTitle>
+              <CardDescription>{t('settings.yourAccountInfo', 'Your account information')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>{t('settings.name', 'Name')}</Label><Input defaultValue={user?.name ?? ''} readOnly /></div>
+                <div className="space-y-2"><Label>{t('settings.role', 'Role')}</Label><Input value={role === 'admin' ? t('settings.administrator', 'Administrator') : t('settings.callCenter', 'Call Center')} readOnly /></div>
               </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label>Deduction mode</Label>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {DEDUCTION_MODES.map((mode) => {
-                      const selected = (values['coupon.deductionMode'] ?? 'flat') === mode.value;
-                      return (
-                        <button
-                          key={mode.value}
-                          type="button"
-                          disabled={role !== 'admin'}
-                          onClick={() => setValues({ ...values, 'coupon.deductionMode': mode.value })}
-                          className={`rounded-xl border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
-                            selected
-                              ? 'border-[#00BDC3] bg-[#00BDC3]/10 ring-2 ring-[#00BDC3]/25'
-                              : 'border-border hover:border-[#00BDC3]/50 hover:bg-muted/50'
-                          }`}
-                        >
-                          <p className="text-sm font-medium text-foreground">{mode.title}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{mode.description}</p>
+              <div className="space-y-2"><Label>{t('settings.email', 'Email')}</Label><Input defaultValue={user?.email ?? ''} readOnly /></div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-4">
+          <SecurityCard />
+          <SessionsCard />
+          <SecurityPolicyCard />
+        </TabsContent>
+
+        <TabsContent value="pricing">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pricing & commission</CardTitle>
+              <CardDescription>
+                Live fare engine - every estimate and receipt uses these numbers
+                {!canWrite ? ' (read-only).' : '.'}
+                {lastChange ? ` Last changed ${new Date(lastChange.at).toLocaleString()} by ${lastChange.who}.` : ''}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {loading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    {['fare.baseFare', 'fare.perKm', 'fare.timeBlockCharge', 'fare.timeBlockMinutes', 'fare.minimumFare'].map(numberField)}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label>Currency</Label>
+                        <button type="button" className="text-[11px] text-muted-foreground hover:text-foreground" onClick={() => resetField('fare.currency')} disabled={!canWrite}>
+                          Reset
                         </button>
+                      </div>
+                      <Input
+                        value={values['fare.currency'] ?? 'ETB'}
+                        disabled={!canWrite}
+                        maxLength={3}
+                        className="uppercase"
+                        onChange={(e) => setValues({ ...values, 'fare.currency': e.target.value.toUpperCase() })}
+                      />
+                      <p className="text-xs text-muted-foreground">{FIELD_META['fare.currency'].hint}</p>
+                    </div>
+                    {numberField('commission.defaultPercent')}
+                  </div>
+                  <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">Effect on a 5 km, 12-minute trip</p>
+                    <p className="mt-1.5 text-sm text-foreground">{describeFare(values)}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium">Fleet commission</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {distribution.length
+                            ? distribution.map((d) => `${d.drivers} driver${d.drivers === 1 ? '' : 's'} at ${d.percent}%`).join(' · ')
+                            : 'No drivers yet.'}
+                        </p>
+                      </div>
+                      {canWrite && (
+                        <Button variant="outline" size="sm" onClick={() => setApplyOpen(true)}>
+                          Apply default to all drivers
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="dispatch">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dispatch</CardTitle>
+              <CardDescription>
+                Radius and driver cap are enforced on every offer. If the ring is empty it expands automatically.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {loading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 p-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">Enforce dispatch radius</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        On: only drivers inside the radius (expanding if empty). Off: city-wide, still capped by max drivers.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={values['dispatch.enforceRadius'] !== 'false'}
+                      disabled={!canWrite}
+                      onCheckedChange={(checked) => setValues({ ...values, 'dispatch.enforceRadius': checked ? 'true' : 'false' })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {['dispatch.radiusKm', 'dispatch.maxDrivers', 'dispatch.offerTtlSeconds', 'dispatch.urbanSpeedKmh', 'dispatch.staleDriverMinutes'].map(numberField)}
+                  </div>
+                  <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">What happens on the next ride</p>
+                    <p className="mt-1.5 text-sm text-foreground">{describeDispatch(values)}</p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="coupons">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-primary" /> Coupon economy
+              </CardTitle>
+              <CardDescription>
+                What every completed ride costs a driver, and how they get more coupons
+                {!canWrite ? ' (read-only).' : '.'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {loading ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Deduction mode</Label>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {DEDUCTION_MODES.map((mode) => {
+                        const selected = (values['coupon.deductionMode'] ?? 'flat') === mode.value;
+                        return (
+                          <button
+                            key={mode.value}
+                            type="button"
+                            disabled={!canWrite}
+                            onClick={() => setValues({ ...values, 'coupon.deductionMode': mode.value })}
+                            className={`rounded-xl border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
+                              selected
+                                ? 'border-primary bg-primary/10 ring-2 ring-primary/25'
+                                : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                            }`}
+                          >
+                            <p className="text-sm font-medium text-foreground">{mode.title}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{mode.description}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {['coupon.perRideDeduction', 'coupon.operatorLowBalanceThreshold', 'coupon.minBalanceThreshold', 'coupon.startingBalance'].map(numberField)}
+                  </div>
+                  <div className="space-y-3">
+                    {COUPON_TOGGLES.map((field) => {
+                      const on = values[field.key] === 'true';
+                      return (
+                        <div key={field.key} className="flex items-start justify-between gap-4 rounded-xl border border-border/70 p-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">{field.label}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{field.hint}</p>
+                          </div>
+                          <Switch
+                            checked={on}
+                            disabled={!canWrite}
+                            onCheckedChange={(checked) => setValues({ ...values, [field.key]: checked ? 'true' : 'false' })}
+                          />
+                        </div>
                       );
                     })}
                   </div>
-                </div>
+                  <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+                    <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">Effect on a completed ride</p>
+                    <p className="mt-1.5 text-sm text-foreground">{describeDeduction(values)}</p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {COUPON_NUMERIC.map((field) => (
-                    <div className="space-y-2" key={field.key}>
-                      <Label>{field.label}</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        className="tabular-nums"
-                        value={values[field.key] ?? ''}
-                        disabled={role !== 'admin'}
-                        onChange={(e) => setValues({ ...values, [field.key]: e.target.value })}
-                      />
-                      <p className="text-xs text-muted-foreground">{field.hint}</p>
-                    </div>
-                  ))}
-                </div>
+        <TabsContent value="notifications">
+          <NotificationPrefsCard />
+        </TabsContent>
 
-                <div className="space-y-3">
-                  {COUPON_TOGGLES.map((field) => {
-                    const on = values[field.key] === 'true';
-                    return (
-                      <div
-                        key={field.key}
-                        className="flex items-start justify-between gap-4 rounded-xl border border-border/70 p-4"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground">{field.label}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{field.hint}</p>
-                        </div>
-                        <Switch
-                          checked={on}
-                          disabled={role !== 'admin'}
-                          onCheckedChange={(checked) =>
-                            setValues({ ...values, [field.key]: checked ? 'true' : 'false' })
-                          }
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+        <TabsContent value="localization">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Languages className="h-4 w-4 text-primary" /> {t('common.language')}
+              </CardTitle>
+              <CardDescription>
+                {t('settings.languageHint', 'Follows you between terminals. Emails and SMS use this locale too.')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
+                <SelectTrigger className="h-10 w-[200px]">
+                  <SelectValue placeholder={t('common.language')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="am">አማርኛ</SelectItem>
+                  <SelectItem value="om">Oromiffa</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">{t('common.calendar', 'Calendar')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.calendarHint', 'Dates across the dashboard. Ethiopian calendar is expected by Amharic-speaking staff.')}
+                </p>
+                <Select value={calendar} onValueChange={(value) => setCalendar(value as CalendarMode)}>
+                  <SelectTrigger className="h-10 w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gregorian">{t('common.gregorian', 'Gregorian')}</SelectItem>
+                    <SelectItem value="ethiopian">{t('common.ethiopian', 'Ethiopian')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-                {/* Resolve the settings into the sentence they actually mean. */}
-                <div className="rounded-xl border border-[#00BDC3]/30 bg-[#00BDC3]/10 p-4">
-                  <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">Effect on a completed ride</p>
-                  <p className="mt-1.5 text-sm text-foreground">{describeDeduction(values)}</p>
-                </div>
+      <AlertDialog open={applyOpen} onOpenChange={setApplyOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply default commission to every driver?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This overwrites each driver&apos;s current rate with {values['commission.defaultPercent'] ?? '10'}%.
+              Existing custom rates cannot be restored automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={applying}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={applying}
+              onClick={(e) => {
+                e.preventDefault();
+                void applyCommission();
+              }}
+            >
+              {applying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Apply to fleet
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Page>
+  );
+}
 
-                {role === 'admin' && (
-                  <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Save coupon settings
-                  </Button>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+function validateSettings(values: Record<string, string>): string | null {
+  for (const [key, meta] of Object.entries(FIELD_META)) {
+    if (meta.min == null || values[key] === undefined || values[key] === '') continue;
+    const n = Number(values[key]);
+    if (!Number.isFinite(n) || n < meta.min || n > (meta.max ?? Infinity)) {
+      return `${meta.label} must be between ${meta.min} and ${meta.max}`;
+    }
+  }
+  const cur = (values['fare.currency'] ?? '').trim().toUpperCase();
+  if (cur && !/^[A-Z]{3}$/.test(cur)) return 'Currency must be a 3-letter ISO code (e.g. ETB)';
+  return null;
+}
+
+function describeFare(values: Record<string, string>): string {
+  const base = Number(values['fare.baseFare'] ?? 90);
+  const perKm = Number(values['fare.perKm'] ?? 40);
+  const timeCharge = Number(values['fare.timeBlockCharge'] ?? 20);
+  const blockMin = Math.max(1, Number(values['fare.timeBlockMinutes'] ?? 4));
+  const minimum = Number(values['fare.minimumFare'] ?? 90);
+  const currency = (values['fare.currency'] ?? 'ETB').trim().toUpperCase() || 'ETB';
+  const blocks = Math.ceil(12 / blockMin);
+  const raw = base + perKm * 5 + timeCharge * blocks;
+  const fare = Math.max(minimum, raw);
+  const raised = raw < minimum ? `, raised to the ${minimum} ${currency} minimum` : '';
+  return `A 5 km, 12-minute trip costs ${fare.toFixed(0)} ${currency} (${base} base + ${perKm} × 5 km + ${timeCharge} × ${blocks} time block${blocks === 1 ? '' : 's'}${raised}).`;
+}
+
+function describeDispatch(values: Record<string, string>): string {
+  const enforce = values['dispatch.enforceRadius'] !== 'false';
+  const radius = Number(values['dispatch.radiusKm'] ?? 5);
+  const max = Number(values['dispatch.maxDrivers'] ?? 15);
+  const ttl = Number(values['dispatch.offerTtlSeconds'] ?? 180);
+  const speed = Number(values['dispatch.urbanSpeedKmh'] ?? 20);
+  const stale = Number(values['dispatch.staleDriverMinutes'] ?? 5);
+  const ring = enforce
+    ? `the closest ${max} eligible drivers within ${radius} km (expanding to ${radius * 2} km, then city-wide, if the ring is empty)`
+    : `the closest ${max} eligible drivers city-wide`;
+  return `The next ride is offered to ${ring}. Drivers have ${ttl} seconds to accept. ETAs assume ${speed} km/h when routing is unavailable. Online drivers silent for ${stale} minutes are dropped.`;
+}
+
+function NumberField({
+  keyName,
+  value,
+  disabled,
+  currency,
+  onChange,
+  onReset,
+}: {
+  keyName: string;
+  value: string;
+  disabled: boolean;
+  currency: string;
+  onChange: (next: string) => void;
+  onReset: () => void;
+}) {
+  const meta = FIELD_META[keyName];
+  if (!meta) return null;
+  const unit = meta.unit === 'currency' ? currency : meta.unit;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label>{meta.label}</Label>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+          onClick={onReset}
+          disabled={disabled}
+        >
+          <RotateCcw className="h-3 w-3" /> Reset
+        </button>
       </div>
+      <div className="relative">
+        <Input
+          type="number"
+          min={meta.min}
+          max={meta.max}
+          step={meta.min != null && meta.min < 1 ? 0.1 : 1}
+          className="tabular-nums pr-12"
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {unit ? (
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            {unit}
+          </span>
+        ) : null}
+      </div>
+      <p className="text-xs text-muted-foreground">{meta.hint}</p>
     </div>
   );
 }
@@ -411,7 +758,7 @@ function SecurityCard() {
       setQrCodeDataUrl(null);
       setTotpURI(null);
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Invalid code — try again');
+      toast.error(e instanceof ApiError ? e.message : 'Invalid code - try again');
     } finally {
       setBusy(false);
     }
@@ -449,7 +796,7 @@ function SecurityCard() {
         {/* Change password */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <KeyRound className="w-4 h-4 text-[#00BDC3]" />
+            <KeyRound className="w-4 h-4 text-primary" />
             <h4 className="font-semibold text-sm text-card-foreground">{t('settings.changePassword')}</h4>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -469,7 +816,7 @@ function SecurityCard() {
           <p className="text-xs text-muted-foreground">
             New passwords cannot match any of your last 5. Shared terminals also idle-timeout after the Super Admin’s policy.
           </p>
-          <Button size="sm" className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleChangePassword} disabled={savingPassword}>
+          <Button size="sm" onClick={handleChangePassword} disabled={savingPassword}>
             {savingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Update Password
           </Button>
         </div>
@@ -480,9 +827,7 @@ function SecurityCard() {
               {twoFactorEnabled ? <ShieldCheck className="w-4 h-4 text-[#10B981]" /> : <ShieldOff className="w-4 h-4 text-muted-foreground" />}
               <h4 className="font-semibold text-sm text-card-foreground">Two-Factor Authentication</h4>
             </div>
-            <Badge className={twoFactorEnabled ? 'bg-[#10B981] text-white' : 'bg-gray-500 text-white'}>
-              {twoFactorEnabled ? 'Enabled' : 'Disabled'}
-            </Badge>
+            <StatusBadge status={twoFactorEnabled ? 'enabled' : 'disabled'} label={twoFactorEnabled ? 'Enabled' : 'Disabled'} />
           </div>
           <p className="text-xs text-muted-foreground">
             Protects your account with a 6-digit code from an authenticator app (Google Authenticator, Authy, 1Password, etc.) in addition to your password.
@@ -501,7 +846,7 @@ function SecurityCard() {
                 onChange={(e) => setTwoFAPassword(e.target.value)}
               />
               <div className="flex gap-2">
-                <Button size="sm" className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={submitEnablePassword} disabled={busy}>
+                <Button size="sm" onClick={submitEnablePassword} disabled={busy}>
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Continue'}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => { setTwoFAStep('idle'); setTwoFAPassword(''); }}>Cancel</Button>
@@ -520,7 +865,7 @@ function SecurityCard() {
                   {totpURI && (
                     <button
                       type="button"
-                      className="flex items-center gap-1 text-[#00BDC3] hover:underline"
+                      className="flex items-center gap-1 text-primary hover:underline"
                       onClick={() => {
                         navigator.clipboard.writeText(totpURI);
                         toast.info('Setup link copied');
@@ -535,7 +880,7 @@ function SecurityCard() {
 
               {backupCodes.length > 0 && (
                 <div className="bg-muted rounded-lg p-3 text-xs">
-                  <p className="font-semibold mb-1 text-card-foreground">Backup codes — save these somewhere safe:</p>
+                  <p className="font-semibold mb-1 text-card-foreground">Backup codes - save these somewhere safe:</p>
                   <div className="grid grid-cols-2 gap-1 font-mono text-muted-foreground">
                     {backupCodes.map((c) => <span key={c}>{c}</span>)}
                   </div>
@@ -551,7 +896,7 @@ function SecurityCard() {
                   onChange={(e) => setConfirmCode(e.target.value.replace(/\D/g, ''))}
                   className="text-center tracking-[0.3em]"
                 />
-                <Button className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={submitConfirmCode} disabled={busy}>
+                <Button onClick={submitConfirmCode} disabled={busy}>
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
                 </Button>
               </div>
@@ -644,14 +989,14 @@ function SessionsCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MonitorSmartphone className="w-4 h-4 text-[#00BDC3]" /> Active sessions
+          <MonitorSmartphone className="w-4 h-4 text-primary" /> Active sessions
         </CardTitle>
         <CardDescription>Every device currently holding a dashboard token. Revoke anything that isn’t this terminal.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? (
           <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-[#00BDC3]" />
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
           </div>
         ) : sessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No active sessions.</p>
@@ -664,12 +1009,8 @@ function SessionsCard() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-sm">{session.deviceName}</p>
-                  {session.isCurrent && <Badge className="bg-[#00BDC3] text-white">This device</Badge>}
-                  {session.isTrusted && (
-                    <Badge variant="outline" className="border-[#00BDC3]/30 text-[#00868C]">
-                      Trusted
-                    </Badge>
-                  )}
+                  {session.isCurrent && <span className="text-xs font-medium text-primary">This device</span>}
+                  {session.isTrusted && <StatusBadge status="trusted" label="Trusted" />}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {session.ipAddress ?? 'Unknown IP'} · last active {timeAgo(session.lastActivityAt)}
@@ -724,7 +1065,7 @@ function SecurityPolicyCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-[#00BDC3]" /> Security policy
+          <Shield className="w-4 h-4 text-primary" /> Security policy
         </CardTitle>
         <CardDescription>Mandate 2FA per role and set the idle timeout for shared call-centre terminals.</CardDescription>
       </CardHeader>

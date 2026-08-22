@@ -41,7 +41,7 @@ interface GebetaMapViewProps {
   /** Live fleet markers (e.g. available drivers on the dashboard map). Click any dot for its name/status + live address. */
   fleet?: Array<MapPoint & { id?: string; name?: string; status?: string; color?: string; label?: string }>;
   /**
-   * Makes fleet markers selectable rather than merely informational — clicking
+   * Makes fleet markers selectable rather than merely informational - clicking
    * one calls back with its id. Used by map-based ride assignment, where the
    * pin *is* the control.
    */
@@ -439,7 +439,7 @@ export default function GebetaMapView({
       {!ready && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#F3F4F6]">
           <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 rounded-full border-4 border-[#00BDC3]/30 border-t-[#00BDC3] animate-spin" />
+            <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
             <p className="text-xs text-[#6B7280]">Loading map…</p>
           </div>
         </div>

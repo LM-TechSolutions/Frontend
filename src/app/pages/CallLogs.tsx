@@ -1,140 +1,186 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Search, Phone, Clock, CheckCircle, XCircle, Loader2, Download } from 'lucide-react';
 import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
-import { Search, Phone, Clock, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { api } from '../lib/api';
 import LogCallDialog from '../components/LogCallDialog';
+import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import { useAppContext } from '../contexts/AppContext';
+import { Page, PageHeader, FilterBar, Surface } from '../components/layout/PageHeader';
+import { StatusBadge } from '../components/layout/StatusBadge';
+import { EmptyState, StatTile } from '../components/coupons/CouponAtoms';
 
 const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-const statusColor = (status: string) =>
-  ({
-    completed: 'bg-[#10B981]/10 text-[#10B981]',
-    missed: 'bg-[#EF4444]/10 text-[#EF4444]',
-    abandoned: 'bg-[#F59E0B]/10 text-[#F59E0B]',
-  } as any)[status] || 'bg-gray-100 text-gray-600';
-const statusIcon = (status: string) =>
-  status === 'completed' ? <CheckCircle className="w-4 h-4" /> : status === 'missed' ? <XCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />;
+const PAGE_SIZE = 20;
+const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 
 export default function CallLogs() {
   const { t } = useAppContext();
   const [logs, setLogs] = useState<any[]>([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [page, setPage] = useState(1);
+  const [range, setRange] = useState<DateRange | undefined>();
 
   const load = () => {
     setLoading(true);
     api.callLogs
-      .list({ limit: 200 })
-      .then((res) => setLogs(res.callLogs ?? []))
+      .list({
+        page,
+        limit: PAGE_SIZE,
+        status: filterStatus === 'all' ? undefined : filterStatus,
+        startDate: range?.from ? iso(range.from) : undefined,
+        endDate: range?.to ? iso(range.to) : undefined,
+      })
+      .then((res) => {
+        setLogs(res.callLogs ?? []);
+        setPagination(res.pagination ?? { page: 1, totalPages: 1, total: res.callLogs?.length ?? 0 });
+      })
       .catch((e) => toast.error(e?.message ?? 'Failed to load call logs'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterStatus, range]);
 
   const filtered = logs.filter((log) => {
     const q = searchQuery.toLowerCase();
-    const matches = !q || `${log.customerName ?? ''}${log.customerPhone ?? ''}${log.operatorName ?? ''}`.toLowerCase().includes(q);
-    const status = filterStatus === 'all' || log.status === filterStatus;
-    return matches && status;
+    return !q || `${log.customerName ?? ''}${log.customerPhone ?? ''}${log.operatorName ?? ''}`.toLowerCase().includes(q);
   });
 
   const completed = filtered.filter((c) => c.status === 'completed').length;
   const missed = filtered.filter((c) => c.status === 'missed').length;
+  const converted = filtered.filter((c) => c.rideId).length;
   const avg = filtered.length ? Math.round(filtered.reduce((s, c) => s + (c.duration ?? 0), 0) / filtered.length) : 0;
+  const conversion = filtered.length ? Math.round((converted / filtered.length) * 100) : 0;
+
+  const exportCsv = () => {
+    const header = ['time', 'customer', 'phone', 'operator', 'status', 'duration', 'rideId', 'notes'];
+    const rows = filtered.map((log) =>
+      [log.timestamp, log.customerName, log.customerPhone, log.operatorName, log.status, log.duration, log.rideId ?? '', log.notes ?? '']
+        .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
+        .join(',')
+    );
+    const blob = new Blob([[header.join(','), ...rows].join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `call-logs-${iso(new Date())}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('callLogs.title', 'Call Logs')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('callLogs.subtitle', 'Detailed history of all customer calls')}</p>
-        </div>
-        <LogCallDialog onLogged={load} />
-      </div>
-
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: t('callLogs.totalCalls', 'Total Calls'), value: filtered.length, icon: Phone, color: '#00BDC3' },
-          { label: t('callLogs.completed', 'Completed'), value: completed, icon: CheckCircle, color: '#10B981' },
-          { label: t('callLogs.missed', 'Missed'), value: missed, icon: XCircle, color: '#EF4444' },
-          { label: t('callLogs.avgDuration', 'Avg Duration'), value: formatDuration(avg), icon: Clock, color: '#00BDC3' },
-        ].map((s) => (
-          <Card key={s.label}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div><p className="text-sm text-muted-foreground">{s.label}</p><p className="text-2xl font-semibold mt-1" style={{ color: s.color }}>{s.value}</p></div>
-                <s.icon className="w-8 h-8" style={{ color: s.color }} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder={t('callLogs.searchPlaceholder', 'Search by customer, phone, or operator…')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 h-10" />
-            </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[180px] h-10"><SelectValue placeholder={t('callLogs.status', 'Status')} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('callLogs.allStatus', 'All Status')}</SelectItem>
-                <SelectItem value="completed">{t('callLogs.completed', 'Completed')}</SelectItem>
-                <SelectItem value="missed">{t('callLogs.missed', 'Missed')}</SelectItem>
-                <SelectItem value="abandoned">{t('callLogs.abandoned', 'Abandoned')}</SelectItem>
-              </SelectContent>
-            </Select>
+    <Page>
+      <PageHeader
+        eyebrow="Voice"
+        title={t('callLogs.title', 'Call logs')}
+        description={t('callLogs.subtitle', 'Every inbound call, with conversion to a ride.')}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportCsv} disabled={!filtered.length}>
+              <Download className="mr-2 h-4 w-4" /> CSV
+            </Button>
+            <LogCallDialog onLogged={() => { setPage(1); load(); }} />
           </div>
-        </CardContent>
-      </Card>
+        }
+      />
 
-      <Card>
-        <CardHeader><CardTitle className="text-lg">{t('callLogs.history', 'Call History')}</CardTitle></CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#00BDC3]" /></div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    {[t('callLogs.time', 'Time'), t('callLogs.customer', 'Customer'), t('callLogs.phone', 'Phone'), t('callLogs.operator', 'Operator'), t('callLogs.status', 'Status'), t('callLogs.duration', 'Duration'), t('callLogs.rideId', 'Ride ID'), t('callLogs.notes', 'Notes')].map((h) => (
-                      <th key={h} className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((log) => (
-                    <tr key={log.id} className="border-b border-border hover:bg-muted/50">
-                      <td className="py-3 px-4 text-sm text-foreground">{new Date(log.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="py-3 px-4 text-sm font-medium text-foreground">{log.customerName ?? '—'}</td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">{log.customerPhone}</td>
-                      <td className="py-3 px-4 text-sm text-foreground">{log.operatorName}</td>
-                      <td className="py-3 px-4"><Badge className={statusColor(log.status)}><span className="flex items-center gap-1">{statusIcon(log.status)}{t(`callLogs.${log.status}`, log.status)}</span></Badge></td>
-                      <td className="py-3 px-4 text-sm font-medium text-foreground">{formatDuration(log.duration ?? 0)}</td>
-                      <td className="py-3 px-4 text-sm">{log.rideId ? <span className="font-mono text-[#00BDC3]">{String(log.rideId).slice(0, 8)}</span> : <span className="text-muted-foreground">—</span>}</td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground max-w-xs truncate">{log.notes ?? '—'}</td>
-                    </tr>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label={t('callLogs.totalCalls', 'This page')} value={filtered.length} hint={`${pagination.total} in range`} icon={Phone} />
+        <StatTile label={t('callLogs.completed', 'Completed')} value={completed} icon={CheckCircle} accent="#0B7A55" />
+        <StatTile label={t('callLogs.missed', 'Missed')} value={missed} icon={XCircle} accent="#AE2E2D" />
+        <StatTile label="Call → ride" value={`${conversion}%`} hint={`Avg ${formatDuration(avg)}`} icon={Clock} />
+      </div>
+
+      <FilterBar>
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={t('callLogs.searchPlaceholder', 'Search this page by customer, phone, or operator…')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-10 pl-10"
+          />
+        </div>
+        <DateRangePicker
+          value={range}
+          onChange={(next) => {
+            setRange(next);
+            setPage(1);
+          }}
+        />
+        <Select
+          value={filterStatus}
+          onValueChange={(v) => {
+            setFilterStatus(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-10 w-[180px]"><SelectValue placeholder={t('callLogs.status', 'Status')} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('callLogs.allStatus', 'All status')}</SelectItem>
+            <SelectItem value="completed">{t('callLogs.completed', 'Completed')}</SelectItem>
+            <SelectItem value="missed">{t('callLogs.missed', 'Missed')}</SelectItem>
+            <SelectItem value="abandoned">{t('callLogs.abandoned', 'Abandoned')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
+
+      <Surface>
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        ) : filtered.length === 0 ? (
+          <div className="p-6"><EmptyState icon={Phone} title={t('callLogs.noLogs', 'No call logs found')} /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  {[t('callLogs.time', 'Time'), t('callLogs.customer', 'Customer'), t('callLogs.phone', 'Phone'), t('callLogs.operator', 'Operator'), t('callLogs.status', 'Status'), t('callLogs.duration', 'Duration'), 'Converted', t('callLogs.notes', 'Notes')].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">{h}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {!loading && filtered.length === 0 && (
-            <div className="text-center py-12"><Phone className="w-12 h-12 text-muted-foreground mx-auto mb-3" /><p className="text-muted-foreground">{t('callLogs.noLogs', 'No call logs found')}</p></div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((log) => (
+                  <tr key={log.id} className="border-b border-border hover:bg-muted/50">
+                    <td className="px-4 py-3 text-sm">{log.timestamp ? format(new Date(log.timestamp), 'MMM dd, HH:mm') : '-'}</td>
+                    <td className="px-4 py-3 text-sm font-medium">{log.customerName ?? '-'}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{log.customerPhone}</td>
+                    <td className="px-4 py-3 text-sm">{log.operatorName}</td>
+                    <td className="px-4 py-3"><StatusBadge status={log.status} /></td>
+                    <td className="px-4 py-3 text-sm font-medium tabular-nums">{formatDuration(log.duration ?? 0)}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {log.rideId ? (
+                        <span className="font-mono text-primary">#{String(log.rideId).slice(0, 8)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">No ride</span>
+                      )}
+                    </td>
+                    <td className="max-w-xs truncate px-4 py-3 text-sm text-muted-foreground">{log.notes ?? '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Surface>
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Page {page} of {Math.max(1, pagination.totalPages)} · {pagination.total} calls</p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+        </div>
+      </div>
+    </Page>
   );
 }

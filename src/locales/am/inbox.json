@@ -1,0 +1,16 @@
+{
+  "title": "ማስጠንቀቂያዎች",
+  "eyebrow": "መልእክቶች",
+  "description": "የተቀመጠ ታሪክ - ገጹ ሲታደስ አይጠፋም። ያልተነበቡት ከሰርቨሩ ይመጣሉ።",
+  "markAllRead": "ሁሉንም እንደተነበበ ምልክት አድርግ",
+  "unreadOnly": "ያልተነበቡ ብቻ",
+  "empty": "መልእክት የለም",
+  "emptyHint": "ቀጥታ ማስጠንቀቂያዎች እዚህ እና በደወሉ ላይ ይታያሉ።",
+  "groupAll": "ሁሉም",
+  "groupRides": "ጉዞዎች",
+  "groupCoupons": "ኩፖኖች",
+  "groupDrivers": "አሽከርካሪዎች",
+  "groupSecurity": "ደህንነት",
+  "groupSystem": "ስርዓት",
+  "noneNew": "አዲስ ማስጠንቀቂያ የለም"
+}

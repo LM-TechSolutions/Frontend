@@ -53,7 +53,7 @@ export default function EnrollTwoFactor() {
       toast.success('Two-factor authentication is on. Welcome in.');
       navigate('/dashboard', { replace: true });
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Invalid code — try again');
+      toast.error(e instanceof ApiError ? e.message : 'Invalid code - try again');
     } finally {
       setBusy(false);
     }
@@ -63,7 +63,7 @@ export default function EnrollTwoFactor() {
     <div className="min-h-screen bg-[linear-gradient(160deg,#042f32_0%,#08656a_42%,#f8fafc_42%)] px-4 py-10">
       <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 shadow-2xl">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#00BDC3] text-white">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div>
@@ -72,7 +72,7 @@ export default function EnrollTwoFactor() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
-          Super Admin policy requires 2FA for {user?.name ?? 'this account'} before the dashboard opens. Scan once — trusted devices remember you for 30 days.
+          Super Admin policy requires 2FA for {user?.name ?? 'this account'} before the dashboard opens. Scan once - trusted devices remember you for 30 days.
         </p>
 
         {step === 'password' ? (
@@ -85,7 +85,7 @@ export default function EnrollTwoFactor() {
               className="h-11"
             />
             <div className="flex gap-2">
-              <Button className="flex-1 h-11 bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={start} disabled={busy}>
+              <Button className="flex-1 h-11" onClick={start} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Start setup'}
               </Button>
               <Button variant="outline" className="h-11" onClick={() => { logout(); navigate('/', { replace: true }); }}>
@@ -104,7 +104,7 @@ export default function EnrollTwoFactor() {
                 {totpURI && (
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-[#00868C] hover:underline"
+                    className="flex items-center gap-1 text-primary hover:underline"
                     onClick={() => {
                       navigator.clipboard.writeText(totpURI);
                       toast.info('Setup link copied');
@@ -118,7 +118,7 @@ export default function EnrollTwoFactor() {
             </div>
             {backupCodes.length > 0 && (
               <div className="rounded-2xl bg-muted p-4 text-xs">
-                <p className="mb-2 font-semibold text-foreground">Backup codes — store these offline</p>
+                <p className="mb-2 font-semibold text-foreground">Backup codes - store these offline</p>
                 <div className="grid grid-cols-2 gap-1 font-mono text-muted-foreground">
                   {backupCodes.map((c) => (
                     <span key={c}>{c}</span>
@@ -135,7 +135,7 @@ export default function EnrollTwoFactor() {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                 className="h-11 text-center tracking-[0.35em]"
               />
-              <Button className="h-11 bg-[#00BDC3] text-white hover:bg-[#009EA3]" onClick={confirm} disabled={busy}>
+              <Button className="h-11" onClick={confirm} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enable 2FA'}
               </Button>
             </div>
