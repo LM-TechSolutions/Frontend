@@ -50,7 +50,6 @@ const operatorNavigation = [
   { nameKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
   { nameKey: 'nav.rides', href: '/rides', icon: Car },
   { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
-  { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
 ];
 
 const adminNavigation = [

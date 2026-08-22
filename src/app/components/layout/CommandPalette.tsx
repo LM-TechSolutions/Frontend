@@ -32,7 +32,7 @@ const ALL_PAGES = [
   { nameKey: 'nav.callLogs', href: '/call-logs', icon: PhoneCall, admin: true },
   { nameKey: 'nav.rides', href: '/rides', icon: Car, admin: false },
   { nameKey: 'nav.drivers', href: '/drivers', icon: Users, admin: false },
-  { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet, admin: false },
+  { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet, admin: true },
   { nameKey: 'nav.auditLog', href: '/audit-log', icon: ScrollText, admin: true },
   { nameKey: 'nav.admins', href: '/admins', icon: Shield, admin: true, super: true },
   { nameKey: 'nav.settings', href: '/settings', icon: Settings, admin: false },

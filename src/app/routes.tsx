@@ -2,7 +2,7 @@ import { createBrowserRouter, Outlet } from "react-router";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import EnrollTwoFactor from "./pages/EnrollTwoFactor";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute, { RequireAdmin } from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Rides from "./pages/Rides";
@@ -37,18 +37,23 @@ export const router = createBrowserRouter([
             errorElement: <RouteError />,
             children: [
               { path: "dashboard", element: <Dashboard /> },
-              { path: "analytics", element: <Analytics /> },
               { path: "operators", element: <Operators /> },
               { path: "call-logs", element: <CallLogs /> },
               { path: "rides", element: <Rides /> },
               { path: "rides/:rideId", element: <RideTracking /> },
               { path: "drivers", element: <Drivers /> },
-              { path: "coupons", element: <Coupons /> },
               { path: "settings", element: <Settings /> },
               { path: "notifications", element: <Notifications /> },
               { path: "audit-log", element: <AuditLog /> },
               { path: "employees/:employeeId", element: <DriverReport /> },
               { path: "admins", element: <Admins /> },
+              {
+                element: <RequireAdmin />,
+                children: [
+                  { path: "analytics", element: <Analytics /> },
+                  { path: "coupons", element: <Coupons /> },
+                ],
+              },
               { path: "*", element: <ErrorPage status={404} /> },
             ],
           },
