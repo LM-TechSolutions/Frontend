@@ -1,13 +1,31 @@
 import { API } from './config';
 
-const TOKEN_KEY = 'tokuma.token';
+const LEGACY_TOKEN_KEY = 'tokuma.token';
+
+/**
+ * The session token is held in memory only — never in localStorage.
+ *
+ * The durable credential is the `tekuuma.session_token` httpOnly cookie the
+ * backend sets at login: it survives a refresh, and script cannot read it, so
+ * an XSS cannot exfiltrate a reusable credential. This in-memory copy is sent
+ * as a Bearer header for the life of the tab, which keeps the dashboard working
+ * on cross-origin deployments where a browser blocks third-party cookies.
+ * On reload the session is re-established from the cookie via `/auth/me`.
+ */
+let sessionToken: string | null = null;
+
+// One-time cleanup of the credential previous builds persisted.
+try {
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+} catch {
+  /* storage unavailable — nothing to clean up */
+}
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionToken;
 }
 export function setToken(token: string | null) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  sessionToken = token;
 }
 
 export class ApiError extends Error {

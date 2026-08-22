@@ -1,6 +1,6 @@
 ﻿import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import i18n from '../i18n';
-import { api, getToken } from '../lib/api';
+import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
 
 export type Language = 'en' | 'am' | 'om';
@@ -69,23 +69,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [calendar, setCalendarState] = useState<CalendarMode>(readStoredCalendar);
   const [theme, setTheme] = useState<ThemeMode>(readStoredTheme);
 
-  const setLanguage = useCallback((lang: Language, syncServer = true) => {
-    setLanguageState(lang);
-    localStorage.setItem('language', lang);
-    applyDocumentLang(lang);
-    void i18n.changeLanguage(lang);
-    if (syncServer && getToken()) {
-      void api.settings.updateLocale({ locale: lang }).catch(() => undefined);
-    }
-  }, []);
+  // Gate the server sync on being signed in, not on holding a token: the token
+  // lives in memory only, so after a refresh the session is carried by the
+  // httpOnly cookie and `getToken()` is legitimately null.
+  const isSignedIn = Boolean(user?.id);
 
-  const setCalendar = useCallback((next: CalendarMode, syncServer = true) => {
-    setCalendarState(next);
-    localStorage.setItem('calendar', next);
-    if (syncServer && getToken()) {
-      void api.settings.updateLocale({ calendar: next }).catch(() => undefined);
-    }
-  }, []);
+  const setLanguage = useCallback(
+    (lang: Language, syncServer = true) => {
+      setLanguageState(lang);
+      localStorage.setItem('language', lang);
+      applyDocumentLang(lang);
+      void i18n.changeLanguage(lang);
+      if (syncServer && isSignedIn) {
+        void api.settings.updateLocale({ locale: lang }).catch(() => undefined);
+      }
+    },
+    [isSignedIn]
+  );
+
+  const setCalendar = useCallback(
+    (next: CalendarMode, syncServer = true) => {
+      setCalendarState(next);
+      localStorage.setItem('calendar', next);
+      if (syncServer && isSignedIn) {
+        void api.settings.updateLocale({ calendar: next }).catch(() => undefined);
+      }
+    },
+    [isSignedIn]
+  );
 
   useEffect(() => {
     applyDocumentLang(language);
