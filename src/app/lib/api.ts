@@ -68,7 +68,12 @@ async function request<T>(base: string, path: string, options: RequestOptions = 
 
   if (!res.ok) {
     const message = payload?.error?.message || payload?.message || `Request failed (${res.status})`;
-    const isAuthAttempt = path.includes('/auth/login') || path.includes('/auth/forgot-password') || path.includes('/auth/reset-password') || path.includes('/auth/me');
+    const isAuthAttempt =
+      path.includes('/auth/login') ||
+      path.includes('/auth/forgot-password') ||
+      path.includes('/auth/reset-password') ||
+      path.includes('/auth/me') ||
+      path.includes('/me/permissions');
     if (res.status === 401 && !options.skipAuthClear && !isAuthAttempt) {
       setToken(null);
       window.dispatchEvent(new Event('tokuma:unauthorized'));
@@ -324,6 +329,7 @@ export const api = {
       extras?: { deviceId?: string; deviceName?: string; rememberDevice?: boolean }
     ) =>
       cc<{
+        token?: string;
         user?: AuthUser;
         twoFactorRequired?: boolean;
         twoFactorEnrollmentRequired?: boolean;
@@ -468,7 +474,7 @@ export const api = {
 
   /** Administrator accounts, permission sets, and the Super Admin role. */
   admins: {
-    myPermissions: () => cc<MyPermissions>('/me/permissions'),
+    myPermissions: () => cc<MyPermissions>('/me/permissions', { skipAuthClear: true }),
     catalog: () =>
       cc<{
         permissions: Array<{ key: string; resource: string; action: string; description: string }>;

@@ -106,7 +106,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         persistUser(nextUser);
         setUser(nextUser);
-        setToken(null);
         if (session.idleTimeoutMinutes) {
           setIdleTimeoutMinutes(session.idleTimeoutMinutes);
           localStorage.setItem(IDLE_KEY, String(session.idleTimeoutMinutes));
@@ -149,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...result.user,
         twoFactorEnrollmentRequired: enrollment,
       };
-      setToken(null);
+      if (result.token) setToken(result.token);
       persistUser(nextUser);
       setUser(nextUser);
       if (result.idleTimeoutMinutes) {
