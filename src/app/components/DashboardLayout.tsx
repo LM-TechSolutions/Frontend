@@ -51,8 +51,6 @@ const operatorNavigation = [
   { nameKey: 'nav.rides', href: '/rides', icon: Car },
   { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
   { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
-  { nameKey: 'nav.notifications', href: '/notifications', icon: Bell },
-  { nameKey: 'nav.settings', href: '/settings', icon: Settings },
 ];
 
 const adminNavigation = [
@@ -63,9 +61,13 @@ const adminNavigation = [
   { nameKey: 'nav.rides', href: '/rides', icon: Car },
   { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
   { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
+];
+
+const accountPages = [
   { nameKey: 'nav.notifications', href: '/notifications', icon: Bell },
   { nameKey: 'nav.auditLog', href: '/audit-log', icon: ScrollText },
   { nameKey: 'nav.settings', href: '/settings', icon: Settings },
+  { nameKey: 'nav.admins', href: '/admins', icon: Shield },
 ];
 
 const SIDEBAR_KEY = 'tokuma.sidebarCollapsed';
@@ -139,17 +141,10 @@ export default function DashboardLayout() {
   const navigation = useMemo(() => {
     const base = userRole === 'admin' ? adminNavigation : operatorNavigation;
     if (!isSuperAdmin) return base;
-    const settingsIndex = base.findIndex((item) => item.href === '/settings');
-    const withAdmins = [...base];
-    withAdmins.splice(settingsIndex === -1 ? base.length : settingsIndex, 0, {
-      nameKey: 'nav.admins',
-      href: '/admins',
-      icon: Shield,
-    });
-    return withAdmins;
+    return [...base, { nameKey: 'nav.admins', href: '/admins', icon: Shield }];
   }, [userRole, isSuperAdmin]);
 
-  const current = navigation.find(
+  const current = [...navigation, ...accountPages].find(
     (item) => location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
   );
 
@@ -241,7 +236,7 @@ export default function DashboardLayout() {
             side={compact ? 'right' : 'top'}
             align={compact ? 'end' : 'start'}
             sideOffset={10}
-            className="w-48"
+            className="w-52"
           >
             <DropdownMenuLabel>{t('common.account', 'My Account')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -254,6 +249,17 @@ export default function DashboardLayout() {
               <Settings className="mr-2 h-4 w-4" />
               {t('nav.settings', 'Settings')}
             </DropdownMenuItem>
+            {userRole === 'admin' && (
+              <DropdownMenuItem
+                onClick={() => {
+                  navigate('/audit-log');
+                  onNavigate?.();
+                }}
+              >
+                <ScrollText className="mr-2 h-4 w-4" />
+                {t('nav.auditLog', 'Audit log')}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
@@ -375,7 +381,7 @@ export default function DashboardLayout() {
                         }}
                         className="text-muted-foreground hover:text-foreground"
                       >
-                        Inbox
+                        View all
                       </button>
                     </div>
                   </div>

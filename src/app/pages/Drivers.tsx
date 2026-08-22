@@ -289,7 +289,6 @@ export default function Drivers() {
       <Surface>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h4 className="text-sm font-semibold">Live fleet map</h4>
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Socket · no polling</span>
         </div>
         <GebetaMapView fleet={fleet} height={320} zoom={12} className="w-full" />
       </Surface>

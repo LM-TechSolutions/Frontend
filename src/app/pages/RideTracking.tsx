@@ -1,22 +1,59 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Phone, X, MapPin, Navigation, User, Car, Clock, Loader2, Route, Ticket } from 'lucide-react';
+import {
+  ArrowLeft,
+  Phone,
+  MapPin,
+  Navigation,
+  Car,
+  Loader2,
+  Ticket,
+  Copy,
+  ExternalLink,
+  Bell,
+} from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Separator } from '../components/ui/separator';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { connectSocket, subscribeRide, unsubscribeRide, subscribeMap, unsubscribeMap } from '../lib/socket';
-import { rideStatusLabel, formatETB } from '../lib/format';
+import { rideStatusLabel, formatETB, formatDateTime, shortId } from '../lib/format';
 import type { RoadRoute } from '../lib/route';
 import GebetaMapView, { type MapPoint } from '../components/GebetaMapView';
 import AssignFromMapDialog from '../components/AssignFromMapDialog';
 import { useAppContext } from '../contexts/AppContext';
-import { StatusBadge } from '../components/layout/StatusBadge';
-import { EmptyState } from '../components/coupons/CouponAtoms';
+import { StatusBadge, waitTone } from '../components/layout/StatusBadge';
+import { EmptyState, Initials } from '../components/coupons/CouponAtoms';
+import { Surface } from '../components/layout/PageHeader';
+import { cn } from '../components/ui/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
-const rideStatuses = ['pending', 'dispatched', 'accepted', 'arrived', 'in_progress', 'completed'];
+const STAGES = ['pending', 'dispatched', 'accepted', 'arrived', 'in_progress', 'completed'];
+const OPEN_STATUSES = ['pending', 'unassigned', 'dispatched', 'accepted', 'arrived', 'in_progress'];
+const REDISPATCH_STATUSES = ['pending', 'unassigned', 'dispatched'];
+
+function copyText(value: string, label: string) {
+  void navigator.clipboard.writeText(value).then(
+    () => toast.success(`${label} copied`),
+    () => toast.error('Could not copy')
+  );
+}
+
+function gpsFreshness(at: Date | null, now: number) {
+  if (!at) return null;
+  const seconds = Math.max(0, Math.round((now - at.getTime()) / 1000));
+  if (seconds < 8) return 'Live';
+  if (seconds < 60) return `${seconds}s ago`;
+  return `${Math.floor(seconds / 60)}m ago`;
+}
 
 export default function RideTracking() {
   const { rideId } = useParams();
@@ -27,7 +64,11 @@ export default function RideTracking() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [driverPos, setDriverPos] = useState<MapPoint | null>(null);
+  const [lastPing, setLastPing] = useState<Date | null>(null);
+  const [now, setNow] = useState(Date.now());
   const [cancelling, setCancelling] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [redispatching, setRedispatching] = useState(false);
   const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const rideIdRef = useRef(rideId);
@@ -38,7 +79,11 @@ export default function RideTracking() {
     try {
       const data = await api.rides.history(rideId);
       const rows = Array.isArray(data) ? data : data?.history ?? data?.items ?? [];
-      setHistory(rows);
+      setHistory(
+        [...rows].sort(
+          (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+        )
+      );
     } catch {
       setHistory([]);
     }
@@ -62,7 +107,7 @@ export default function RideTracking() {
 
   useEffect(() => {
     setLoading(true);
-    fetchRide();
+    void fetchRide();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideId]);
 
@@ -76,13 +121,14 @@ export default function RideTracking() {
       if (data?.rideId !== rideIdRef.current) return;
       if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
         setDriverPos({ lng: data.longitude, lat: data.latitude });
+        setLastPing(new Date());
       }
     };
     const onStatus = (data: any) => {
       if (data?.rideId !== rideIdRef.current) return;
       setRide((prev: any) => (prev ? { ...prev, status: data.status } : prev));
-      fetchRide(true);
-      fetchHistory();
+      void fetchRide(true);
+      void fetchHistory();
     };
 
     socket.on('ride:progress', onProgress);
@@ -107,19 +153,58 @@ export default function RideTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideId]);
 
+  useEffect(() => {
+    if (!lastPing) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [lastPing]);
+
   const handleCancel = async () => {
     if (!rideId) return;
     setCancelling(true);
     try {
       await api.rides.cancel(rideId, 'Cancelled by call center');
       toast.success('Ride cancelled');
-      fetchRide();
+      setCancelOpen(false);
+      void fetchRide();
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to cancel ride');
     } finally {
       setCancelling(false);
     }
   };
+
+  const handleRedispatch = async () => {
+    if (!rideId) return;
+    setRedispatching(true);
+    try {
+      const res = await api.rides.redispatch(rideId);
+      toast.success(
+        res.candidates > 0 ? `Notified ${res.candidates} nearby driver${res.candidates === 1 ? '' : 's'}` : 'No nearby drivers to notify'
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not re-notify');
+    } finally {
+      setRedispatching(false);
+    }
+  };
+
+  const pickup: MapPoint | null = ride?.pickupCoordinates
+    ? { lng: ride.pickupCoordinates.lng, lat: ride.pickupCoordinates.lat }
+    : null;
+  const dropoff: MapPoint | null = ride?.dropoffCoordinates
+    ? { lng: ride.dropoffCoordinates.lng, lat: ride.dropoffCoordinates.lat }
+    : null;
+  const hasDriver = !!ride?.driverId;
+  const isOpen = ride ? OPEN_STATUSES.includes(ride.status) : false;
+  const canAssign = isOpen;
+  const canRedispatch = ride ? REDISPATCH_STATUSES.includes(ride.status) : false;
+  const displayDistanceKm = roadRoute?.distanceKm ?? (ride?.distance != null ? Number(ride.distance) : null);
+  const displayDurationMin = roadRoute?.durationMinutes ?? ride?.duration ?? null;
+  const wait = ride && REDISPATCH_STATUSES.includes(ride.status) ? waitTone(ride.createdAt) : null;
+  const pingLabel = gpsFreshness(lastPing, now);
+  const stageIndex = ride ? STAGES.indexOf(ride.status) : -1;
+  const events = useMemo(() => history, [history]);
 
   if (loading) {
     return (
@@ -136,269 +221,279 @@ export default function RideTracking() {
           icon={Car}
           title={t('rides.rideNotFound', 'Ride not found')}
           action={
-            <Button onClick={() => navigate('/rides')}>
-              {t('rides.backToDashboard', 'Back to rides')}
-            </Button>
+            <Button onClick={() => navigate('/rides')}>{t('rides.backToDashboard', 'Back to rides')}</Button>
           }
         />
       </div>
     );
   }
 
-  const currentStatusIndex = rideStatuses.indexOf(ride.status);
-  const pickup: MapPoint | null = ride.pickupCoordinates
-    ? { lng: ride.pickupCoordinates.lng, lat: ride.pickupCoordinates.lat }
-    : null;
-  const dropoff: MapPoint | null = ride.dropoffCoordinates
-    ? { lng: ride.dropoffCoordinates.lng, lat: ride.dropoffCoordinates.lat }
-    : null;
-  const hasDriver = !!ride.driverId;
-  const displayDistanceKm = roadRoute?.distanceKm ?? (ride.distance != null ? Number(ride.distance) : null);
-  const displayDurationMin = roadRoute?.durationMinutes ?? ride.duration ?? null;
-  const canAssign = !['completed', 'cancelled'].includes(ride.status);
-
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/rides')}>
+    <div className="flex min-h-[calc(100svh-4.25rem)] flex-col gap-4 p-4 sm:p-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <Button variant="ghost" size="icon" className="mt-0.5 shrink-0" onClick={() => navigate('/rides')} aria-label="Back to rides">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Live tracking</p>
-            <h2 className="font-display text-2xl font-semibold tracking-tight">
-              {t('rides.rideTitle', 'Ride #{0}', { 0: String(ride.id).slice(0, 8) })}
-            </h2>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h2 className="truncate font-display text-2xl font-semibold tracking-tight">{ride.customerName}</h2>
+              <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
+              {wait && <span className={cn('text-sm font-medium', wait.className)}>{wait.label}</span>}
+            </div>
+            <button
+              type="button"
+              className="mt-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => copyText(ride.id, 'Ride ID')}
+            >
+              #{shortId(ride.id)}
+              <Copy className="ml-1.5 inline h-3 w-3 align-[-1px]" />
+            </button>
           </div>
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
+          {ride.customerPhone && (
+            <Button variant="outline" asChild>
+              <a href={`tel:${ride.customerPhone}`}>
+                <Phone className="mr-2 h-4 w-4" /> Call
+              </a>
+            </Button>
+          )}
+          {canRedispatch && (
+            <Button variant="outline" onClick={() => void handleRedispatch()} disabled={redispatching}>
+              {redispatching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bell className="mr-2 h-4 w-4" />}
+              Re-notify
+            </Button>
+          )}
           {canAssign && (
-            <Button onClick={() => setAssignOpen(true)}>
-              {hasDriver ? 'Reassign' : t('dashboard.assign', 'Assign')}
+            <Button onClick={() => setAssignOpen(true)}>{hasDriver ? 'Reassign' : t('dashboard.assign', 'Assign')}</Button>
+          )}
+          {isOpen && (
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive hover:text-white"
+              onClick={() => setCancelOpen(true)}
+            >
+              Cancel
             </Button>
           )}
         </div>
-      </div>
+      </header>
 
-      <Card className="overflow-hidden rounded-2xl border-border/80">
-        <CardHeader>
-          <CardTitle>{t('rides.rideProgress', 'Ride progress')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {history.length > 0 ? (
-            <ol className="space-y-0">
-              {history.map((event, index) => (
-                <li key={event.id ?? index} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <span
-                      className={`mt-1 h-3 w-3 rounded-full ${
-                        index === history.length - 1 ? 'bg-primary ring-4 ring-primary/20' : 'bg-sidebar'
-                      }`}
-                    />
-                    {index < history.length - 1 && <span className="w-px flex-1 bg-border" />}
-                  </div>
-                  <div className="pb-5">
-                    <p className="text-sm font-semibold">{rideStatusLabel(event.toStatus ?? event.status)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {event.createdAt ? format(new Date(event.createdAt), 'MMM dd, HH:mm') : ''}
-                      {event.actorType ? ` · ${event.actorType}` : ''}
-                    </p>
-                    {event.notes && <p className="mt-1 text-xs text-muted-foreground">{event.notes}</p>}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <div className="flex items-center justify-between">
-              {rideStatuses.map((status, index) => {
-                const isPast = index <= currentStatusIndex;
-                const isCurrent = index === currentStatusIndex;
-                return (
-                  <div key={status} className="flex flex-1 items-center">
-                    <div className="flex flex-1 flex-col items-center">
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-full border-4 ${
-                          isPast ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground'
-                        } ${isCurrent ? 'scale-110 ring-4 ring-primary/30' : ''}`}
-                      >
-                        <span className="font-bold">{index + 1}</span>
-                      </div>
-                      <p className={`mt-2 text-center text-sm font-medium ${isPast ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {rideStatusLabel(status)}
-                      </p>
-                    </div>
-                    {index < rideStatuses.length - 1 && (
-                      <div className={`mx-2 mt-[-30px] h-1 flex-1 ${index < currentStatusIndex ? 'bg-primary' : 'bg-border'}`} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="rounded-2xl border-border/80">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" /> {t('rides.customerInformation', 'Customer')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="mb-1 text-sm text-muted-foreground">{t('rides.name', 'Name')}</p>
-              <p className="font-semibold">{ride.customerName}</p>
-            </div>
-            <div>
-              <p className="mb-1 text-sm text-muted-foreground">Phone</p>
-              <a href={`tel:${ride.customerPhone}`} className="inline-flex items-center gap-2 font-semibold text-primary hover:underline">
-                <Phone className="h-4 w-4" /> {ride.customerPhone}
-              </a>
-            </div>
-            <Separator />
-            <div className="space-y-3">
-              <div className="flex items-start gap-2">
-                <MapPin className="mt-1 h-4 w-4 shrink-0 text-[color:var(--success)]" />
-                <div>
-                  <p className="text-xs text-muted-foreground">{t('rides.pickup', 'Pickup')}</p>
-                  <p className="text-sm font-medium">{ride.pickupLocation}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <Navigation className="mt-1 h-4 w-4 shrink-0 text-destructive" />
-                <div>
-                  <p className="text-xs text-muted-foreground">{t('rides.destination', 'Destination')}</p>
-                  <p className="text-sm font-medium">{ride.dropoffLocation}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-border/80">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Car className="h-5 w-5 text-primary" /> {t('rides.driverInformation', 'Driver')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {hasDriver ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="mb-1 text-sm text-muted-foreground">{t('rides.driverName', 'Driver name')}</p>
-                  <p className="font-semibold">{ride.driverName}</p>
-                </div>
-                <div>
-                  <p className="mb-1 text-sm text-muted-foreground">{t('rides.phoneNumber', 'Phone')}</p>
-                  <p className="font-semibold">{ride.driverPhone ?? '-'}</p>
-                </div>
-                <div>
-                  <p className="mb-1 text-sm text-muted-foreground">{t('rides.vehicle', 'Vehicle')}</p>
-                  <p className="font-semibold">{ride.vehicleInfo ?? '-'}</p>
-                </div>
-                <div>
-                  <p className="mb-1 text-sm text-muted-foreground">{t('rides.licensePlate', 'License plate')}</p>
-                  <p className="font-mono font-semibold">{ride.licensePlate ?? '-'}</p>
-                </div>
-                {ride.driverPhone && (
-                  <Button className="w-full" asChild>
-                    <a href={`tel:${ride.driverPhone}`}>
-                      <Phone className="mr-2 h-4 w-4" /> {t('rides.callDriver', 'Call driver')}
-                    </a>
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="py-6 text-center">
-                <p className="mb-3 text-muted-foreground">{t('rides.noDriverAssigned', 'No driver assigned yet')}</p>
-                <Button onClick={() => setAssignOpen(true)}>
-                  Assign from map
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-border/80">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" /> {t('rides.rideDetails', 'Ride details')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="mb-1 text-sm text-muted-foreground">{t('rides.rideIdLabel', 'Ride ID')}</p>
-              <p className="font-mono font-semibold">#{String(ride.id).slice(0, 8)}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="mb-1 text-sm text-muted-foreground">{t('rides.createdAt', 'Created')}</p>
-                <p className="font-semibold">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</p>
-              </div>
-              <div>
-                <p className="mb-1 text-sm text-muted-foreground">{t('rides.updated', 'Updated')}</p>
-                <p className="font-semibold">{format(new Date(ride.updatedAt), 'MMM dd, HH:mm')}</p>
-              </div>
-            </div>
-            {displayDistanceKm != null && (
-              <div className="flex items-center gap-2">
-                <Route className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="mb-0.5 text-sm text-muted-foreground">{t('rides.roadDistance', 'Road distance')}</p>
-                  <p className="font-semibold">
-                    {Number(displayDistanceKm).toFixed(2)} km
-                    {displayDurationMin != null ? ` · ~${displayDurationMin} min ETA` : ''}
-                  </p>
-                </div>
-              </div>
-            )}
-            <div>
-              <p className="mb-1 text-sm text-muted-foreground">
-                {ride.status === 'completed' ? t('rides.finalFare', 'Final fare') : t('rides.fare', 'Fare')}
-              </p>
-              <p className="text-2xl font-bold text-primary">{formatETB(ride.fare)}</p>
-            </div>
-            {(ride.couponDeduction != null || ride.couponsUsed != null) && (
-              <div className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-sm">
-                <Ticket className="h-4 w-4 text-primary" />
-                {ride.couponDeduction ?? ride.couponsUsed} coupons on this trip
-              </div>
-            )}
-            <Separator />
-            {ride.status !== 'completed' && ride.status !== 'cancelled' && (
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                disabled={cancelling}
-                className="w-full border-destructive text-destructive hover:bg-destructive hover:text-white"
-              >
-                {cancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
-                {t('rides.cancelRide', 'Cancel ride')}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="overflow-hidden rounded-2xl border-border/80">
-        <CardHeader>
-          <CardTitle>{t('rides.liveTracking', 'Live tracking')}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <Surface className="relative h-[50vh] min-h-[320px] overflow-hidden lg:h-full lg:min-h-0">
           <GebetaMapView
             pickup={pickup}
             dropoff={dropoff}
             driver={driverPos}
-            height={420}
+            driverName={ride.driverName}
+            height="100%"
             autoRoadRoute
             onRouteResolved={setRoadRoute}
+            className="h-full w-full !rounded-none"
           />
-        </CardContent>
-      </Card>
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[400] flex items-end justify-between gap-2">
+            <span
+              className={cn(
+                'pointer-events-none rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-sm backdrop-blur',
+                pingLabel === 'Live' ? 'text-primary' : 'text-muted-foreground'
+              )}
+            >
+              {pingLabel ?? (hasDriver ? 'Waiting for GPS' : 'No driver yet')}
+            </span>
+            {(displayDistanceKm != null || displayDurationMin != null) && (
+              <span className="rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur">
+                {displayDistanceKm != null ? `${Number(displayDistanceKm).toFixed(1)} km` : ''}
+                {displayDistanceKm != null && displayDurationMin != null ? ' · ' : ''}
+                {displayDurationMin != null ? `~${displayDurationMin} min` : ''}
+              </span>
+            )}
+          </div>
+        </Surface>
+
+        <div className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto">
+          {stageIndex >= 0 && (
+            <Surface className="p-4">
+              <div className="flex gap-1">
+                {STAGES.map((stage, i) => (
+                  <div
+                    key={stage}
+                    title={rideStatusLabel(stage)}
+                    className={cn('h-1.5 flex-1 rounded-full', i <= stageIndex ? 'bg-primary' : 'bg-border')}
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-sm font-medium">{rideStatusLabel(ride.status)}</p>
+            </Surface>
+          )}
+
+          <Surface className="grid grid-cols-3 divide-x divide-border/70">
+            <StatCell
+              label={ride.status === 'completed' ? t('rides.finalFare', 'Fare') : t('rides.fare', 'Fare')}
+              value={formatETB(ride.fare)}
+            />
+            <StatCell
+              label="Distance"
+              value={displayDistanceKm != null ? `${Number(displayDistanceKm).toFixed(1)} km` : '-'}
+            />
+            <StatCell label="ETA" value={displayDurationMin != null ? `${displayDurationMin} min` : '-'} />
+          </Surface>
+
+          <Surface className="space-y-3 p-4">
+            <StopRow tone="pickup" label={t('rides.pickup', 'Pickup')} value={ride.pickupLocation} />
+            <StopRow tone="drop" label={t('rides.destination', 'Drop-off')} value={ride.dropoffLocation} />
+          </Surface>
+
+          <Surface className="p-4">
+            {hasDriver ? (
+              <div className="flex items-start gap-3">
+                <Initials name={ride.driverName ?? 'Driver'} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{ride.driverName}</p>
+                  <p className="mt-0.5 font-mono text-xs text-muted-foreground">{ride.licensePlate ?? '-'}</p>
+                  {ride.vehicleInfo && <p className="text-xs text-muted-foreground">{ride.vehicleInfo}</p>}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {ride.driverPhone && (
+                      <Button size="sm" asChild>
+                        <a href={`tel:${ride.driverPhone}`}>
+                          <Phone className="mr-1.5 h-3.5 w-3.5" /> Call
+                        </a>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/employees/${ride.driverId}`)}>
+                      <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Profile
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">No driver</p>
+                  <p className="text-sm text-muted-foreground">Assign from the map</p>
+                </div>
+                {canAssign && (
+                  <Button size="sm" onClick={() => setAssignOpen(true)}>
+                    {t('dashboard.assign', 'Assign')}
+                  </Button>
+                )}
+              </div>
+            )}
+          </Surface>
+
+          <Surface className="p-4">
+            <div className="flex items-start gap-3">
+              <Initials name={ride.customerName} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{ride.customerName}</p>
+                {ride.customerPhone ? (
+                  <div className="mt-1 flex items-center gap-2">
+                    <a href={`tel:${ride.customerPhone}`} className="text-sm text-primary hover:underline">
+                      {ride.customerPhone}
+                    </a>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Copy phone"
+                      onClick={() => copyText(ride.customerPhone, 'Phone')}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">-</p>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">{formatDateTime(ride.createdAt)}</p>
+              </div>
+            </div>
+          </Surface>
+
+          {(ride.couponDeduction != null || ride.couponsUsed != null) && (
+            <Surface className="flex items-center gap-2 px-4 py-3 text-sm">
+              <Ticket className="h-4 w-4 text-primary" />
+              {ride.couponDeduction ?? ride.couponsUsed} coupons
+            </Surface>
+          )}
+
+          <Surface className="p-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Timeline</p>
+            {events.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No events yet</p>
+            ) : (
+              <ol className="space-y-0">
+                {events.map((event, index) => (
+                  <li key={event.id ?? index} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <span
+                        className={cn(
+                          'mt-1 h-2.5 w-2.5 rounded-full',
+                          index === 0 ? 'bg-primary ring-4 ring-primary/20' : 'bg-sidebar'
+                        )}
+                      />
+                      {index < events.length - 1 && <span className="w-px flex-1 bg-border" />}
+                    </div>
+                    <div className={cn(index < events.length - 1 && 'pb-4')}>
+                      <p className="text-sm font-semibold">{rideStatusLabel(event.toStatus ?? event.status)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {event.createdAt ? formatDateTime(event.createdAt) : '-'}
+                        {event.actorType ? ` · ${event.actorType}` : ''}
+                      </p>
+                      {event.notes && <p className="mt-1 text-xs text-muted-foreground">{event.notes}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Surface>
+        </div>
+      </div>
+
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this ride?</AlertDialogTitle>
+            <AlertDialogDescription>The customer and driver will be notified.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep ride</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleCancel();
+              }}
+              disabled={cancelling}
+            >
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cancel ride'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AssignFromMapDialog ride={assignOpen ? ride : null} onClose={() => setAssignOpen(false)} onAssigned={() => fetchRide()} />
+    </div>
+  );
+}
+
+function StatCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="px-3 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function StopRow({ tone, label, value }: { tone: 'pickup' | 'drop'; label: string; value?: string | null }) {
+  const Icon = tone === 'pickup' ? MapPin : Navigation;
+  return (
+    <div className="flex items-start gap-2.5">
+      <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', tone === 'pickup' ? 'text-[color:var(--success)]' : 'text-destructive')} />
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+        <p className="text-sm font-medium leading-5">{value || '-'}</p>
+      </div>
     </div>
   );
 }
