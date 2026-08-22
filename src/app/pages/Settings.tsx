@@ -6,11 +6,12 @@ import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Switch } from '../components/ui/switch';
-import { Loader2, ShieldCheck, ShieldOff, KeyRound, Copy, Languages, Ticket } from 'lucide-react';
+import { Loader2, ShieldCheck, ShieldOff, KeyRound, Copy, Languages, Ticket, MonitorSmartphone, Shield } from 'lucide-react';
 import { toast } from 'sonner';
-import { api, ApiError } from '../lib/api';
+import { api, ApiError, type SecurityPolicy, type StaffSession } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppContext, type Language } from '../contexts/AppContext';
+import { withStepUp } from '../components/security/StepUpDialog';
 
 // The configurable Tokuma business settings surfaced for editing.
 const EDITABLE: { key: string; labelKey: string }[] = [
@@ -109,7 +110,7 @@ export default function Settings() {
       [...EDITABLE.map((f) => f.key), ...COUPON_KEYS].forEach((key) => {
         if (values[key] !== undefined) payload[key] = values[key];
       });
-      await api.settings.updateSystem(payload);
+      await withStepUp('fare_change', () => api.settings.updateSystem(payload));
       toast.success('System settings saved');
     } catch (e: any) {
       toast.error(e?.status === 403 ? 'Only admins can change system settings' : e?.message ?? 'Failed to save');
@@ -165,6 +166,8 @@ export default function Settings() {
 
         {/* Security: change password + two-factor */}
         <SecurityCard />
+        <SessionsCard />
+        <SecurityPolicyCard />
 
         {/* System (Pricing / Dispatch / Commission) */}
         <Card>
@@ -463,6 +466,9 @@ function SecurityCard() {
               <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
             </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            New passwords cannot match any of your last 5. Shared terminals also idle-timeout after the Super Admin’s policy.
+          </p>
           <Button size="sm" className="bg-[#00BDC3] hover:bg-[#009EA3] text-white" onClick={handleChangePassword} disabled={savingPassword}>
             {savingPassword ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Update Password
           </Button>
@@ -574,6 +580,187 @@ function SecurityCard() {
               </div>
             </div>
           )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function timeAgo(iso: string) {
+  const delta = Date.now() - new Date(iso).getTime();
+  const minutes = Math.round(delta / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+function SessionsCard() {
+  const [sessions, setSessions] = useState<StaffSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    api.auth
+      .sessions()
+      .then((data) => setSessions(data.sessions ?? []))
+      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Could not load sessions'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const revoke = async (id: string) => {
+    setBusyId(id);
+    try {
+      await api.auth.revokeSession(id);
+      toast.success('Session revoked');
+      load();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Could not revoke session');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const revokeOthers = async () => {
+    setBusyId('others');
+    try {
+      await api.auth.revokeOtherSessions();
+      toast.success('Other sessions signed out');
+      load();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Could not sign out other sessions');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MonitorSmartphone className="w-4 h-4 text-[#00BDC3]" /> Active sessions
+        </CardTitle>
+        <CardDescription>Every device currently holding a dashboard token. Revoke anything that isn’t this terminal.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-[#00BDC3]" />
+          </div>
+        ) : sessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No active sessions.</p>
+        ) : (
+          sessions.map((session) => (
+            <div
+              key={session.id}
+              className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm">{session.deviceName}</p>
+                  {session.isCurrent && <Badge className="bg-[#00BDC3] text-white">This device</Badge>}
+                  {session.isTrusted && (
+                    <Badge variant="outline" className="border-[#00BDC3]/30 text-[#00868C]">
+                      Trusted
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {session.ipAddress ?? 'Unknown IP'} · last active {timeAgo(session.lastActivityAt)}
+                </p>
+              </div>
+              {!session.isCurrent && (
+                <Button size="sm" variant="outline" className="text-destructive" onClick={() => revoke(session.id)} disabled={busyId === session.id}>
+                  {busyId === session.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Revoke'}
+                </Button>
+              )}
+            </div>
+          ))
+        )}
+        {sessions.some((s) => !s.isCurrent) && (
+          <Button variant="outline" size="sm" onClick={revokeOthers} disabled={busyId === 'others'}>
+            Sign out other sessions
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SecurityPolicyCard() {
+  const { isSuperAdmin } = useAuth();
+  const [policy, setPolicy] = useState<SecurityPolicy | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.settings
+      .securityPolicy()
+      .then(setPolicy)
+      .catch(() => undefined);
+  }, []);
+
+  if (!isSuperAdmin || !policy) return null;
+
+  const save = async (next: SecurityPolicy) => {
+    setSaving(true);
+    try {
+      const updated = await api.settings.updateSecurityPolicy(next);
+      setPolicy(updated);
+      toast.success('Security policy saved');
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Could not save policy');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="w-4 h-4 text-[#00BDC3]" /> Security policy
+        </CardTitle>
+        <CardDescription>Mandate 2FA per role and set the idle timeout for shared call-centre terminals.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {[
+          { key: 'super-admin' as const, label: 'Super Admin' },
+          { key: 'admin' as const, label: 'Administrators' },
+          { key: 'agent' as const, label: 'Call-centre operators' },
+        ].map((role) => (
+          <div key={role.key} className="flex items-center justify-between gap-4 rounded-2xl border border-border px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Require 2FA for {role.label}</p>
+              <p className="text-xs text-muted-foreground">They enrol at the next sign-in before the dashboard opens.</p>
+            </div>
+            <Switch
+              checked={policy.require2FA[role.key]}
+              disabled={saving}
+              onCheckedChange={(checked) =>
+                save({ ...policy, require2FA: { ...policy.require2FA, [role.key]: checked } })
+              }
+            />
+          </div>
+        ))}
+        <div className="space-y-2">
+          <Label>Idle timeout (minutes)</Label>
+          <Input
+            type="number"
+            min={1}
+            max={1440}
+            value={policy.idleTimeoutMinutes}
+            disabled={saving}
+            className="max-w-[160px]"
+            onChange={(e) => setPolicy({ ...policy, idleTimeoutMinutes: Number(e.target.value) })}
+            onBlur={() => save(policy)}
+          />
+          <p className="text-xs text-muted-foreground">7-day sessions stay, but a quiet terminal signs itself out.</p>
         </div>
       </CardContent>
     </Card>

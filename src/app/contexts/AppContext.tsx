@@ -14,6 +14,7 @@ const translations = {
       drivers: 'Drivers',
       coupons: 'Coupons',
       admins: 'Administrators',
+      auditLog: 'Audit log',
       settings: 'Settings',
     },
     auth: {
@@ -269,6 +270,7 @@ const translations = {
       drivers: 'አሽከርካሪዎች',
       coupons: 'ኩፖኖች',
       admins: 'አስተዳዳሪዎች',
+      auditLog: 'የኦዲት መዝገብ',
       settings: 'ቅንብሮች',
     },
     auth: {
@@ -521,6 +523,7 @@ const translations = {
       drivers: 'Draayivaroota',
       coupons: 'Kuuponoota',
       admins: 'Bulchitoota',
+      auditLog: 'Galmee mirkaneessaa',
       settings: "Qindaa'inaa",
     },
     auth: {

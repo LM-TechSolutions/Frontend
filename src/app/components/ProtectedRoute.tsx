@@ -1,8 +1,11 @@
-import { Navigate, Outlet } from 'react-router';
+import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import IdleGuard from './security/IdleGuard';
+import { StepUpHost } from './security/StepUpDialog';
 
 export default function ProtectedRoute() {
-  const { isAuthenticated, isReady } = useAuth();
+  const { isAuthenticated, isReady, needsTwoFactorEnrollment } = useAuth();
+  const location = useLocation();
 
   if (!isReady) {
     return (
@@ -19,5 +22,15 @@ export default function ProtectedRoute() {
     return <Navigate to="/" replace />;
   }
 
-  return <Outlet />;
+  if (needsTwoFactorEnrollment && location.pathname !== '/enroll-2fa') {
+    return <Navigate to="/enroll-2fa" replace />;
+  }
+
+  return (
+    <>
+      <IdleGuard />
+      <StepUpHost />
+      <Outlet />
+    </>
+  );
 }

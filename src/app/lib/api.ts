@@ -13,10 +13,12 @@ export function setToken(token: string | null) {
 export class ApiError extends Error {
   status: number;
   code?: string;
-  constructor(message: string, status: number, code?: string) {
+  details?: Record<string, any>;
+  constructor(message: string, status: number, code?: string, details?: Record<string, any>) {
     super(message);
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -25,6 +27,7 @@ interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined | null>;
   signal?: AbortSignal;
+  skipAuthClear?: boolean;
 }
 
 function buildUrl(base: string, path: string, query?: RequestOptions['query']) {
@@ -65,8 +68,9 @@ async function request<T>(base: string, path: string, options: RequestOptions = 
 
   if (!res.ok) {
     const message = payload?.error?.message || payload?.message || `Request failed (${res.status})`;
-    if (res.status === 401) setToken(null);
-    throw new ApiError(message, res.status, payload?.error?.code);
+    const isAuthAttempt = path.includes('/auth/login') || path.includes('/auth/forgot-password') || path.includes('/auth/reset-password');
+    if (res.status === 401 && !options.skipAuthClear && !isAuthAttempt) setToken(null);
+    throw new ApiError(message, res.status, payload?.error?.code, payload?.error?.details);
   }
 
   // Backend wraps responses as { success, data, ... }
@@ -82,7 +86,44 @@ export interface AuthUser {
   email: string;
   role: 'admin' | 'agent' | 'driver' | 'user' | string;
   twoFactorEnabled?: boolean;
+  require2FA?: boolean;
+  twoFactorEnrollmentRequired?: boolean;
   createdAt?: string;
+}
+
+export interface StaffSession {
+  id: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  deviceName: string;
+  location: string | null;
+  lastActivityAt: string;
+  createdAt: string;
+  expiresAt: string;
+  isTrusted: boolean;
+  isCurrent: boolean;
+}
+
+export interface SecurityPolicy {
+  require2FA: {
+    'super-admin': boolean;
+    admin: boolean;
+    agent: boolean;
+  };
+  idleTimeoutMinutes: number;
+}
+
+export interface AuditLogRow {
+  id: string;
+  userId: string | null;
+  action: string;
+  resource: string;
+  resourceId: string | null;
+  changes: unknown;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  user?: { id: string; email: string } | null;
 }
 
 // ---- Coupon hierarchy ----------------------------------------------------
@@ -258,14 +299,43 @@ export interface DriverPerformanceReport {
 // ---- Centralized API surface ----
 export const api = {
   auth: {
-    login: (email: string, password: string, code?: string) =>
-      cc<{ token?: string; user?: AuthUser; twoFactorRequired?: boolean }>('/auth/login', {
+    login: (
+      email: string,
+      password: string,
+      code?: string,
+      extras?: { deviceId?: string; deviceName?: string; rememberDevice?: boolean }
+    ) =>
+      cc<{
+        token?: string;
+        user?: AuthUser;
+        twoFactorRequired?: boolean;
+        twoFactorEnrollmentRequired?: boolean;
+        idleTimeoutMinutes?: number;
+      }>('/auth/login', {
         method: 'POST',
-        body: code ? { email, password, code } : { email, password },
+        body: {
+          email,
+          password,
+          ...(code ? { code } : {}),
+          ...(extras ?? {}),
+        },
       }),
     logout: () => cc<null>('/auth/logout', { method: 'POST' }).catch(() => null),
     changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) =>
       cc<null>('/settings/password', { method: 'POST', body: { currentPassword, newPassword, confirmPassword } }),
+    forgotPassword: (email: string) =>
+      cc<null>('/auth/forgot-password', { method: 'POST', body: { email } }),
+    resetPassword: (token: string, newPassword: string, confirmPassword: string) =>
+      cc<null>('/auth/reset-password', { method: 'POST', body: { token, newPassword, confirmPassword } }),
+    stepUp: (password: string, action: string) =>
+      cc<{ action: string; expiresInSeconds: number }>('/auth/step-up', {
+        method: 'POST',
+        body: { password, action },
+      }),
+    sessions: () => cc<{ sessions: StaffSession[] }>('/auth/sessions'),
+    revokeSession: (sessionId: string) =>
+      cc<null>(`/auth/sessions/${sessionId}`, { method: 'DELETE' }),
+    revokeOtherSessions: () => cc<null>('/auth/sessions', { method: 'DELETE' }),
   },
 
   twoFactor: {
@@ -402,6 +472,17 @@ export const api = {
     getSystem: () => v1<any[]>('/admin/settings'),
     updateSystem: (settings: Record<string, string>) =>
       v1<any>('/admin/settings', { method: 'PUT', body: settings }),
+    securityPolicy: () => cc<SecurityPolicy>('/security/policy'),
+    updateSecurityPolicy: (body: Partial<SecurityPolicy>) =>
+      cc<SecurityPolicy>('/security/policy', { method: 'PUT', body }),
+  },
+
+  auditLogs: {
+    list: (query?: { action?: string; resource?: string; userId?: string; page?: number; limit?: number }) =>
+      cc<{
+        logs: AuditLogRow[];
+        pagination: { page: number; limit: number; total: number; totalPages: number };
+      }>('/audit-logs', { query }),
   },
 
   map: {

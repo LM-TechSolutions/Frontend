@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Switch } from '../components/ui/switch';
 import { toast } from 'sonner';
 import { api, type CouponPackage, type CouponRequest, type OperatorWallet } from '../lib/api';
+import { withStepUp } from '../components/security/StepUpDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppContext } from '../contexts/AppContext';
 import { connectSocket, getSocket } from '../lib/socket';
@@ -909,9 +910,11 @@ function AllocateDialog({
     if (!wallet || !valid) return;
     setSaving(true);
     try {
-      await api.operatorCoupons.allocate(
-        wallet.operatorId,
-        selected ? { packageId: selected.id } : { amount: granted }
+      await withStepUp('coupon_allocate', () =>
+        api.operatorCoupons.allocate(
+          wallet.operatorId,
+          selected ? { packageId: selected.id } : { amount: granted }
+        )
       );
       toast.success(`Allocated ${granted} coupons to ${name}`);
       onClose();

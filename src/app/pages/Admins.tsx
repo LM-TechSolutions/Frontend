@@ -32,6 +32,7 @@ import {
 } from '../components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { api, type AdminAccount } from '../lib/api';
+import { withStepUp } from '../components/security/StepUpDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { EmptyState, Initials, RowSkeleton, StatTile } from '../components/coupons/CouponAtoms';
 
@@ -196,7 +197,9 @@ export default function Admins() {
               onClick={async () => {
                 if (!transferTarget) return;
                 try {
-                  await api.admins.transferSuperAdmin(transferTarget.id);
+                  await withStepUp('super_admin_transfer', () =>
+                    api.admins.transferSuperAdmin(transferTarget.id)
+                  );
                   toast.success(`${transferTarget.name} is now the Super Admin`);
                   setTransferTarget(null);
                   await load();

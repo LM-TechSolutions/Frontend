@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { api, AuthUser, MyPermissions, setToken, getToken } from '../lib/api';
 import { connectSocket, disconnectSocket } from '../lib/socket';
+import { getDeviceId, getDeviceName } from '../lib/device';
 
 const USER_KEY = 'tokuma.user';
+const IDLE_KEY = 'tokuma.idleTimeoutMinutes';
 
 /**
  * Normalize backend roles to the two dashboard personas - null for anything
@@ -17,7 +19,9 @@ export function toDashboardRole(role?: string): DashboardRole | null {
   return null;
 }
 
-export type LoginResult = { twoFactorRequired: true } | { twoFactorRequired: false; user: AuthUser };
+export type LoginResult =
+  | { twoFactorRequired: true }
+  | { twoFactorRequired: false; user: AuthUser; twoFactorEnrollmentRequired: boolean };
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -29,10 +33,18 @@ interface AuthContextValue {
   isSuperAdmin: boolean;
   /** This account's AgentProfile id, when they are a call-centre operator. */
   operatorId: string | null;
+  idleTimeoutMinutes: number;
+  needsTwoFactorEnrollment: boolean;
   /** Gate UI on a capability rather than a role: `can('coupons', 'allocate')`. */
   can: (resource: string, action: string) => boolean;
   refreshPermissions: () => Promise<void>;
-  login: (email: string, password: string, code?: string) => Promise<LoginResult>;
+  login: (
+    email: string,
+    password: string,
+    code?: string,
+    options?: { rememberDevice?: boolean }
+  ) => Promise<LoginResult>;
+  completeTwoFactorEnrollment: () => void;
   logout: () => void;
 }
 
@@ -47,64 +59,102 @@ function loadStoredUser(): AuthUser | null {
   }
 }
 
+function persistUser(user: AuthUser | null) {
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+  else localStorage.removeItem(USER_KEY);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [capabilities, setCapabilities] = useState<MyPermissions | null>(null);
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState(() => {
+    const stored = Number(localStorage.getItem(IDLE_KEY));
+    return Number.isFinite(stored) && stored > 0 ? stored : 15;
+  });
 
   const refreshPermissions = useCallback(async () => {
     try {
       setCapabilities(await api.admins.myPermissions());
     } catch {
-      // Permissions are an enhancement over the role check, never a gate on
-      // rendering — an older backend simply leaves the UI role-driven.
       setCapabilities(null);
     }
   }, []);
 
-  // Restore session on first load.
   useEffect(() => {
     const stored = loadStoredUser();
     if (stored && getToken() && toDashboardRole(stored.role)) {
       setUser(stored);
       connectSocket();
       refreshPermissions();
+      api.settings
+        .securityPolicy()
+        .then((policy) => {
+          setIdleTimeoutMinutes(policy.idleTimeoutMinutes);
+          localStorage.setItem(IDLE_KEY, String(policy.idleTimeoutMinutes));
+        })
+        .catch(() => undefined);
     } else if (stored) {
-      // A stored session with a role that no longer qualifies (e.g. saved
-      // before the server-side restriction existed) - discard it rather
-      // than granting dashboard access on a stale, invalid persona.
       setToken(null);
-      localStorage.removeItem(USER_KEY);
+      persistUser(null);
     }
     setIsReady(true);
   }, [refreshPermissions]);
 
   const login = useCallback(
-    async (email: string, password: string, code?: string): Promise<LoginResult> => {
-      const result = await api.auth.login(email, password, code);
+    async (
+      email: string,
+      password: string,
+      code?: string,
+      options?: { rememberDevice?: boolean }
+    ): Promise<LoginResult> => {
+      const result = await api.auth.login(email, password, code, {
+        deviceId: getDeviceId(),
+        deviceName: getDeviceName(),
+        rememberDevice: !!options?.rememberDevice,
+      });
       if (result.twoFactorRequired || !result.token || !result.user) {
         return { twoFactorRequired: true };
       }
+      const enrollment = !!(result.twoFactorEnrollmentRequired || result.user.twoFactorEnrollmentRequired);
+      const nextUser: AuthUser = {
+        ...result.user,
+        twoFactorEnrollmentRequired: enrollment,
+      };
       setToken(result.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(result.user));
-      setUser(result.user);
+      persistUser(nextUser);
+      setUser(nextUser);
+      if (result.idleTimeoutMinutes) {
+        setIdleTimeoutMinutes(result.idleTimeoutMinutes);
+        localStorage.setItem(IDLE_KEY, String(result.idleTimeoutMinutes));
+      }
       connectSocket();
       await refreshPermissions();
-      return { twoFactorRequired: false, user: result.user };
+      return { twoFactorRequired: false, user: nextUser, twoFactorEnrollmentRequired: enrollment };
     },
     [refreshPermissions]
   );
+
+  const completeTwoFactorEnrollment = useCallback(() => {
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, twoFactorEnabled: true, twoFactorEnrollmentRequired: false };
+      persistUser(next);
+      return next;
+    });
+  }, []);
 
   const logout = useCallback(() => {
     api.auth.logout();
     disconnectSocket();
     setToken(null);
-    localStorage.removeItem(USER_KEY);
+    persistUser(null);
     setUser(null);
     setCapabilities(null);
   }, []);
 
   const dashboardRole = toDashboardRole(user?.role);
+  const needsTwoFactorEnrollment = !!(user?.twoFactorEnrollmentRequired && !user.twoFactorEnabled);
 
   const can = useCallback(
     (resource: string, action: string) => {
@@ -112,8 +162,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (capabilities?.permissions?.length) {
         return capabilities.permissions.includes(`${resource}:${action}`);
       }
-      // No permission data yet (still loading, or an older backend): fall back
-      // to the role personas the dashboard has always used.
       return dashboardRole === 'admin';
     },
     [capabilities, dashboardRole]
@@ -128,12 +176,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       permissions: capabilities?.permissions ?? [],
       isSuperAdmin: capabilities?.isSuperAdmin ?? false,
       operatorId: capabilities?.operatorId ?? null,
+      idleTimeoutMinutes,
+      needsTwoFactorEnrollment,
       can,
       refreshPermissions,
       login,
+      completeTwoFactorEnrollment,
       logout,
     }),
-    [user, dashboardRole, isReady, capabilities, can, refreshPermissions, login, logout]
+    [
+      user,
+      dashboardRole,
+      isReady,
+      capabilities,
+      idleTimeoutMinutes,
+      needsTwoFactorEnrollment,
+      can,
+      refreshPermissions,
+      login,
+      completeTwoFactorEnrollment,
+      logout,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

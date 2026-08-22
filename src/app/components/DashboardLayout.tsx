@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router';
-import { LayoutDashboard, Car, Users, Wallet, Settings, Bell, User, LogOut, Shield, BarChart3, UserCog, PhoneCall, Moon, Sun, Check, AlertCircle, Info, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Car, Users, Wallet, Settings, Bell, User, LogOut, Shield, BarChart3, UserCog, PhoneCall, Moon, Sun, Check, AlertCircle, Info, Sparkles, ScrollText } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import {
   DropdownMenu,
@@ -45,6 +45,7 @@ const adminNavigation = [
   { nameKey: 'nav.rides', href: '/rides', icon: Car },
   { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
   { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
+  { nameKey: 'nav.auditLog', href: '/audit-log', icon: ScrollText },
   { nameKey: 'nav.settings', href: '/settings', icon: Settings },
 ];
 
