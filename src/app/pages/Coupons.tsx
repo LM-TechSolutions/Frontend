@@ -436,7 +436,7 @@ function DriverCouponCard({ driver, threshold, onSell }: { driver: any; threshol
     <Card className="group overflow-hidden border-border/70 transition-all hover:-translate-y-0.5 hover:shadow-md">
       <CardContent className="space-y-4 p-5">
         <div className="flex items-start gap-3">
-          <Initials name={driver.name} />
+          <Initials name={driver.name} src={driver.profilePicture} />
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-foreground">{driver.name}</p>
             <p className="mt-0.5 truncate text-xs capitalize text-muted-foreground">
@@ -688,7 +688,7 @@ function RequestRow({
   return (
     <Card className="border-border/70">
       <CardContent className="flex flex-wrap items-center gap-4 p-4">
-        <Initials name={who} />
+        <Initials name={who} src={fromDriver ? request.driver?.user?.image : undefined} />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -791,7 +791,10 @@ function SellDialog({
     <Dialog open={!!driver} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle>Refill {driver?.name}</DialogTitle>
+          <DialogTitle className="flex items-center gap-3">
+            {driver ? <Initials name={driver.name} src={driver.profilePicture} className="h-10 w-10 text-xs" /> : null}
+            <span>Refill {driver?.name}</span>
+          </DialogTitle>
           <DialogDescription className="sr-only">
             {inventory !== null
               ? `Sold from your inventory of ${inventory.toLocaleString()} coupons.`

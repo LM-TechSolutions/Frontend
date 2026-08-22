@@ -403,7 +403,7 @@ export default function RideTracking() {
           <Surface className="p-4">
             {hasDriver ? (
               <div className="flex items-start gap-3">
-                <Initials name={ride.driverName ?? 'Driver'} />
+                <Initials name={ride.driverName ?? 'Driver'} src={ride.driverPhoto} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{ride.driverName}</p>
                   <p className="mt-0.5 font-mono text-xs text-muted-foreground">{ride.licensePlate ?? '-'}</p>

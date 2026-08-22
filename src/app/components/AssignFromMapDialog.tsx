@@ -327,7 +327,7 @@ function CandidateRow({
     >
       <div className="flex items-start gap-3">
         <div className="relative">
-          <Initials name={candidate.name} className="h-10 w-10 text-xs" />
+          <Initials name={candidate.name} src={candidate.photoUrl} className="h-10 w-10 text-xs" />
           {rank != null && (
             <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#10B981] text-[10px] font-bold text-white ring-2 ring-background">
               {rank}

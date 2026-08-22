@@ -11,7 +11,7 @@ import LogCallDialog from '../components/LogCallDialog';
 import NewRideDialog from '../components/NewRideDialog';
 import AssignFromMapDialog from '../components/AssignFromMapDialog';
 import { useAppContext } from '../contexts/AppContext';
-import { StatTile, EmptyState } from '../components/coupons/CouponAtoms';
+import { StatTile, EmptyState, Initials } from '../components/coupons/CouponAtoms';
 import { StatusBadge, waitTone } from '../components/layout/StatusBadge';
 
 const ACTIVE_STATUSES = ['dispatched', 'accepted', 'arrived', 'in_progress'];
@@ -297,9 +297,14 @@ export default function Dashboard() {
                     {activeRides.map((ride) => (
                       <article key={ride.id} className="rounded-2xl border border-border/80 bg-card p-4">
                         <div className="mb-2 flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-card-foreground">{ride.customerName}</p>
-                            <p className="text-sm text-muted-foreground">Driver: {ride.driverName ?? '-'}</p>
+                          <div className="flex min-w-0 items-start gap-2.5">
+                            {ride.driverName ? (
+                              <Initials name={ride.driverName} src={ride.driverPhoto} className="h-9 w-9 text-[11px]" />
+                            ) : null}
+                            <div className="min-w-0">
+                              <p className="font-semibold text-card-foreground">{ride.customerName}</p>
+                              <p className="text-sm text-muted-foreground">Driver: {ride.driverName ?? '-'}</p>
+                            </div>
                           </div>
                           <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
                         </div>

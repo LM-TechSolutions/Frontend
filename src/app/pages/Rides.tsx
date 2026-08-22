@@ -15,7 +15,7 @@ import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import { useAppContext } from '../contexts/AppContext';
 import { Page, PageHeader, FilterBar, Surface, Facet } from '../components/layout/PageHeader';
 import { StatusBadge } from '../components/layout/StatusBadge';
-import { EmptyState } from '../components/coupons/CouponAtoms';
+import { EmptyState, Initials } from '../components/coupons/CouponAtoms';
 
 const PENDING_STATES = ['pending', 'unassigned', 'dispatched'];
 const STATUSES = ['all', 'pending', 'dispatched', 'accepted', 'arrived', 'in_progress', 'completed', 'cancelled', 'expired'];
@@ -298,7 +298,10 @@ export default function Rides() {
                   <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{ride.dropoffLocation}</TableCell>
                   <TableCell>
                     {ride.driverName ? (
-                      <p className="text-sm">{ride.driverName}</p>
+                      <div className="flex items-center gap-2">
+                        <Initials name={ride.driverName} src={ride.driverPhoto} className="h-8 w-8 text-[11px]" />
+                        <p className="text-sm">{ride.driverName}</p>
+                      </div>
                     ) : (
                       <p className="text-sm italic text-muted-foreground">{t('rides.notAssigned', 'Not assigned')}</p>
                     )}

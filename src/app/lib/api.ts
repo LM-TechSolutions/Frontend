@@ -191,7 +191,7 @@ export interface CouponRequest {
     vehiclePlate: string;
     vehicleType: string;
     couponWallet?: { balance: number } | null;
-    user?: { phoneNumber: string | null; email: string };
+    user?: { phoneNumber: string | null; email: string; image?: string | null };
   } | null;
   operator?: {
     id: string;
@@ -270,6 +270,7 @@ export interface DriverPerformanceReport {
     vehicleType: string;
     commissionPercent: number;
     couponWallet?: { balance: number } | null;
+    user?: { image: string | null } | null;
   } | null;
   range: { startDate: string; endDate: string };
   summary: {

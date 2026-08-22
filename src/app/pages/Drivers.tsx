@@ -14,14 +14,15 @@ import GebetaMapView from '../components/GebetaMapView';
 import { useAppContext } from '../contexts/AppContext';
 import { Page, PageHeader, FilterBar, Surface, Facet } from '../components/layout/PageHeader';
 import { StatusBadge } from '../components/layout/StatusBadge';
-import { BalancePill, EmptyState, StatTile, timeAgo } from '../components/coupons/CouponAtoms';
+import { BalancePill, EmptyState, Initials, StatTile, timeAgo } from '../components/coupons/CouponAtoms';
+import DriverPhotoField from '../components/DriverPhotoField';
 
 const statusColor = (s: string) =>
   s === 'available' ? '#0B7A55' : s === 'busy' ? '#AE2E2D' : '#6B7280';
 
 const emptyNew = {
   name: '', phone: '', email: '', vehicleType: 'sedan', vehicleModel: '',
-  licensePlate: '', licenseNumber: '', couponBalance: 0,
+  licensePlate: '', licenseNumber: '', couponBalance: 0, profilePicture: null as string | null,
 };
 
 type Facet = 'all' | 'available' | 'busy' | 'offline' | 'low' | 'watch' | 'healthy';
@@ -38,7 +39,14 @@ export default function Drivers() {
   const [refill, setRefill] = useState<any | null>(null);
   const [refillAmount, setRefillAmount] = useState('25');
   const [form, setForm] = useState(emptyNew);
-  const [edit, setEdit] = useState({ name: '', phone: '', vehicleModel: '', licensePlate: '', commissionPercent: 10 });
+  const [edit, setEdit] = useState({
+    name: '',
+    phone: '',
+    vehicleModel: '',
+    licensePlate: '',
+    commissionPercent: 10,
+    profilePicture: null as string | null,
+  });
   const [minCouponBalance, setMinCouponBalance] = useState(10);
   const [mapFilter, setMapFilter] = useState<'all' | 'available' | 'busy' | 'offline'>('all');
 
@@ -142,6 +150,7 @@ export default function Drivers() {
         name: form.name, phone: form.phone, email: form.email,
         vehicleType: form.vehicleType, vehicleModel: form.vehicleModel,
         licensePlate: form.licensePlate, licenseNumber: form.licenseNumber,
+        profilePicture: form.profilePicture || undefined,
       });
       if (form.couponBalance > 0 && created?.id) {
         await api.coupons.refill(created.id, form.couponBalance, 'Initial balance').catch(() => null);
@@ -159,7 +168,14 @@ export default function Drivers() {
 
   const openEdit = (d: any) => {
     setEditing(d);
-    setEdit({ name: d.name, phone: d.phone, vehicleModel: d.vehicleModel ?? '', licensePlate: d.licensePlate, commissionPercent: d.commissionPercent ?? 10 });
+    setEdit({
+      name: d.name,
+      phone: d.phone,
+      vehicleModel: d.vehicleModel ?? '',
+      licensePlate: d.licensePlate,
+      commissionPercent: d.commissionPercent ?? 10,
+      profilePicture: d.profilePicture ?? null,
+    });
   };
 
   const handleEdit = async () => {
@@ -169,6 +185,7 @@ export default function Drivers() {
       await api.drivers.update(editing.id, {
         name: edit.name, phone: edit.phone, vehicleModel: edit.vehicleModel,
         licensePlate: edit.licensePlate, commissionPercent: edit.commissionPercent,
+        profilePicture: edit.profilePicture ?? '',
       });
       toast.success('Driver updated');
       setEditing(null);
@@ -224,6 +241,12 @@ export default function Drivers() {
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader><DialogTitle>{t('drivers.addTitle', 'Add new driver')}</DialogTitle></DialogHeader>
               <div className="space-y-3 py-4">
+                <DriverPhotoField
+                  name={form.name}
+                  value={form.profilePicture}
+                  onChange={(profilePicture) => setForm({ ...form, profilePicture })}
+                  disabled={saving}
+                />
                 <div className="space-y-2"><Label>{t('drivers.fullName', 'Full name *')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2"><Label>{t('drivers.phone', 'Phone')}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0911…" /></div>
@@ -369,8 +392,13 @@ export default function Drivers() {
               {visible.map((d) => (
                 <TableRow key={d.id} className="hover:bg-muted/50">
                   <TableCell>
-                    <p className="font-medium">{d.name}</p>
-                    <p className="font-mono text-xs text-muted-foreground">{d.licensePlate}</p>
+                    <div className="flex items-center gap-3">
+                      <Initials name={d.name} src={d.profilePicture} className="h-10 w-10 text-xs" />
+                      <div className="min-w-0">
+                        <p className="font-medium">{d.name}</p>
+                        <p className="font-mono text-xs text-muted-foreground">{d.licensePlate}</p>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <a href={`tel:${d.phone}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
@@ -403,6 +431,12 @@ export default function Drivers() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader><DialogTitle>{t('drivers.edit', 'Edit driver')}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-4">
+            <DriverPhotoField
+              name={edit.name}
+              value={edit.profilePicture}
+              onChange={(profilePicture) => setEdit({ ...edit, profilePicture })}
+              disabled={saving}
+            />
             <div className="space-y-2"><Label>{t('drivers.fullName', 'Full name')}</Label><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
             <div className="space-y-2"><Label>{t('drivers.phone', 'Phone')}</Label><Input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>
             <div className="space-y-2"><Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label><Input value={edit.vehicleModel} onChange={(e) => setEdit({ ...edit, vehicleModel: e.target.value })} /></div>
@@ -420,7 +454,12 @@ export default function Drivers() {
 
       <Dialog open={!!refill} onOpenChange={(o) => !o && setRefill(null)}>
         <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader><DialogTitle>Refill {refill?.name}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {refill ? <Initials name={refill.name} src={refill.profilePicture} className="h-10 w-10 text-xs" /> : null}
+              <span>Refill {refill?.name}</span>
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">Current balance {refill?.couponBalance ?? 0} coupons.</p>
             <Label>Amount</Label>

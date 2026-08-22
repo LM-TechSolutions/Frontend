@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '../ui/utils';
@@ -129,8 +130,17 @@ export function RequestStatusChip({ status }: { status: string }) {
   );
 }
 
-/** Initials avatar, used for drivers and operators alike. */
-export function Initials({ name, className }: { name: string; className?: string }) {
+/** Initials avatar, used for drivers and operators alike. Shows a photo when `src` is set. */
+export function Initials({
+  name,
+  className,
+  src,
+}: {
+  name: string;
+  className?: string;
+  src?: string | null;
+}) {
+  const [failed, setFailed] = useState(false);
   const initials = String(name || '?')
     .split(' ')
     .filter(Boolean)
@@ -139,14 +149,22 @@ export function Initials({ name, className }: { name: string; className?: string
     .slice(0, 2)
     .toUpperCase();
 
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
   return (
     <div
       className={cn(
-        'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-sm font-semibold text-primary',
+        'flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary/12 text-sm font-semibold text-primary',
         className
       )}
     >
-      {initials}
+      {src && !failed ? (
+        <img src={src} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} />
+      ) : (
+        initials
+      )}
     </div>
   );
 }

@@ -33,6 +33,7 @@ import { formatETB, rideStatusLabel } from '../lib/format';
 import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import GebetaMapView from '../components/GebetaMapView';
 import { EmptyState, Initials, StatTile } from '../components/coupons/CouponAtoms';
+import DriverPhotoField from '../components/DriverPhotoField';
 import { connectSocket, getSocket } from '../lib/socket';
 import { ErrorPage } from './ErrorPage';
 
@@ -166,7 +167,27 @@ export default function DriverReport() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/drivers')} aria-label="Back to drivers">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Initials name={name} className="h-12 w-12" />
+          <DriverPhotoField
+            compact
+            name={name}
+            value={driver?.profilePicture ?? report?.driver?.user?.image ?? null}
+            disabled={loading}
+            onChange={(next) => {
+              if (!employeeId) return;
+              const previous = driver?.profilePicture ?? null;
+              setDriver((prev: any) => (prev ? { ...prev, profilePicture: next } : prev));
+              void api.drivers
+                .update(employeeId, { profilePicture: next ?? '' })
+                .then((updated) => {
+                  setDriver((prev: any) => (prev ? { ...prev, profilePicture: updated.profilePicture ?? next } : prev));
+                  toast.success(next ? 'Photo updated' : 'Photo removed');
+                })
+                .catch((e: any) => {
+                  setDriver((prev: any) => (prev ? { ...prev, profilePicture: previous } : prev));
+                  toast.error(e?.message ?? 'Could not save the photo');
+                });
+            }}
+          />
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Driver report</p>
             <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">{name}</h1>
@@ -448,7 +469,7 @@ export default function DriverReport() {
             <GebetaMapView
               driver={driver.currentLocation}
               driverName={name}
-              driverPhoto={driver?.profilePicture ?? null}
+              driverPhoto={driver?.profilePicture ?? report?.driver?.user?.image ?? null}
               driverStatus="Live"
               driverDetail={
                 [
@@ -464,6 +485,11 @@ export default function DriverReport() {
               overlay={
                 <div className="pointer-events-auto absolute left-3 top-3 max-w-[min(100%-4.5rem,20rem)] rounded-2xl border border-border/80 bg-card/95 px-3 py-2.5 shadow-md backdrop-blur">
                   <div className="flex items-center gap-2">
+                    <Initials
+                      name={name}
+                      src={driver?.profilePicture ?? report?.driver?.user?.image}
+                      className="h-8 w-8 text-[10px]"
+                    />
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#10B981]" />
                     <p className="truncate text-sm font-semibold">{name}</p>
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Live</span>
