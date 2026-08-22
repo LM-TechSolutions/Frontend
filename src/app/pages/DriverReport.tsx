@@ -449,6 +449,15 @@ export default function DriverReport() {
               driver={driver.currentLocation}
               driverName={name}
               driverPhoto={driver?.profilePicture ?? null}
+              driverStatus="Live"
+              driverDetail={
+                [
+                  report?.driver?.vehicleType ?? driver?.vehicleType,
+                  report?.driver?.vehiclePlate ?? driver?.licensePlate,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || undefined
+              }
               height={300}
               zoom={14}
               className="w-full"

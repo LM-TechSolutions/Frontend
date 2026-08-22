@@ -285,6 +285,8 @@ export default function RideTracking() {
             driver={driverPos}
             driverName={ride.driverName}
             driverPhoto={ride.driverPhoto}
+            driverStatus={rideStatusLabel(ride.status)}
+            driverDetail={[ride.licensePlate, ride.vehicleInfo].filter(Boolean).join(' · ') || undefined}
             height="100%"
             autoRoadRoute
             onRouteResolved={setRoadRoute}

@@ -34,6 +34,17 @@ async function resolveAddress(lat: number, lng: number): Promise<string> {
   }
 }
 
+export type MapPerson = MapPoint & {
+  id?: string;
+  name?: string;
+  status?: string;
+  color?: string;
+  label?: string;
+  photoUrl?: string | null;
+  kind?: 'driver' | 'customer';
+  detail?: string;
+};
+
 interface GebetaMapViewProps {
   pickup?: MapPoint | null;
   dropoff?: MapPoint | null;
@@ -42,8 +53,10 @@ interface GebetaMapViewProps {
   driverName?: string | null;
   /** Profile photo for the live driver pin. Initials are used when this is missing. */
   driverPhoto?: string | null;
+  driverStatus?: string | null;
+  driverDetail?: string | null;
   /** Live fleet markers (e.g. available drivers on the dashboard map). Click any pin for its name/status + live address. */
-  fleet?: Array<MapPoint & { id?: string; name?: string; status?: string; color?: string; label?: string; photoUrl?: string | null }>;
+  fleet?: MapPerson[];
   /**
    * Makes fleet markers selectable rather than merely informational - clicking
    * one calls back with its id. Used by map-based ride assignment, where the
@@ -102,6 +115,71 @@ function pointsKey(a?: MapPoint | null, b?: MapPoint | null) {
   return `${a.lat.toFixed(5)},${a.lng.toFixed(5)}→${b.lat.toFixed(5)},${b.lng.toFixed(5)}`;
 }
 
+function prettyStatus(status?: string | null) {
+  if (!status) return '';
+  const key = status.toLowerCase();
+  if (key === 'available') return 'Available';
+  if (key === 'busy') return 'On a ride';
+  if (key === 'offline') return 'Offline';
+  return status;
+}
+
+function personHoverHtml(d: {
+  name?: string | null;
+  status?: string | null;
+  color?: string;
+  photoUrl?: string | null;
+  kind?: 'driver' | 'customer';
+  detail?: string | null;
+}, address?: string) {
+  const role = d.kind === 'customer' ? 'Customer' : 'Driver';
+  const status = prettyStatus(d.status);
+  const color = d.color ?? '#00BDC3';
+  const face = d.photoUrl
+    ? `<img src="${escapeHtml(d.photoUrl)}" alt="" />`
+    : `<span>${escapeHtml(nameInitials(d.name))}</span>`;
+
+  return `
+    <div class="tokuma-hover-card">
+      <div class="tokuma-hover-top">
+        <div class="tokuma-hover-face" style="background:${escapeHtml(color)}">${face}</div>
+        <div class="tokuma-hover-who">
+          <p class="tokuma-hover-name">${escapeHtml(d.name || 'Unknown')}</p>
+          <p class="tokuma-hover-role">${role}</p>
+        </div>
+      </div>
+      ${status ? `<p class="tokuma-hover-status">${escapeHtml(status)}</p>` : ''}
+      ${d.detail ? `<p class="tokuma-hover-detail">${escapeHtml(d.detail)}</p>` : ''}
+      <p class="tokuma-hover-addr">${address ? escapeHtml(address) : 'Finding street…'}</p>
+    </div>
+  `;
+}
+
+function bindPersonHover(el: HTMLElement, map: maplibregl.Map, person: MapPerson) {
+  const popup = new maplibregl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+    offset: 18,
+    anchor: 'bottom',
+    className: 'tokuma-person-hover',
+    maxWidth: '260px',
+  });
+
+  let requested = false;
+  const show = () => {
+    popup.setLngLat([person.lng, person.lat]).setHTML(personHoverHtml(person)).addTo(map);
+    if (requested) return;
+    requested = true;
+    resolveAddress(person.lat, person.lng).then((address) => {
+      if (!popup.isOpen()) return;
+      popup.setHTML(personHoverHtml(person, address));
+    });
+  };
+  const hide = () => popup.remove();
+  el.addEventListener('mouseenter', show);
+  el.addEventListener('mouseleave', hide);
+}
+
 function nameInitials(name?: string | null) {
   const parts = String(name || '')
     .trim()
@@ -134,7 +212,6 @@ function makePersonPinElement(
     cursor:${interactive ? 'pointer' : 'default'};
     filter:drop-shadow(0 3px 8px rgba(0,0,0,.35));
     z-index:${isSelected ? 5 : 1};`;
-  if (d.name) wrap.title = d.status ? `${d.name} · ${d.status}` : d.name;
 
   const head = document.createElement('div');
   head.style.cssText = `
@@ -224,6 +301,8 @@ export default function GebetaMapView({
   driver,
   driverName,
   driverPhoto,
+  driverStatus,
+  driverDetail,
   fleet,
   onFleetSelect,
   selectedFleetId,
@@ -276,6 +355,7 @@ export default function GebetaMapView({
     if (!fullscreen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('map-fullscreen');
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.preventDefault();
@@ -285,6 +365,7 @@ export default function GebetaMapView({
     window.addEventListener('keydown', onKey, true);
     return () => {
       document.body.style.overflow = prev;
+      document.body.classList.remove('map-fullscreen');
       window.removeEventListener('keydown', onKey, true);
     };
   }, [fullscreen, setFullscreen]);
@@ -400,7 +481,7 @@ export default function GebetaMapView({
     upsert('pickup', pickup, '#10B981', 'P');
     upsert('dropoff', dropoff, '#EF4444', 'D');
 
-    const driverFace = `${driverName ?? ''}|${driverPhoto ?? ''}`;
+    const driverFace = `${driverName ?? ''}|${driverPhoto ?? ''}|${driverStatus ?? ''}|${driverDetail ?? ''}`;
     const existingDriver = markersRef.current['driver'];
     if (!driver) {
       existingDriver?.remove();
@@ -410,29 +491,22 @@ export default function GebetaMapView({
       existingDriver.setLngLat([driver.lng, driver.lat]);
     } else {
       existingDriver?.remove();
-      const el = makePersonPinElement(
-        { name: driverName, photoUrl: driverPhoto, color: '#00BDC3' },
-        false,
-        false
-      );
+      const person: MapPerson = {
+        lat: driver.lat,
+        lng: driver.lng,
+        name: driverName ?? undefined,
+        photoUrl: driverPhoto,
+        color: '#00BDC3',
+        kind: 'driver',
+        status: driverStatus ?? undefined,
+        detail: driverDetail ?? undefined,
+      };
+      const el = makePersonPinElement(person, false, false);
+      bindPersonHover(el, map, person);
       markersRef.current['driver'] = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([driver.lng, driver.lat])
         .addTo(map);
       driverFaceRef.current = driverFace;
-    }
-
-    // The single "driver" marker (ride tracking / driver detail) is at most
-    // one instance, so it's cheap to eagerly resolve+refresh its address on
-    // every live position update rather than waiting for a click.
-    const driverMarker = markersRef.current['driver'];
-    if (driverMarker && driver) {
-      const popup = driverMarker.getPopup() ?? new maplibregl.Popup({ offset: 20, closeButton: false });
-      const title = driverName ? `<strong>${escapeHtml(driverName)}</strong><br/>` : '';
-      popup.setHTML(`${title}<span class="text-xs text-muted-foreground">Locating…</span>`);
-      driverMarker.setPopup(popup);
-      resolveAddress(driver.lat, driver.lng).then((address) => {
-        popup.setHTML(`${title}${escapeHtml(address)}`);
-      });
     }
 
     fleetMarkersRef.current.forEach((m) => m.remove());
@@ -440,31 +514,15 @@ export default function GebetaMapView({
     (fleet ?? []).forEach((d) => {
       const isSelected = Boolean(d.id && selectedFleetId && d.id === selectedFleetId);
       const el = makePersonPinElement(d, isSelected, Boolean(onFleetSelectRef.current));
+      bindPersonHover(el, map, d);
 
       const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([d.lng, d.lat]);
 
       if (onFleetSelectRef.current && d.id) {
-        // The pin is the control: selecting is the click's whole job, so no
-        // popup competes with it for the same gesture.
         el.addEventListener('click', (event) => {
           event.stopPropagation();
           onFleetSelectRef.current?.(d.id!);
         });
-      } else {
-        const title = d.name
-          ? `<strong>${escapeHtml(d.name)}</strong>${d.status ? ` · ${escapeHtml(d.status)}` : ''}<br/>`
-          : '';
-        const popup = new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(
-          `${title}<span class="text-xs text-muted-foreground">Locating…</span>`
-        );
-        // Lazy: only spend a reverse-geocode call once this specific driver's
-        // popup is actually opened, not on every location tick for the whole fleet.
-        popup.on('open', () => {
-          resolveAddress(d.lat, d.lng).then((address) => {
-            popup.setHTML(`${title}${escapeHtml(address)}`);
-          });
-        });
-        marker.setPopup(popup);
       }
 
       marker.addTo(map);
@@ -577,7 +635,7 @@ export default function GebetaMapView({
       map.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 600 });
     }
     }
-  }, [ready, pickup, dropoff, driver, driverName, driverPhoto, routeCoords, roadCoords, fleet, selectedFleetId, radiusKm]);
+  }, [ready, pickup, dropoff, driver, driverName, driverPhoto, driverStatus, driverDetail, routeCoords, roadCoords, fleet, selectedFleetId, radiusKm]);
 
   if (!config.gebetaApiKey) {
     return (
@@ -593,13 +651,15 @@ export default function GebetaMapView({
   return (
     <div
       ref={wrapRef}
-      className={cn(className, fullscreen && 'fixed inset-0 z-[220] rounded-none')}
+      className={cn(className, fullscreen && 'fixed inset-0 z-[300] rounded-none')}
       style={{
         position: fullscreen ? 'fixed' : 'relative',
+        inset: fullscreen ? 0 : undefined,
         height: fullscreen ? '100svh' : height,
         width: fullscreen ? '100vw' : undefined,
         borderRadius: fullscreen ? 0 : 12,
         overflow: 'hidden',
+        zIndex: fullscreen ? 300 : undefined,
       }}
     >
       {!ready && (

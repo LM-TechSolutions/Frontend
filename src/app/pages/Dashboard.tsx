@@ -112,6 +112,8 @@ export default function Dashboard() {
           lat: d.currentLocation.lat,
           color: d.status === 'available' ? '#0B7A55' : d.status === 'busy' ? '#AE2E2D' : '#6B7280',
           photoUrl: d.profilePicture ?? null,
+          kind: 'driver' as const,
+          detail: [d.vehicleType, d.licensePlate].filter(Boolean).join(' · ') || undefined,
         })),
     [drivers]
   );
@@ -127,6 +129,8 @@ export default function Dashboard() {
           lng: r.pickupCoordinates.lng,
           lat: r.pickupCoordinates.lat,
           color: ACTIVE_STATUSES.includes(r.status) ? '#00BDC3' : '#e08a14',
+          kind: 'customer' as const,
+          detail: r.pickupLocation || undefined,
         })),
     [pendingRides, activeRides]
   );

@@ -98,6 +98,8 @@ export default function Drivers() {
           lat: d.currentLocation.lat,
           color: statusColor(d.status),
           photoUrl: d.profilePicture ?? null,
+          kind: 'driver' as const,
+          detail: [d.vehicleType, d.licensePlate].filter(Boolean).join(' · ') || undefined,
         })),
     [drivers, mapFilter]
   );

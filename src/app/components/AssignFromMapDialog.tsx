@@ -113,6 +113,14 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
           color: c.isEligible ? '#10B981' : '#9CA3AF',
           label: c.isEligible ? String(index + 1) : undefined,
           photoUrl: c.photoUrl ?? null,
+          kind: 'driver' as const,
+          detail: [
+            c.vehicleType && c.vehiclePlate ? `${c.vehicleType} · ${c.vehiclePlate}` : c.vehiclePlate,
+            c.etaMinutes != null ? `~${c.etaMinutes} min` : null,
+            `${c.couponBalance} coupons`,
+          ]
+            .filter(Boolean)
+            .join(' · '),
         })),
     [shown]
   );

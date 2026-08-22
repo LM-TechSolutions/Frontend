@@ -276,7 +276,7 @@ export default function DashboardLayout() {
       <div className="flex h-svh overflow-hidden">
         <aside
           className={cn(
-            'relative z-40 hidden h-svh shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out lg:flex',
+            'relative z-40 hidden h-svh shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out lg:flex [.map-fullscreen_&]:z-0',
             collapsed ? 'w-[80px]' : 'w-[264px]'
           )}
         >
@@ -308,8 +308,8 @@ export default function DashboardLayout() {
           </SheetContent>
         </Sheet>
 
-        <div className="relative z-0 flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="z-20 flex h-[4.25rem] shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/75 px-4 backdrop-blur-xl sm:px-6">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+          <header className="z-20 flex h-[4.25rem] shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card/75 px-4 backdrop-blur-xl sm:px-6 [.map-fullscreen_&]:z-0">
             <div className="flex min-w-0 items-center gap-3">
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setDrawerOpen(true)}>
                 <Menu className="h-5 w-5" />
