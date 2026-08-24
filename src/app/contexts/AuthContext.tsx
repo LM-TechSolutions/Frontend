@@ -98,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const session = await api.auth.me();
         if (cancelled) return;
+        if (session.token) setToken(session.token);
         const nextUser: AuthUser = {
           ...session.user,
           twoFactorEnrollmentRequired: !!(
@@ -143,12 +144,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.twoFactorRequired || !result.user) {
         return { twoFactorRequired: true };
       }
+      const sessionToken = result.token || (result as { session?: { token?: string } }).session?.token;
+      if (sessionToken) setToken(sessionToken);
       const enrollment = !!(result.twoFactorEnrollmentRequired || result.user.twoFactorEnrollmentRequired);
       const nextUser: AuthUser = {
         ...result.user,
         twoFactorEnrollmentRequired: enrollment,
       };
-      if (result.token) setToken(result.token);
       persistUser(nextUser);
       setUser(nextUser);
       if (result.idleTimeoutMinutes) {

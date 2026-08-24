@@ -100,7 +100,12 @@ async function request<T>(base: string, path: string, options: RequestOptions = 
   }
 
   // Backend wraps responses as { success, data, ... }
-  return (payload?.data !== undefined ? payload.data : payload) as T;
+  const data = (payload?.data !== undefined ? payload.data : payload) as T;
+  const headerToken = res.headers.get('set-auth-token') || res.headers.get('set-auth-token');
+  if (headerToken && data && typeof data === 'object' && !(data as { token?: string }).token) {
+    (data as { token?: string }).token = headerToken;
+  }
+  return data;
 }
 
 const cc = <T>(path: string, options?: RequestOptions) => request<T>(API.cc, path, options);
@@ -364,6 +369,7 @@ export const api = {
     logout: () => cc<null>('/auth/logout', { method: 'POST' }).catch(() => null),
     me: () =>
       cc<{
+        token?: string;
         user: AuthUser;
         twoFactorEnrollmentRequired?: boolean;
         idleTimeoutMinutes?: number;
