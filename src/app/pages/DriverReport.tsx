@@ -34,7 +34,7 @@ import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import GebetaMapView from '../components/GebetaMapView';
 import { EmptyState, Initials, StatTile } from '../components/coupons/CouponAtoms';
 import DriverPhotoField from '../components/DriverPhotoField';
-import { connectSocket, getSocket } from '../lib/socket';
+import { connectSocket, getSocket, subscribeDriver, unsubscribeDriver } from '../lib/socket';
 import { ErrorPage } from './ErrorPage';
 import { useAppContext } from '../contexts/AppContext';
 
@@ -89,19 +89,71 @@ export default function DriverReport() {
     load();
   }, [load]);
 
-  // Keep the live map pin moving while the report is open.
+  // Refetch when this driver's work changes underneath the page.
+  //
+  // The report is computed from rides and the coupon ledger, so a trip
+  // completing while an operator has it open silently invalidates every number
+  // on screen — the totals, the chart, the ride table. These are the events
+  // that change those inputs; anything else is left to the manual refresh.
   useEffect(() => {
     if (!employeeId) return;
     const socket = getSocket() ?? connectSocket();
+
+    const refetchIfMine = (payload: any) => {
+      const affected = payload?.driverId ?? payload?.driver?.id;
+      if (affected && affected !== employeeId) return;
+      load();
+    };
+
+    const events = ['ride:completed', 'ride:cancelled', 'coupon:balance'];
+    events.forEach((e) => socket.on(e, refetchIfMine));
+    // A reconnect may have missed events entirely, so reconcile wholesale.
+    socket.io.on('reconnect', load);
+
+    return () => {
+      events.forEach((e) => socket.off(e, refetchIfMine));
+      socket.io.off('reconnect', load);
+    };
+  }, [employeeId, load]);
+
+  // Keep the live pin moving, and the duty chip honest, while the report is open.
+  //
+  // The subscribe call is what makes this work at all: `driver:location` and
+  // `driver:status` are only ever emitted into the `driver:{id}` and `map`
+  // rooms, so a page that merely attaches a listener without joining one of
+  // them never receives a single event. This listener had been dormant.
+  useEffect(() => {
+    if (!employeeId) return;
+    const socket = getSocket() ?? connectSocket();
+    subscribeDriver(employeeId);
+
     const onLocation = (data: any) => {
       if (data?.driverId !== employeeId || typeof data.latitude !== 'number') return;
       setDriver((prev: any) =>
         prev ? { ...prev, currentLocation: { lat: data.latitude, lng: data.longitude } } : prev
       );
     };
+
+    const onStatus = (data: any) => {
+      if (data?.driverId !== employeeId) return;
+      setDriver((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              status: data.status ?? prev.status,
+              isOnline: data.isOnline ?? prev.isOnline,
+              isAvailable: data.isAvailable ?? prev.isAvailable,
+            }
+          : prev
+      );
+    };
+
     socket.on('driver:location', onLocation);
+    socket.on('driver:status', onStatus);
     return () => {
       socket.off('driver:location', onLocation);
+      socket.off('driver:status', onStatus);
+      unsubscribeDriver(employeeId);
     };
   }, [employeeId]);
 

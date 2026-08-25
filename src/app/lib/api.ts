@@ -532,14 +532,28 @@ export const api = {
     getSystem: () => v1<any[]>('/admin/settings'),
     updateSystem: (settings: Record<string, string>) =>
       v1<any>('/admin/settings', { method: 'PUT', body: settings }),
+    /**
+     * Operational config, shaped by permission. Accounts without
+     * `settings:view` — call-centre operators — receive the allow-listed
+     * public projection instead, which is why everything beyond `currency`,
+     * `minCouponBalance` and `urbanSpeedKmh` is optional here.
+     */
     opsConfig: () =>
       v1<{
         currency: string;
         minCouponBalance: number;
-        startingBalance: number;
-        defaultCommission: number;
         urbanSpeedKmh: number;
-        staleDriverMinutes: number;
+        startingBalance?: number;
+        defaultCommission?: number;
+        staleDriverSeconds?: number;
+        fare?: {
+          baseFare: number;
+          perKm: number;
+          timeBlockCharge: number;
+          timeBlockMinutes: number;
+          minimumFare: number;
+          currency: string;
+        };
       }>('/admin/settings/ops'),
     commissionDistribution: () =>
       v1<{ distribution: Array<{ percent: number; drivers: number }> }>('/admin/settings/commission/distribution'),

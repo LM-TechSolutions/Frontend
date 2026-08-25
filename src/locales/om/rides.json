@@ -151,5 +151,9 @@
   "readyPhone": "Bilbila maamilaa",
   "readyPickup": "Pinii ka'umsaa",
   "readyDropoff": "Pinii ga'umsaa",
-  "routeSummary": "{km} km · ~{min} daq"
+  "routeSummary": "{km} km · ~{min} daq",
+  "needsReview": "Ilaali",
+  "duplicateTitle": "Bilbilaan kun duraanuu imala qaba",
+  "duplicateBody": "Lakkoofsa kanaaf imalli daqiiqaa muraasa dura ajajame ammallee hin xumuramne. Yoo dhugumaan konkolaataa lammaffaa barbaadan qofa ajaji.",
+  "duplicateConfirm": "Haaluma kanaan ajaji"
 }

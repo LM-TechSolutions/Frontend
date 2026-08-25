@@ -151,5 +151,9 @@
   "readyPhone": "የደንበኛ ስልክ",
   "readyPickup": "የመነሻ ፒን",
   "readyDropoff": "የመድረሻ ፒን",
-  "routeSummary": "{km} ኪ.ሜ · ~{min} ደቂቃ"
+  "routeSummary": "{km} ኪ.ሜ · ~{min} ደቂቃ",
+  "needsReview": "ክለሳ",
+  "duplicateTitle": "ይህ ደዋይ አስቀድሞ ጊዞ አለው",
+  "duplicateBody": "በዚህ ቁጥር በቅርብ ደቂቃዎች ውስጥ ጊዞ ታዝዞ አልተጠናቀቀም። ብትክክል ሁለተኛ መኺና ካስፈለገው ብቻ ይጠይቁ።",
+  "duplicateConfirm": "በእርግጠኛነት አክል"
 }

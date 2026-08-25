@@ -324,7 +324,24 @@ export default function Rides() {
                     <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</TableCell>
-                  <TableCell className="font-medium">{ride.fare != null ? formatETB(ride.fare) : '-'}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1.5">
+                      <span>{ride.fare != null ? formatETB(ride.fare) : '-'}</span>
+                      {/* Completion had to correct something — a runaway meter,
+                          an implausible GPS jump — so the fare settled on a
+                          adjusted number. Flagged here rather than buried in a
+                          column, because an unreviewed correction is the same
+                          as no correction. */}
+                      {(ride as any).needsReview && (
+                        <span
+                          title={(ride as any).reviewReason ?? undefined}
+                          className="inline-flex items-center rounded px-1.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                        >
+                          {t('rides.needsReview', 'Review')}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="outline" size="sm" onClick={() => navigate(`/rides/${ride.id}`)} title={t('rides.track', 'Track')}>

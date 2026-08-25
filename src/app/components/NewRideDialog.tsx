@@ -5,6 +5,16 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { api } from '../lib/api';
 import { estimateFareEtb, type RoadRoute } from '../lib/route';
 import { formatETB } from '../lib/format';
@@ -45,6 +55,7 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
   const [active, setActive] = useState<'pickup' | 'dropoff'>('pickup');
   const [route, setRoute] = useState<RoadRoute | null>(null);
   const [creating, setCreating] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [mapFs, setMapFs] = useState(false);
   const [fsQuery, setFsQuery] = useState('');
   const [fsHits, setFsHits] = useState<Suggestion[]>([]);
@@ -137,6 +148,21 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
       toast.error(t('rides.setPickupDropoff'));
       return;
     }
+    await createRide(false);
+  };
+
+  /**
+   * Create the ride, unless this caller already has one in flight.
+   *
+   * The backend refuses a likely double-booking with 409 rather than silently
+   * creating a second ride — two operators taking the same call, or one
+   * double-clicking, used to send two drivers to one passenger. A repeat
+   * booking from the same number is a real thing, so this offers to proceed
+   * rather than blocking; [force] is that confirmation, and it is only ever
+   * set by the operator answering the prompt.
+   */
+  const createRide = async (force: boolean) => {
+    if (!pickup || !dropoff) return;
     setCreating(true);
     try {
       await api.rides.create({
@@ -149,11 +175,17 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
         notes: notes.trim() || undefined,
         estimatedDistanceKm: route?.distanceKm,
         estimatedDurationMinutes: route?.durationMinutes,
+        ...(force ? { allowDuplicate: true } : {}),
       });
       toast.success(t('rides.rideCreatedDispatch'));
+      setDuplicateOpen(false);
       onOpenChange(false);
       onCreated?.();
     } catch (e: any) {
+      if (e?.code === 'DUPLICATE_RIDE' || e?.status === 409) {
+        setDuplicateOpen(true);
+        return;
+      }
       toast.error(e?.message ?? t('rides.createFailed'));
     } finally {
       setCreating(false);
@@ -161,6 +193,27 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
   };
 
   return (
+    <>
+    <AlertDialog open={duplicateOpen} onOpenChange={setDuplicateOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('rides.duplicateTitle', 'This caller already has a ride')}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t(
+              'rides.duplicateBody',
+              'A ride for this number was booked in the last few minutes and has not finished. Book another only if they really want a second car.'
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={creating}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+          <AlertDialogAction disabled={creating} onClick={() => void createRide(true)}>
+            {t('rides.duplicateConfirm', 'Book anyway')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[min(1120px,96vw)] gap-0 overflow-hidden p-0 sm:max-w-[min(1120px,96vw)]">
         <div className="grid max-h-[92vh] grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_26rem]">
@@ -349,6 +402,7 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
 

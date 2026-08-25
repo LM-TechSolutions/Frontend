@@ -151,5 +151,9 @@
   "readyPhone": "Customer phone",
   "readyPickup": "Pickup pin",
   "readyDropoff": "Drop-off pin",
-  "routeSummary": "{km} km · ~{min} min"
+  "routeSummary": "{km} km · ~{min} min",
+  "needsReview": "Review",
+  "duplicateTitle": "This caller already has a ride",
+  "duplicateBody": "A ride for this number was booked in the last few minutes and has not finished. Book another only if they really want a second car.",
+  "duplicateConfirm": "Book anyway"
 }

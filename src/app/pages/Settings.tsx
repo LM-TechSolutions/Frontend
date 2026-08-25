@@ -40,7 +40,9 @@ const EDITABLE: { key: string; labelKey?: string }[] = [
   { key: 'dispatch.offerTtlSeconds', labelKey: 'settings.offerTimeout' },
   { key: 'dispatch.enforceRadius' },
   { key: 'dispatch.urbanSpeedKmh' },
-  { key: 'dispatch.staleDriverMinutes' },
+  { key: 'dispatch.staleDriverSeconds' },
+  { key: 'dispatch.presenceGraceSeconds' },
+  { key: 'dispatch.dutyIntentExpirySeconds' },
   { key: 'coupon.minBalanceThreshold', labelKey: 'settings.minCouponBalance' },
   { key: 'coupon.startingBalance' },
   { key: 'commission.defaultPercent', labelKey: 'settings.defaultCommission' },
@@ -73,7 +75,9 @@ const FIELD_META: Record<string, FieldMeta> = {
   'dispatch.maxDrivers': { labelKey: 'settings.fieldMaxDrivers', hintKey: 'settings.hintMaxDrivers', min: 1, max: 100 },
   'dispatch.offerTtlSeconds': { labelKey: 'settings.fieldOfferLifetime', hintKey: 'settings.hintOfferLifetime', unit: 'sec', min: 15, max: 900 },
   'dispatch.urbanSpeedKmh': { labelKey: 'settings.fieldUrbanSpeed', hintKey: 'settings.hintUrbanSpeed', unit: 'km/h', min: 5, max: 80 },
-  'dispatch.staleDriverMinutes': { labelKey: 'settings.fieldStaleDriver', hintKey: 'settings.hintStaleDriver', unit: 'min', min: 1, max: 60 },
+  'dispatch.staleDriverSeconds': { labelKey: 'settings.fieldStaleDriver', hintKey: 'settings.hintStaleDriver', unit: 'sec', min: 60, max: 3600 },
+  'dispatch.presenceGraceSeconds': { labelKey: 'settings.fieldPresenceGrace', hintKey: 'settings.hintPresenceGrace', unit: 'sec', min: 15, max: 600 },
+  'dispatch.dutyIntentExpirySeconds': { labelKey: 'settings.fieldDutyExpiry', hintKey: 'settings.hintDutyExpiry', unit: 'sec', min: 300, max: 86400 },
   'coupon.minBalanceThreshold': { labelKey: 'settings.fieldMinCoupon', hintKey: 'settings.hintMinCoupon', min: 0, max: 1000 },
   'coupon.startingBalance': { labelKey: 'settings.fieldStartingCoupons', hintKey: 'settings.hintStartingCoupons', min: 0, max: 1000 },
   'coupon.perRideDeduction': { labelKey: 'settings.fieldPerRide', hintKey: 'settings.hintPerRide', min: 0, max: 100 },
@@ -121,6 +125,11 @@ export default function Settings() {
   const { user, role, can } = useAuth();
   const { t, language, setLanguage, calendar, setCalendar } = useAppContext();
   const canWrite = can('settings', 'write');
+  // Whether the platform's configuration may be *read* at all. Operators do not
+  // hold this, and the tabs it guards carry the commission rate and the fare
+  // structure. They used to render for everyone with the inputs merely
+  // disabled, which hides nothing — the numbers were still on screen.
+  const canViewConfig = can('settings', 'view');
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
   const [defaults, setDefaults] = useState<Record<string, string>>({});
@@ -132,9 +141,13 @@ export default function Settings() {
   const [stale, setStale] = useState(false);
 
   const load = () => {
+    // Both of these are now refused for accounts without `settings:view`, so
+    // they are only requested when they will succeed.
     Promise.all([
-      api.settings.getSystem(),
-      api.settings.commissionDistribution().catch(() => ({ distribution: [] })),
+      canViewConfig ? api.settings.getSystem() : Promise.resolve([]),
+      canViewConfig
+        ? api.settings.commissionDistribution().catch(() => ({ distribution: [] }))
+        : Promise.resolve({ distribution: [] }),
     ])
       .then(([rows, dist]) => {
         const map: Record<string, string> = {};
@@ -261,9 +274,13 @@ export default function Settings() {
         <TabsList className="h-auto flex-wrap gap-1 bg-muted/60 p-1">
           <TabsTrigger value="profile" className="gap-1.5"><User className="h-4 w-4" /> {t('settings.tabProfile', 'Profile')}</TabsTrigger>
           <TabsTrigger value="security" className="gap-1.5"><Shield className="h-4 w-4" /> {t('settings.tabSecurity', 'Security')}</TabsTrigger>
-          <TabsTrigger value="pricing" className="gap-1.5"><CircleDollarSign className="h-4 w-4" /> {t('settings.tabPricing', 'Pricing')}</TabsTrigger>
-          <TabsTrigger value="dispatch" className="gap-1.5">{t('settings.tabDispatch', 'Dispatch')}</TabsTrigger>
-          <TabsTrigger value="coupons" className="gap-1.5"><Wallet className="h-4 w-4" /> {t('settings.tabCoupons', 'Coupons')}</TabsTrigger>
+          {canViewConfig && (
+            <>
+              <TabsTrigger value="pricing" className="gap-1.5"><CircleDollarSign className="h-4 w-4" /> {t('settings.tabPricing', 'Pricing')}</TabsTrigger>
+              <TabsTrigger value="dispatch" className="gap-1.5">{t('settings.tabDispatch', 'Dispatch')}</TabsTrigger>
+              <TabsTrigger value="coupons" className="gap-1.5"><Wallet className="h-4 w-4" /> {t('settings.tabCoupons', 'Coupons')}</TabsTrigger>
+            </>
+          )}
           <TabsTrigger value="notifications" className="gap-1.5"><Bell className="h-4 w-4" /> {t('settings.tabNotifications', 'Notifications')}</TabsTrigger>
           <TabsTrigger value="localization" className="gap-1.5"><Languages className="h-4 w-4" /> {t('settings.tabLanguage', 'Language')}</TabsTrigger>
         </TabsList>
@@ -289,6 +306,11 @@ export default function Settings() {
           <SecurityPolicyCard />
         </TabsContent>
 
+        {/* Panels, not just their tabs: leaving these mounted would keep the
+            commission rate and fare table in the DOM for anyone who can open
+            devtools or flip the active tab in state. */}
+        {canViewConfig && (
+          <>
         <TabsContent value="pricing">
           <Card>
             <CardHeader>
@@ -374,7 +396,7 @@ export default function Settings() {
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    {['dispatch.radiusKm', 'dispatch.maxDrivers', 'dispatch.offerTtlSeconds', 'dispatch.urbanSpeedKmh', 'dispatch.staleDriverMinutes'].map(numberField)}
+                    {['dispatch.radiusKm', 'dispatch.maxDrivers', 'dispatch.offerTtlSeconds', 'dispatch.urbanSpeedKmh', 'dispatch.staleDriverSeconds', 'dispatch.presenceGraceSeconds', 'dispatch.dutyIntentExpirySeconds'].map(numberField)}
                   </div>
                   <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
                     <p className="text-xs uppercase tracking-[0.09em] text-muted-foreground">{t('settings.dispatchPreviewTitle', 'What happens on the next ride')}</p>
@@ -451,6 +473,8 @@ export default function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
+          </>
+        )}
 
         <TabsContent value="notifications">
           <NotificationPrefsCard />
@@ -573,7 +597,7 @@ function describeDispatch(values: Record<string, string>, t: Translate): string 
   const max = Number(values['dispatch.maxDrivers'] ?? 15);
   const ttl = Number(values['dispatch.offerTtlSeconds'] ?? 180);
   const speed = Number(values['dispatch.urbanSpeedKmh'] ?? 20);
-  const stale = Number(values['dispatch.staleDriverMinutes'] ?? 5);
+  const stale = Number(values['dispatch.staleDriverSeconds'] ?? 90);
   const ring = enforce
     ? t(
         'settings.dispatchRingEnforce',
@@ -583,7 +607,7 @@ function describeDispatch(values: Record<string, string>, t: Translate): string 
     : t('settings.dispatchRingCity', 'the closest {max} eligible drivers city-wide', { max });
   return t(
     'settings.dispatchPreview',
-    'The next ride is offered to {ring}. Drivers have {ttl} seconds to accept. ETAs assume {speed} km/h when routing is unavailable. Online drivers silent for {stale} minutes are dropped.',
+    'The next ride is offered to {ring}. Drivers have {ttl} seconds to accept. ETAs assume {speed} km/h when routing is unavailable. Online drivers silent for {stale} seconds are dropped.',
     { ring, ttl, speed, stale }
   );
 }
