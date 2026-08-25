@@ -191,9 +191,11 @@ export default function Rides() {
       t('rides.status'),
       t('rides.createdAt'),
       t('rides.fare'),
+      t('rides.tekummaCommission'),
+      t('rides.driverKeeps'),
     ];
     const rows = rides.map((r) =>
-      [r.id, r.customerName, r.customerPhone, r.pickupLocation, r.dropoffLocation, r.driverName ?? '', r.status, r.createdAt, r.fare ?? '']
+      [r.id, r.customerName, r.customerPhone, r.pickupLocation, r.dropoffLocation, r.driverName ?? '', r.status, r.createdAt, r.fare ?? '', r.commissionAmount ?? '', r.driverEarnings ?? '']
         .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
         .join(',')
     );
@@ -341,6 +343,11 @@ export default function Rides() {
                         </span>
                       )}
                     </div>
+                    {ride.status === 'completed' && ride.commissionAmount != null && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t('rides.commissionShort', undefined, { amount: formatETB(ride.commissionAmount) })}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">

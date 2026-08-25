@@ -49,5 +49,10 @@
   "operatorVolume": "Operator volume",
   "conversion": "Conversion",
   "noTripsInRange": "No trips in this range",
-  "onlineNow": "Online now"
+  "onlineNow": "Online now",
+  "passengerFares": "Passenger fares",
+  "tekummaCommission": "Tekumma commission",
+  "commissionFromCoupons": "Paid from driver coupons",
+  "avgCommission": "Avg commission",
+  "commissionShort": "{amount} in coupons"
 }

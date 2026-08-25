@@ -6,7 +6,6 @@ import {
   MapPin,
   Navigation,
   Loader2,
-  Ticket,
   Copy,
   ExternalLink,
   Bell,
@@ -410,6 +409,30 @@ export default function RideTracking() {
             />
           </Surface>
 
+          {ride.status === 'completed' && (ride.fare != null || ride.commissionAmount != null || ride.driverEarnings != null) && (
+            <Surface className="space-y-3 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {t('rides.settlement')}
+              </p>
+              <SettlementRow label={t('rides.passengerFare')} value={formatETB(ride.fare)} />
+              <SettlementRow
+                label={t('rides.tekummaCommission')}
+                hint={
+                  ride.commissionPercent
+                    ? t('rides.commissionPaidInCouponsPct', undefined, { percent: ride.commissionPercent })
+                    : t('rides.commissionPaidInCoupons')
+                }
+                value={ride.commissionAmount != null ? `− ${formatETB(ride.commissionAmount)}` : '-'}
+                tone="warn"
+              />
+              <SettlementRow
+                label={t('rides.driverKeeps')}
+                value={formatETB(ride.driverEarnings ?? (ride.fare != null && ride.commissionAmount != null ? ride.fare - ride.commissionAmount : ride.fare))}
+                emphasise
+              />
+            </Surface>
+          )}
+
           <Surface className="space-y-3 p-4">
             <StopRow tone="pickup" label={t('rides.pickup', 'Pickup')} value={ride.pickupLocation} />
             <StopRow tone="drop" label={t('rides.destination', 'Drop-off')} value={ride.dropoffLocation} />
@@ -479,13 +502,6 @@ export default function RideTracking() {
             </div>
           </Surface>
 
-          {(ride.couponDeduction != null || ride.couponsUsed != null) && (
-            <Surface className="flex items-center gap-2 px-4 py-3 text-sm">
-              <Ticket className="h-4 w-4 text-primary" />
-              {t('rides.couponsUsed', undefined, { count: ride.couponDeduction ?? ride.couponsUsed })}
-            </Surface>
-          )}
-
           <Surface className="p-4">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t('rides.timeline')}</p>
             {events.length === 0 ? (
@@ -551,6 +567,38 @@ function StatCell({ label, value }: { label: string; value: string }) {
     <div className="px-3 py-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p className="mt-1 truncate text-sm font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function SettlementRow({
+  label,
+  value,
+  hint,
+  tone,
+  emphasise,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: 'warn';
+  emphasise?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className={cn('text-sm', emphasise ? 'font-semibold' : 'text-muted-foreground')}>{label}</p>
+        {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+      </div>
+      <p
+        className={cn(
+          'shrink-0 text-sm tabular-nums',
+          emphasise ? 'font-semibold' : 'font-medium',
+          tone === 'warn' ? 'text-amber-700 dark:text-amber-400' : ''
+        )}
+      >
+        {value}
+      </p>
     </div>
   );
 }

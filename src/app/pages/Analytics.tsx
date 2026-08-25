@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PhoneCall, Users, Car, DollarSign, Loader2, Download } from 'lucide-react';
+import { PhoneCall, Users, Car, DollarSign, Loader2, Download, Ticket } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
 import { format, parseISO, subDays } from 'date-fns';
@@ -75,6 +75,7 @@ type SeriesPoint = {
   completed: number;
   cancelled: number;
   revenue: number;
+  commission: number;
   calls: number;
 };
 
@@ -113,13 +114,14 @@ export default function Analytics() {
   const series: SeriesPoint[] = stats?.series ?? [];
   const byStatus: Array<{ status: string; count: number }> = stats?.byStatus ?? [];
   const byHour: Array<{ hour: number; rides: number }> = stats?.byHour ?? [];
-  const topRoutes: Array<{ pickup: string; dropoff: string; rides: number; revenue: number }> = stats?.topRoutes ?? [];
+  const topRoutes: Array<{ pickup: string; dropoff: string; rides: number; revenue: number; commission?: number }> = stats?.topRoutes ?? [];
   const ops = stats?.ops ?? {};
 
   const chartData = useMemo(
     () =>
       series.map((row) => ({
         ...row,
+        commission: row.commission ?? 0,
         label: format(parseISO(row.date), series.length > 14 ? 'd MMM' : 'EEE d'),
       })),
     [series]
@@ -167,9 +169,9 @@ export default function Analytics() {
   }));
 
   const exportCsv = () => {
-    const header = ['date', 'rides', 'completed', 'cancelled', 'revenue', 'calls'];
+    const header = ['date', 'rides', 'completed', 'cancelled', 'revenue', 'commission', 'calls'];
     const rows = series.map((row) =>
-      [row.date, row.rides, row.completed, row.cancelled, row.revenue, row.calls].join(',')
+      [row.date, row.rides, row.completed, row.cancelled, row.revenue, row.commission ?? 0, row.calls].join(',')
     );
     const blob = new Blob([[header.join(','), ...rows].join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -206,13 +208,21 @@ export default function Analytics() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatTile label={t('analytics.totalRides', 'Rides')} value={stats.totalRides ?? 0} icon={Car} />
         <StatTile
           label={t('analytics.totalRevenue', 'Revenue')}
           value={formatETB(stats.totalRevenue)}
+          hint={t('analytics.passengerFares')}
           icon={DollarSign}
           accent={SUCCESS}
+        />
+        <StatTile
+          label={t('analytics.tekummaCommission')}
+          value={formatETB(stats.totalCommission)}
+          hint={t('analytics.commissionFromCoupons')}
+          icon={Ticket}
+          accent={WARN}
         />
         <StatTile
           label={t('analytics.onlineNow', 'Online now')}
@@ -277,8 +287,15 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border" vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} className="text-muted-foreground" minTickGap={22} />
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} className="text-muted-foreground" width={52} tickFormatter={(v) => `${Math.round(v)}`} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [formatETB(value), t('analytics.revenue', 'Revenue')]} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(value: number, key: string) => [
+                    formatETB(value),
+                    key === 'commission' ? t('analytics.tekummaCommission') : t('analytics.revenue', 'Revenue'),
+                  ]}
+                />
                 <Area type="monotone" dataKey="revenue" stroke={WARN} strokeWidth={2.4} fill="url(#revFill)" />
+                <Line type="monotone" dataKey="commission" stroke={PRIMARY} strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -290,7 +307,10 @@ export default function Analytics() {
                 <LegendDot color={INK} label={t('analytics.calls', 'Calls')} />
               </>
             ) : (
-              <LegendDot color={WARN} label={t('analytics.completedFare', 'Completed fare')} />
+              <>
+                <LegendDot color={WARN} label={t('analytics.completedFare', 'Completed fare')} />
+                <LegendDot color={PRIMARY} label={t('analytics.tekummaCommission')} />
+              </>
             )}
           </div>
         </Surface>
@@ -366,6 +386,7 @@ export default function Analytics() {
           <Metric label={t('analytics.avgPickup', 'Avg pickup')} value={fmtMinutes(ops.avgPickupMinutes ?? 0)} />
           <Metric label={t('analytics.avgTrip', 'Avg trip')} value={fmtMinutes(ops.avgTripMinutes ?? 0)} />
           <Metric label={t('analytics.avgFareLabel', 'Avg fare')} value={formatETB(stats.averageFare)} />
+          <Metric label={t('analytics.avgCommission')} value={formatETB(stats.averageCommission)} />
           <Metric label={t('analytics.activeNow', 'Active now')} value={String(stats.activeRides ?? 0)} />
         </Surface>
       </div>
@@ -388,6 +409,11 @@ export default function Analytics() {
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold tabular-nums">{route.rides}</p>
                     <p className="text-xs tabular-nums text-muted-foreground">{formatETB(route.revenue)}</p>
+                    {route.commission ? (
+                      <p className="text-[11px] tabular-nums text-muted-foreground">
+                        {t('analytics.commissionShort', undefined, { amount: formatETB(route.commission) })}
+                      </p>
+                    ) : null}
                   </div>
                 </li>
               ))}

@@ -441,7 +441,7 @@ export default function Drivers() {
             <div className="space-y-2"><Label>{t('drivers.phone', 'Phone')}</Label><Input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>
             <div className="space-y-2"><Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label><Input value={edit.vehicleModel} onChange={(e) => setEdit({ ...edit, vehicleModel: e.target.value })} /></div>
             <div className="space-y-2"><Label>{t('drivers.licensePlate', 'License plate')}</Label><Input value={edit.licensePlate} onChange={(e) => setEdit({ ...edit, licensePlate: e.target.value })} /></div>
-            <div className="space-y-2"><Label>{t('drivers.commission', 'Tokuma commission (%)')}</Label><Input type="number" value={edit.commissionPercent} onChange={(e) => setEdit({ ...edit, commissionPercent: parseFloat(e.target.value) || 0 })} /></div>
+            <div className="space-y-2"><Label>{t('drivers.commission', 'Tekumma commission (%)')}</Label><Input type="number" value={edit.commissionPercent} onChange={(e) => setEdit({ ...edit, commissionPercent: parseFloat(e.target.value) || 0 })} /></div>
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setEditing(null)}>{t('drivers.cancel', 'Cancel')}</Button>

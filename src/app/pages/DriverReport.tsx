@@ -180,8 +180,8 @@ export default function DriverReport() {
       t('rides.pickup'),
       t('rides.dropoff'),
       t('rides.fare'),
+      t('rides.tekummaCommission'),
       t('drivers.earnings'),
-      t('drivers.csvCommission'),
       t('drivers.csvDistance'),
       t('drivers.csvCompleted'),
     ];
@@ -192,8 +192,8 @@ export default function DriverReport() {
       r.pickupAddress,
       r.dropoffAddress,
       r.fare ?? '',
-      r.driverEarnings ?? '',
       r.commissionAmount ?? '',
+      r.driverEarnings ?? '',
       r.distance ?? '',
       r.completedAt ?? r.cancelledAt ?? '',
     ]);
@@ -269,6 +269,11 @@ export default function DriverReport() {
                 <Ticket className="h-3.5 w-3.5" />
                 <span className="tabular-nums">{summary?.currentCouponBalance ?? 0}</span> {t('drivers.couponsLabel')}
               </span>
+              {report?.driver?.commissionPercent != null && (
+                <span>
+                  {t('drivers.commissionRate', undefined, { percent: report.driver.commissionPercent })}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -312,14 +317,14 @@ export default function DriverReport() {
         />
         <StatTile
           label={t('drivers.couponsDeducted')}
-          value={(summary?.couponsDeducted ?? 0).toLocaleString()}
+          value={formatETB(summary?.totalCommission ?? 0)}
           hint={
             summary?.couponsRefunded
               ? t('drivers.refundedNet', undefined, {
                   refunded: summary.couponsRefunded,
                   net: summary.netCouponsSpent,
                 })
-              : t('drivers.noneRefunded')
+              : t('drivers.commissionFromWallet')
           }
           icon={Ticket}
           accent="#6366F1"
@@ -441,7 +446,7 @@ export default function DriverReport() {
             <Measure
               icon={Ticket}
               label={t('drivers.netCouponsSpent')}
-              value={(summary?.netCouponsSpent ?? 0).toLocaleString()}
+              value={formatETB(summary?.netCouponsSpent ?? 0)}
               hint={t('drivers.chargedRefunded', undefined, {
                 charged: summary?.couponsDeducted ?? 0,
                 refunded: summary?.couponsRefunded ?? 0,
@@ -492,6 +497,7 @@ export default function DriverReport() {
                     <TableHead>{t('common.customer')}</TableHead>
                     <TableHead>{t('drivers.route')}</TableHead>
                     <TableHead className="text-right">{t('rides.fare')}</TableHead>
+                    <TableHead className="text-right">{t('rides.tekummaCommission')}</TableHead>
                     <TableHead className="text-right">{t('drivers.earnings')}</TableHead>
                     <TableHead>{t('common.status')}</TableHead>
                   </TableRow>
@@ -514,6 +520,9 @@ export default function DriverReport() {
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right tabular-nums">
                         {ride.fare != null ? formatETB(ride.fare) : '-'}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
+                        {ride.commissionAmount != null ? formatETB(ride.commissionAmount) : '-'}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right font-medium tabular-nums text-[#059669] dark:text-[#34D399]">
                         {ride.driverEarnings != null ? formatETB(ride.driverEarnings) : '-'}

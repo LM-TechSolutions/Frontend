@@ -87,15 +87,18 @@ const FIELD_META: Record<string, FieldMeta> = {
 /**
  * Coupon economy controls.
  *
- * The deduction mode is the consequential one: it decides whether a completed
- * ride costs the driver a fixed number of coupons, a percentage of the fare, or
- * both - so it gets an explanation rather than a bare dropdown.
+ * Coupons used ARE the Tekumma commission — never a second charge. The mode
+ * only chooses how that one amount is computed: a percentage of the fare, or a
+ * fixed coupon amount instead.
  */
 const DEDUCTION_MODES = [
-  { value: 'flat', titleKey: 'settings.modeFlat' },
-  { value: 'commission', titleKey: 'settings.modeCommission' },
-  { value: 'both', titleKey: 'settings.modeBoth' },
+  { value: 'commission', titleKey: 'settings.modeCommission', hintKey: 'settings.modeCommissionHint' },
+  { value: 'flat', titleKey: 'settings.modeFlat', hintKey: 'settings.modeFlatHint' },
 ];
+
+function couponDeductionMode(values: Record<string, string>): 'flat' | 'commission' {
+  return values['coupon.deductionMode'] === 'flat' ? 'flat' : 'commission';
+}
 
 const COUPON_NUMERIC: { key: string }[] = [
   { key: 'coupon.perRideDeduction' },
@@ -156,6 +159,11 @@ export default function Settings() {
           map[r.key] = String(r.value);
           defs[r.key] = String(r.defaultValue ?? r.value);
         });
+        // Removed "both" mode used to charge coupons AND commission. Treat it
+        // as commission so the UI matches what the backend now charges.
+        if (map['coupon.deductionMode'] === 'both') {
+          map['coupon.deductionMode'] = 'commission';
+        }
         setValues(map);
         setSaved(map);
         setDefaults(defs);
@@ -421,10 +429,10 @@ export default function Settings() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label>{t('settings.deductionMode', 'Deduction mode')}</Label>
-                    <div className="grid gap-2 sm:grid-cols-3">
+                    <Label>{t('settings.deductionMode', 'How commission is paid')}</Label>
+                    <div className="grid gap-2 sm:grid-cols-2">
                       {DEDUCTION_MODES.map((mode) => {
-                        const selected = (values['coupon.deductionMode'] ?? 'flat') === mode.value;
+                        const selected = couponDeductionMode(values) === mode.value;
                         return (
                           <button
                             key={mode.value}
@@ -438,13 +446,17 @@ export default function Settings() {
                             }`}
                           >
                             <p className="text-sm font-medium text-foreground">{t(mode.titleKey)}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{t(mode.hintKey)}</p>
                           </button>
                         );
                       })}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    {['coupon.perRideDeduction', 'coupon.operatorLowBalanceThreshold', 'coupon.minBalanceThreshold', 'coupon.startingBalance'].map(numberField)}
+                    {(couponDeductionMode(values) === 'flat'
+                      ? ['coupon.perRideDeduction', 'coupon.operatorLowBalanceThreshold', 'coupon.minBalanceThreshold', 'coupon.startingBalance']
+                      : ['coupon.operatorLowBalanceThreshold', 'coupon.minBalanceThreshold', 'coupon.startingBalance']
+                    ).map(numberField)}
                   </div>
                   <div className="space-y-3">
                     {COUPON_TOGGLES.map((field) => {
@@ -668,7 +680,7 @@ function NumberField({
 
 /** Turn the coupon settings into the sentence an administrator can check. */
 function describeDeduction(values: Record<string, string>, t: Translate): string {
-  const mode = values['coupon.deductionMode'] ?? 'flat';
+  const mode = couponDeductionMode(values);
   const perRide = Number(values['coupon.perRideDeduction'] ?? 1);
   const commission = Number(values['commission.defaultPercent'] ?? 10);
   const minBalance = Number(values['coupon.minBalanceThreshold'] ?? 10);
@@ -681,22 +693,23 @@ function describeDeduction(values: Record<string, string>, t: Translate): string
     : t('settings.gateOpen', ' Drivers are not blocked from accepting when underfunded.');
 
   if (mode === 'commission') {
-    return t('settings.deductCommission', '{percent}% of the fare is deducted as commission from the driver\'s wallet.{gate}', {
-      percent: commission,
-      gate,
-    });
+    return t(
+      'settings.deductCommission',
+      "{percent}% of each fare is the Tekumma commission. That amount is taken from the driver's coupon wallet — coupons used are the commission, not a second charge.{gate}",
+      {
+        percent: commission,
+        gate,
+      }
+    );
   }
-  if (mode === 'both') {
-    return t('settings.deductBoth', '{count} coupon(s) plus {percent}% of the fare are deducted from the driver\'s wallet.{gate}', {
+  return t(
+    'settings.deductFlat',
+    '{count} coupon(s) are taken as the Tekumma commission for each ride (instead of a percentage).{gate}',
+    {
       count: perRide,
-      percent: commission,
       gate,
-    });
-  }
-  return t('settings.deductFlat', '{count} coupon(s) are deducted from the driver\'s wallet.{gate}', {
-    count: perRide,
-    gate,
-  });
+    }
+  );
 }
 
 function SecurityCard() {

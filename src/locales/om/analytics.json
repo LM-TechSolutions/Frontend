@@ -49,5 +49,10 @@
   "operatorVolume": "Baay'ina opeeretaraa",
   "conversion": "Jijjiirraa",
   "noTripsInRange": "Imalli yeroo kana keessa hin jiru",
-  "onlineNow": "Amma onlaayinii"
+  "onlineNow": "Amma onlaayinii",
+  "passengerFares": "Gatii imaltootaa",
+  "tekummaCommission": "Komiishinii Tekumma",
+  "commissionFromCoupons": "Kuuppaanii draayivaraa irraa kaffalame",
+  "avgCommission": "Komiishinii giddugaleessa",
+  "commissionShort": "{amount} kuuppaaniin"
 }

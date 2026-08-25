@@ -320,7 +320,7 @@ export interface DriverPerformanceReport {
     currentRating: number | null;
     currentCouponBalance: number;
   };
-  dailySeries: Array<{ date: string; rides: number; fare: number; earnings: number }>;
+  dailySeries: Array<{ date: string; rides: number; fare: number; earnings: number; commission?: number }>;
   rides: Array<{
     id: string;
     status: string;

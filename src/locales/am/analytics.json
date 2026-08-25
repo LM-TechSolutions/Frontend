@@ -49,5 +49,10 @@
   "operatorVolume": "የኦፐሬተር መጠን",
   "conversion": "ልወጣ",
   "noTripsInRange": "በዚህ ክልል ጉዞ የለም",
-  "onlineNow": "አሁን መስመር ላይ"
+  "onlineNow": "አሁን መስመር ላይ",
+  "passengerFares": "የተሳፋሪ ክፍያዎች",
+  "tekummaCommission": "የተኩማ ኮሚሽን",
+  "commissionFromCoupons": "ከአሽከርካሪ ኩፖኖች የተከፈለ",
+  "avgCommission": "አማካይ ኮሚሽን",
+  "commissionShort": "{amount} በኩፖን"
 }

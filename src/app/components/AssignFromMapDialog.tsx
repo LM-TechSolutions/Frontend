@@ -119,7 +119,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
           detail: [
             c.vehicleType && c.vehiclePlate ? `${c.vehicleType} · ${c.vehiclePlate}` : c.vehiclePlate,
             c.etaMinutes != null ? t('rides.minApprox', undefined, { n: c.etaMinutes }) : null,
-            t('rides.couponsUsed', undefined, { count: c.couponBalance }),
+            t('rides.couponBalance', undefined, { count: c.couponBalance }),
           ]
             .filter(Boolean)
             .join(' · '),
@@ -198,7 +198,7 @@ export default function AssignFromMapDialog({ ride, onClose, onAssigned }: Assig
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {selected.distanceKm != null ? t('rides.kmValue', undefined, { n: selected.distanceKm }) : t('rides.distanceUnknown')}
                           {selected.etaMinutes != null ? ` · ${t('rides.minApprox', undefined, { n: selected.etaMinutes })}` : ''}
-                          {selected.couponBalance != null ? ` · ${t('rides.couponsUsed', undefined, { count: selected.couponBalance })}` : ''}
+                          {selected.couponBalance != null ? ` · ${t('rides.couponBalance', undefined, { count: selected.couponBalance })}` : ''}
                         </p>
                         <Button size="sm" className="mt-2 w-full" disabled={assigning || !selected.isEligible} onClick={() => void assign()}>
                           {assigning ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
