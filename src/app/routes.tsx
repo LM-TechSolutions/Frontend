@@ -47,12 +47,18 @@ export const router = createBrowserRouter([
               { path: "audit-log", element: <AuditLog /> },
               { path: "employees/:employeeId", element: <DriverReport /> },
               { path: "admins", element: <Admins /> },
+              // Operators belong here, not behind RequireAdmin: they hold their
+              // own coupon inventory, they are who a driver's refill request is
+              // addressed to, and approving it is their job. Gating the page on
+              // admin made the operator tier of the hierarchy unreachable — the
+              // backend scoped every endpoint for them, and the page has an
+              // operator view, but no operator could open it. The page renders
+              // an operator or admin view from the session, and every endpoint
+              // it calls re-checks the role server-side.
+              { path: "coupons", element: <Coupons /> },
               {
                 element: <RequireAdmin />,
-                children: [
-                  { path: "analytics", element: <Analytics /> },
-                  { path: "coupons", element: <Coupons /> },
-                ],
+                children: [{ path: "analytics", element: <Analytics /> }],
               },
               { path: "*", element: <ErrorPage status={404} /> },
             ],

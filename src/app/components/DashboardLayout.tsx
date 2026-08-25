@@ -50,6 +50,10 @@ const operatorNavigation = [
   { nameKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
   { nameKey: 'nav.rides', href: '/rides', icon: Car },
   { nameKey: 'nav.drivers', href: '/drivers', icon: Users },
+  // An operator funds driver refills out of their own inventory, so the queue
+  // is theirs to work. Leaving it off their sidebar meant driver requests piled
+  // up unseen until an admin happened to look.
+  { nameKey: 'nav.coupons', href: '/coupons', icon: Wallet },
 ];
 
 const adminNavigation = [
@@ -79,6 +83,7 @@ export default function DashboardLayout() {
   const userName = user?.name ?? t('common.user');
   const [notifications, setNotifications] = useState<InboxNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingCoupons, setPendingCoupons] = useState(0);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
@@ -105,8 +110,22 @@ export default function DashboardLayout() {
       .catch(() => undefined);
   };
 
+  // Drivers who have run out of coupons cannot work until someone approves
+  // their refill, and the queue lives on a page an operator is usually not
+  // looking at. The badge is what turns "there is a request" into something
+  // they notice from wherever they are.
+  const refreshPendingCoupons = () => {
+    api.couponRequests
+      .list({ status: 'pending', limit: 1 })
+      .then((res) => setPendingCoupons(res.pendingCount ?? 0))
+      // A driver whose role cannot see the queue gets a 403 here; that is the
+      // expected answer, not a failure worth surfacing.
+      .catch(() => setPendingCoupons(0));
+  };
+
   useEffect(() => {
     refreshInbox();
+    refreshPendingCoupons();
     const socket = getSocket() ?? connectSocket();
 
     const onNew = (payload: any) => {
@@ -124,16 +143,25 @@ export default function DashboardLayout() {
       });
     };
 
+    const onReconnect = () => {
+      refreshInbox();
+      refreshPendingCoupons();
+    };
+
     socket.on('notification:new', onNew);
     socket.on('ride:status', onStatus);
     socket.on('ride:completed', onCompleted);
-    socket.io.on('reconnect', refreshInbox);
+    socket.on('coupon:request', refreshPendingCoupons);
+    socket.on('coupon:request:resolved', refreshPendingCoupons);
+    socket.io.on('reconnect', onReconnect);
 
     return () => {
       socket.off('notification:new', onNew);
       socket.off('ride:status', onStatus);
       socket.off('ride:completed', onCompleted);
-      socket.io.off('reconnect', refreshInbox);
+      socket.off('coupon:request', refreshPendingCoupons);
+      socket.off('coupon:request:resolved', refreshPendingCoupons);
+      socket.io.off('reconnect', onReconnect);
     };
   }, []);
 
@@ -157,6 +185,7 @@ export default function DashboardLayout() {
       {navigation.map((item) => {
         const isActive = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
         const label = t(item.nameKey);
+        const badge = item.href === '/coupons' ? pendingCoupons : 0;
         const button = (
           <button
             key={item.nameKey}
@@ -165,7 +194,7 @@ export default function DashboardLayout() {
               onNavigate?.();
             }}
             className={cn(
-              'flex w-full items-center rounded-xl text-left transition-all',
+              'relative flex w-full items-center rounded-xl text-left transition-all',
               compact ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5',
               isActive
                 ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_10px_24px_-12px_rgba(0,212,219,.9)]'
@@ -174,6 +203,19 @@ export default function DashboardLayout() {
           >
             <item.icon className="h-5 w-5 shrink-0" />
             {!compact && <span className="truncate text-[0.95rem] font-semibold">{label}</span>}
+            {badge > 0 && (
+              <span
+                className={cn(
+                  'ml-auto flex items-center justify-center rounded-full bg-destructive px-1.5 text-[0.7rem] font-bold leading-none text-destructive-foreground',
+                  // Collapsed, the count has nowhere to sit beside the label, so
+                  // it becomes a dot pinned to the icon instead of vanishing.
+                  compact ? 'absolute right-1 top-1 h-2 w-2 p-0' : 'h-5 min-w-[1.25rem] py-1'
+                )}
+                aria-label={`${badge} pending`}
+              >
+                {!compact && (badge > 99 ? '99+' : badge)}
+              </span>
+            )}
           </button>
         );
         if (!compact) return button;
