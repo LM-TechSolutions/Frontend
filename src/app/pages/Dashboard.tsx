@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { useRealtimeCollection } from '../hooks/useRealtimeCollection';
 import { rideStatusLabel } from '../lib/format';
+import { impliedRideStatus, patchDriverDuty, patchDriverFromRide } from '../lib/fleet';
 import GebetaMapView from '../components/GebetaMapView';
 import LogCallDialog from '../components/LogCallDialog';
 import NewRideDialog from '../components/NewRideDialog';
@@ -67,21 +68,29 @@ export default function Dashboard() {
         if (prev.rides.some((r: any) => r.id === rideId)) return prev;
         return { ...prev, rides: [{ ...payload, id: rideId, status: payload.status ?? 'pending' }, ...prev.rides] };
       }
-      if (event.startsWith('ride:') && payload?.rideId) {
-        return {
-          ...prev,
-          rides: prev.rides.map((r: any) =>
-            r.id === payload.rideId ? { ...r, status: payload.status ?? r.status } : r
-          ),
-        };
-      }
       if (event === 'driver:status' && payload?.driverId) {
         return {
           ...prev,
           drivers: prev.drivers.map((d: any) =>
-            d.id === payload.driverId ? { ...d, status: payload.status ?? d.status } : d
+            d.id === payload.driverId ? patchDriverDuty(d, payload) : d
           ),
         };
+      }
+      if (event.startsWith('ride:')) {
+        const rideId = payload?.rideId ?? payload?.id;
+        const driverId = payload?.driverId;
+        const nextStatus = impliedRideStatus(event, payload);
+        const rides = rideId
+          ? prev.rides.map((r: any) =>
+              r.id === rideId
+                ? { ...r, status: nextStatus ?? r.status, driverId: driverId ?? r.driverId }
+                : r
+            )
+          : prev.rides;
+        const drivers = driverId
+          ? prev.drivers.map((d: any) => patchDriverFromRide(d, event, payload))
+          : prev.drivers;
+        return { ...prev, rides, drivers };
       }
       return prev;
     },
@@ -342,7 +351,10 @@ export default function Dashboard() {
                 <div className="rounded-2xl border border-border bg-card/95 p-4 shadow-lg backdrop-blur">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <h4 className="text-sm font-semibold text-card-foreground">{t('dashboard.driverStatus', 'Driver status')}</h4>
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('dashboard.live', 'Live')}</span>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0B7A55]" />
+                      {t('dashboard.live', 'Live')}
+                    </span>
                   </div>
                   <div className="space-y-2 text-xs text-card-foreground">
                     <div className="flex items-center gap-2">

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { useRealtimeCollection } from '../hooks/useRealtimeCollection';
+import { patchDriverDuty, patchDriverFromRide } from '../lib/fleet';
 import GebetaMapView from '../components/GebetaMapView';
 import { useAppContext } from '../contexts/AppContext';
 import { Page, PageHeader, FilterBar, Surface, Facet } from '../components/layout/PageHeader';
@@ -67,6 +68,11 @@ export default function Drivers() {
       'driver:approved',
       'driver:suspended',
       'ride:status',
+      'ride:accepted',
+      'ride:arrived',
+      'ride:started',
+      'ride:completed',
+      'ride:cancelled',
       'coupon:low',
       'coupon:empty',
       'coupon:balance',
@@ -85,7 +91,10 @@ export default function Drivers() {
         return prev.map((d: any) => (d.id === payload.driverId ? { ...d, couponBalance: payload.balance } : d));
       }
       if (event === 'driver:status' && payload?.driverId) {
-        return prev.map((d: any) => (d.id === payload.driverId ? { ...d, status: payload.status ?? d.status } : d));
+        return prev.map((d: any) => (d.id === payload.driverId ? patchDriverDuty(d, payload) : d));
+      }
+      if (event.startsWith('ride:') && payload?.driverId) {
+        return prev.map((d: any) => patchDriverFromRide(d, event, payload));
       }
       return prev;
     },

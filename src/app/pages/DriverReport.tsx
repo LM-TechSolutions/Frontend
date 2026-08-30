@@ -35,6 +35,7 @@ import GebetaMapView from '../components/GebetaMapView';
 import { EmptyState, Initials, StatTile } from '../components/coupons/CouponAtoms';
 import DriverPhotoField from '../components/DriverPhotoField';
 import { connectSocket, getSocket, subscribeDriver, unsubscribeDriver } from '../lib/socket';
+import { patchDriverDuty } from '../lib/fleet';
 import { ErrorPage } from './ErrorPage';
 import { useAppContext } from '../contexts/AppContext';
 
@@ -136,16 +137,7 @@ export default function DriverReport() {
 
     const onStatus = (data: any) => {
       if (data?.driverId !== employeeId) return;
-      setDriver((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              status: data.status ?? prev.status,
-              isOnline: data.isOnline ?? prev.isOnline,
-              isAvailable: data.isAvailable ?? prev.isAvailable,
-            }
-          : prev
-      );
+      setDriver((prev: any) => (prev ? patchDriverDuty(prev, data) : prev));
     };
 
     socket.on('driver:location', onLocation);
