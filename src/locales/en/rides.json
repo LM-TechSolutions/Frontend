@@ -51,7 +51,7 @@
   "settlement": "Settlement",
   "passengerFare": "Passenger fare",
   "tekummaCommission": "Tekumma commission",
-  "commissionPaidInCoupons": "Paid from the driver's coupon wallet — not a second charge",
+  "commissionPaidInCoupons": "Paid from the driver's coupon wallet, not a second charge",
   "commissionPaidInCouponsPct": "{percent}% of the fare, paid from coupons",
   "driverKeeps": "Driver keeps",
   "commissionShort": "{amount} commission in coupons",

@@ -70,7 +70,7 @@
   "couponsDeducted": "Komiishinii kuuppaaniin kaffalame",
   "refundedNet": "{refunded} deebifame, {net} waliigala",
   "noneRefunded": "Kan deebifame hin jiru",
-  "commissionFromWallet": "Walqixxee kuuppaanii irraa fudhatame — komiishinii Tekumma dha, kaffaltii lammaffaa miti",
+  "commissionFromWallet": "Walqixxee kuuppaanii irraa fudhatame. Komiishinii Tekumma dha, kaffaltii lammaffaa miti",
   "commissionRate": "Komiishinii Tekumma {percent}%",
   "onlineHours": "Sa'aatii sarara irratti",
   "drivingHint": "Sa'aatii {hours} konkolaachisuu, {km} km",

@@ -70,7 +70,7 @@
   "couponsDeducted": "Commission paid in coupons",
   "refundedNet": "{refunded} refunded, {net} net",
   "noneRefunded": "None refunded",
-  "commissionFromWallet": "Taken from the coupon wallet — same as Tekumma commission, not a second fee",
+  "commissionFromWallet": "Taken from the coupon wallet, same as Tekumma commission, not a second fee",
   "commissionRate": "{percent}% Tekumma commission",
   "onlineHours": "Online hours",
   "drivingHint": "{hours}h driving, {km} km",

@@ -26,12 +26,16 @@ export default function Rides() {
   const navigate = useNavigate();
   const { t } = useAppContext();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [rides, setRides] = useState<any[]>([]);
+  const [allRides, setRides] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? 'all');
+  // Which channel the ride came from. Filtered client-side because the list is
+  // already paged and the backend has no source filter yet — worth adding if
+  // street hails become a large share of volume.
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'call_center' | 'driver'>('all');
   const [page, setPage] = useState(Number(searchParams.get('page') || 1));
   const [range, setRange] = useState<DateRange | undefined>();
   const [newRideOpen, setNewRideOpen] = useState(false);
@@ -119,6 +123,14 @@ export default function Rides() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, page, searchQuery, range]);
+
+  const rides = useMemo(
+    () =>
+      sourceFilter === 'all'
+        ? allRides
+        : allRides.filter((r) => (r.source ?? 'call_center') === sourceFilter),
+    [allRides, sourceFilter]
+  );
 
   const allSelected = rides.length > 0 && rides.every((r) => selected.has(r.id));
   const selectedRides = useMemo(() => rides.filter((r) => selected.has(r.id)), [rides, selected]);
@@ -239,6 +251,18 @@ export default function Rides() {
         <DateRangePicker value={range} onChange={(next) => { setRange(next); setPage(1); }} />
       </FilterBar>
 
+      <div className="flex flex-wrap items-center gap-2">
+        {(['all', 'call_center', 'driver'] as const).map((src) => (
+          <Facet key={src} active={sourceFilter === src} onClick={() => setSourceFilter(src)}>
+            {src === 'all'
+              ? t('rides.sourceAll', 'All sources')
+              : src === 'driver'
+                ? t('rides.sourceDriver', 'Street hails')
+                : t('rides.sourceCallCenter', 'Call centre')}
+          </Facet>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {STATUSES.map((status) => (
           <Facet
@@ -323,7 +347,17 @@ export default function Rides() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
+                      {/* A street hail appears on the board without anyone
+                          having booked it, which is indistinguishable from a
+                          bug until it says what it is. */}
+                      {ride.source === 'driver' && (
+                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide bg-primary/12 text-primary">
+                          {t('rides.sourceDriver', 'Street hail')}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{format(new Date(ride.createdAt), 'MMM dd, HH:mm')}</TableCell>
                   <TableCell className="font-medium">

@@ -695,7 +695,7 @@ function describeDeduction(values: Record<string, string>, t: Translate): string
   if (mode === 'commission') {
     return t(
       'settings.deductCommission',
-      "{percent}% of each fare is the Tekumma commission. That amount is taken from the driver's coupon wallet — coupons used are the commission, not a second charge.{gate}",
+      "{percent}% of each fare is the Tekumma commission. That amount is taken from the driver's coupon wallet. Coupons used are the commission, not a second charge.{gate}",
       {
         percent: commission,
         gate,

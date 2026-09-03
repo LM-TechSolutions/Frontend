@@ -70,7 +70,7 @@
   "couponsDeducted": "በኩፖን የተከፈለ ኮሚሽን",
   "refundedNet": "{refunded} ተመላሽ፣ {net} ድምር",
   "noneRefunded": "የተመለሰ የለም",
-  "commissionFromWallet": "ከኩፖን ቦርሳ የተወሰደ — የተኩማ ኮሚሽን ነው፣ ሁለተኛ ክፍያ አይደለም",
+  "commissionFromWallet": "ከኩፖን ቦርሳ የተወሰደ። የተኩማ ኮሚሽን ነው፣ ሁለተኛ ክፍያ አይደለም",
   "commissionRate": "{percent}% የተኩማ ኮሚሽን",
   "onlineHours": "የመስመር ላይ ሰዓታት",
   "drivingHint": "{hours}ሰ መንዳት፣ {km} ኪ.ሜ",

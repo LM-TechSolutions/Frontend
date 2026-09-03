@@ -51,7 +51,7 @@
   "settlement": "ሰፈራ",
   "passengerFare": "የተሳፋሪ ክፍያ",
   "tekummaCommission": "የተኩማ ኮሚሽን",
-  "commissionPaidInCoupons": "ከአሽከርካሪው የኩፖን ቦርሳ የተከፈለ — ሁለተኛ ክፍያ አይደለም",
+  "commissionPaidInCoupons": "ከአሽከርካሪው የኩፖን ቦርሳ የተከፈለ። ሁለተኛ ክፍያ አይደለም",
   "commissionPaidInCouponsPct": "ከክፍያው {percent}%፣ በኩፖን የተከፈለ",
   "driverKeeps": "አሽከርካሪው የሚያቆየው",
   "commissionShort": "{amount} ኮሚሽን በኩፖን",

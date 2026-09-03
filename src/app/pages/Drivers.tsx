@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
+import { Switch } from '../components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
@@ -46,6 +47,7 @@ export default function Drivers() {
     vehicleModel: '',
     licensePlate: '',
     commissionPercent: 10,
+    canStreetHail: false,
     profilePicture: null as string | null,
   });
   const [minCouponBalance, setMinCouponBalance] = useState(10);
@@ -183,6 +185,7 @@ export default function Drivers() {
       vehicleModel: d.vehicleModel ?? '',
       licensePlate: d.licensePlate,
       commissionPercent: d.commissionPercent ?? 10,
+      canStreetHail: d.canStreetHail === true,
       profilePicture: d.profilePicture ?? null,
     });
   };
@@ -194,6 +197,7 @@ export default function Drivers() {
       await api.drivers.update(editing.id, {
         name: edit.name, phone: edit.phone, vehicleModel: edit.vehicleModel,
         licensePlate: edit.licensePlate, commissionPercent: edit.commissionPercent,
+        canStreetHail: edit.canStreetHail,
         profilePicture: edit.profilePicture ?? '',
       });
       toast.success(t('drivers.editSuccess'));
@@ -451,6 +455,25 @@ export default function Drivers() {
             <div className="space-y-2"><Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label><Input value={edit.vehicleModel} onChange={(e) => setEdit({ ...edit, vehicleModel: e.target.value })} /></div>
             <div className="space-y-2"><Label>{t('drivers.licensePlate', 'License plate')}</Label><Input value={edit.licensePlate} onChange={(e) => setEdit({ ...edit, licensePlate: e.target.value })} /></div>
             <div className="space-y-2"><Label>{t('drivers.commission', 'Tekumma commission (%)')}</Label><Input type="number" value={edit.commissionPercent} onChange={(e) => setEdit({ ...edit, commissionPercent: parseFloat(e.target.value) || 0 })} /></div>
+          </div>
+
+          {/* Off by default. A self-service ride-creation path is piloted with
+              drivers you trust before it becomes a fleet-wide surface — the
+              server refuses the request outright unless this is on. */}
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-muted/40 p-3">
+            <div className="min-w-0">
+              <Label className="font-semibold">{t('drivers.streetHail', 'Can record street hails')}</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t(
+                  'drivers.streetHailHint',
+                  'Lets this driver start a trip for a passenger who flagged them down. Coupons and commission apply exactly as they do for a dispatched ride.'
+                )}
+              </p>
+            </div>
+            <Switch
+              checked={edit.canStreetHail}
+              onCheckedChange={(v) => setEdit({ ...edit, canStreetHail: v })}
+            />
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setEditing(null)}>{t('drivers.cancel', 'Cancel')}</Button>

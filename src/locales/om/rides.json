@@ -36,7 +36,7 @@
   "settlement": "Ciree",
   "passengerFare": "Gatii imaltootaa",
   "tekummaCommission": "Komiishinii Tekumma",
-  "commissionPaidInCoupons": "Walqixxee kuuppaanii draayivaraa irraa kaffalame — kaffaltii lammaffaa miti",
+  "commissionPaidInCoupons": "Walqixxee kuuppaanii draayivaraa irraa kaffalame, kaffaltii lammaffaa miti",
   "commissionPaidInCouponsPct": "Gatii keessaa {percent}%, kuuppaaniin kaffalame",
   "driverKeeps": "Draayivarri qaba",
   "commissionShort": "Komiishinii {amount} kuuppaaniin",
