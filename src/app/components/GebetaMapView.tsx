@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, MapPin } from 'lucide-react';
 import { cn } from './ui/utils';
 import GebetaMap, { type GebetaMapRef } from '@gebeta/tiles';
 import maplibregl from 'maplibre-gl';
@@ -646,9 +646,22 @@ export default function GebetaMapView({
     return (
       <div
         className={className}
-        style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#E5E7EB', borderRadius: 12 }}
+        style={{
+          height,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#F3F4F6',
+          borderRadius: 12,
+          padding: '24px',
+          textAlign: 'center',
+          gap: '8px',
+        }}
       >
-        <p className="text-[#6B7280] text-sm">Set VITE_GEBETA_API_KEY to enable the map.</p>
+        <MapPin className="h-7 w-7 text-[#9CA3AF]" />
+        <p className="text-[#374151] text-sm font-medium">Please set up the map provider to enable the map.</p>
+        <p className="text-[#6B7280] text-xs">Contact your administrator to configure map services.</p>
       </div>
     );
   }
