@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { format } from 'date-fns';
-import { Search, Eye, Plus, Bell, Loader2, Download, Ban, Car } from 'lucide-react';
+import { Search, Eye, Plus, Bell, Loader2, Download, Ban, Car, Trash2 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
@@ -16,6 +16,16 @@ import { useAppContext } from '../contexts/AppContext';
 import { Page, PageHeader, FilterBar, Surface, Facet } from '../components/layout/PageHeader';
 import { StatusBadge } from '../components/layout/StatusBadge';
 import { EmptyState, Initials } from '../components/coupons/CouponAtoms';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 const PENDING_STATES = ['pending', 'unassigned', 'dispatched'];
 const STATUSES = ['all', 'pending', 'dispatched', 'accepted', 'arrived', 'in_progress', 'completed', 'cancelled', 'expired'];
@@ -40,6 +50,8 @@ export default function Rides() {
   const [range, setRange] = useState<DateRange | undefined>();
   const [newRideOpen, setNewRideOpen] = useState(false);
   const [redispatchingId, setRedispatchingId] = useState<string | null>(null);
+  const [rideToDelete, setRideToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -189,6 +201,21 @@ export default function Rides() {
       load();
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleDeleteRide = async () => {
+    if (!rideToDelete) return;
+    setDeleting(true);
+    try {
+      await api.rides.delete(rideToDelete.id);
+      toast.success(t('rides.deletedSuccess', 'Ride log deleted successfully'));
+      setRides((prev) => prev.filter((r) => r.id !== rideToDelete.id));
+      setRideToDelete(null);
+    } catch (err: any) {
+      toast.error(err?.message || t('rides.deleteFailed', 'Failed to delete ride log'));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -400,6 +427,15 @@ export default function Rides() {
                           {redispatchingId === ride.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        title={t('rides.delete', 'Delete ride log')}
+                        onClick={() => setRideToDelete(ride)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -423,6 +459,35 @@ export default function Rides() {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={!!rideToDelete} onOpenChange={(open) => !open && setRideToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('rides.deleteConfirmTitle', 'Delete Ride Log')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'rides.deleteConfirmDesc',
+                'Are you sure you want to delete this ride log (#{id})? This action cannot be undone.',
+                { id: rideToDelete ? String(rideToDelete.id).slice(0, 8) : '' }
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteRide();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {t('common.delete', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }

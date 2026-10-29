@@ -9,6 +9,7 @@ import {
   Copy,
   ExternalLink,
   Bell,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
@@ -71,6 +72,8 @@ export default function RideTracking() {
   const [now, setNow] = useState(Date.now());
   const [cancelling, setCancelling] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [redispatching, setRedispatching] = useState(false);
   const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -183,6 +186,21 @@ export default function RideTracking() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!rideId) return;
+    setDeleting(true);
+    try {
+      await api.rides.delete(rideId);
+      toast.success(t('rides.deletedSuccess', 'Ride log deleted successfully'));
+      navigate('/rides');
+    } catch (e: any) {
+      toast.error(e?.message ?? t('rides.deleteFailed', 'Failed to delete ride log'));
+    } finally {
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+  };
+
   const handleRedispatch = async () => {
     if (!rideId) return;
     setRedispatching(true);
@@ -285,6 +303,15 @@ export default function RideTracking() {
               {t('common.cancel')}
             </Button>
           )}
+          <Button
+            variant="outline"
+            className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            onClick={() => setDeleteOpen(true)}
+            title={t('rides.delete', 'Delete ride log')}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {t('common.delete', 'Delete')}
+          </Button>
         </div>
       </header>
 
@@ -552,6 +579,31 @@ export default function RideTracking() {
               disabled={cancelling}
             >
               {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : t('rides.cancelRide')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('rides.deleteConfirmTitle', 'Delete Ride Log')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('rides.deleteConfirmDesc', 'Are you sure you want to delete this ride log (#{id})? This action cannot be undone.', { id: ride ? String(ride.id).slice(0, 8) : '' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDelete();
+              }}
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {t('common.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

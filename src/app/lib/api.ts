@@ -425,6 +425,7 @@ export const api = {
     history: (rideId: string) => v1<any>(`/rides/${rideId}/history`),
     /** Nearest assignable drivers for this ride, ranked by distance from pickup. */
     nearbyDrivers: (rideId: string) => v1<NearbyDriversResponse>(`/rides/${rideId}/nearby-drivers`),
+    delete: (rideId: string) => cc<{ success: boolean; message: string }>(`/rides/${rideId}`, { method: 'DELETE' }),
   },
 
   drivers: {
@@ -526,6 +527,7 @@ export const api = {
   callLogs: {
     list: (query?: Record<string, any>) => cc<any>('/call-logs', { query }),
     create: (body: any) => cc<any>('/call-logs', { method: 'POST', body }),
+    delete: (logId: string) => cc<{ success: boolean; message: string }>(`/call-logs/${logId}`, { method: 'DELETE' }),
   },
 
   settings: {

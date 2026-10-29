@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { Search, Phone, Clock, CheckCircle, XCircle, Loader2, Download } from 'lucide-react';
+import { Search, Phone, Clock, CheckCircle, XCircle, Loader2, Download, Trash2 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -12,6 +11,16 @@ import { useAppContext } from '../contexts/AppContext';
 import { Page, PageHeader, FilterBar, Surface } from '../components/layout/PageHeader';
 import { StatusBadge } from '../components/layout/StatusBadge';
 import { EmptyState, StatTile } from '../components/coupons/CouponAtoms';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 const PAGE_SIZE = 20;
@@ -26,6 +35,8 @@ export default function CallLogs() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [page, setPage] = useState(1);
   const [range, setRange] = useState<DateRange | undefined>();
+  const [logToDelete, setLogToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -43,6 +54,21 @@ export default function CallLogs() {
       })
       .catch((e) => toast.error(e?.message ?? t('callLogs.loadFailed', 'Failed to load call logs')))
       .finally(() => setLoading(false));
+  };
+
+  const handleDeleteLog = async () => {
+    if (!logToDelete) return;
+    setDeleting(true);
+    try {
+      await api.callLogs.delete(logToDelete.id);
+      toast.success(t('callLogs.deletedSuccess', 'Call log deleted successfully'));
+      setLogs((prev) => prev.filter((l) => l.id !== logToDelete.id));
+      setLogToDelete(null);
+    } catch (e: any) {
+      toast.error(e?.message ?? t('callLogs.deleteFailed', 'Failed to delete call log'));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   useEffect(() => {
@@ -143,7 +169,7 @@ export default function CallLogs() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  {[t('callLogs.time', 'Time'), t('callLogs.customer', 'Customer'), t('callLogs.phone', 'Phone'), t('callLogs.operator', 'Operator'), t('callLogs.status', 'Status'), t('callLogs.duration', 'Duration'), t('callLogs.converted', 'Converted'), t('callLogs.notes', 'Notes')].map((h) => (
+                  {[t('callLogs.time', 'Time'), t('callLogs.customer', 'Customer'), t('callLogs.phone', 'Phone'), t('callLogs.operator', 'Operator'), t('callLogs.status', 'Status'), t('callLogs.duration', 'Duration'), t('callLogs.converted', 'Converted'), t('callLogs.notes', 'Notes'), t('common.actions', 'Actions')].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">{h}</th>
                   ))}
                 </tr>
@@ -165,6 +191,17 @@ export default function CallLogs() {
                       )}
                     </td>
                     <td className="max-w-xs truncate px-4 py-3 text-sm text-muted-foreground">{log.notes ?? '-'}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        title={t('callLogs.delete', 'Delete call log')}
+                        onClick={() => setLogToDelete(log)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -180,6 +217,34 @@ export default function CallLogs() {
           <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>{t('common.next', 'Next')}</Button>
         </div>
       </div>
+
+      <AlertDialog open={!!logToDelete} onOpenChange={(open) => !open && setLogToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('callLogs.deleteConfirmTitle', 'Delete Call Log')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'callLogs.deleteConfirmDesc',
+                'Are you sure you want to delete this call log? This action cannot be undone.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteLog();
+              }}
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {t('common.delete', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }
