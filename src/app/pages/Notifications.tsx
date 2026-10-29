@@ -9,6 +9,16 @@ import { formatDateTime } from '../lib/format';
 import { Page, PageHeader, FilterBar, Surface } from '../components/layout/PageHeader';
 import { EmptyState } from '../components/coupons/CouponAtoms';
 import { useAppContext } from '../contexts/AppContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 export default function Notifications() {
   const navigate = useNavigate();
@@ -37,6 +47,7 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [group, setGroup] = useState('all');
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [toDelete, setToDelete] = useState<InboxNotification | null>(null);
 
   const load = async () => {
     try {
@@ -127,10 +138,9 @@ export default function Notifications() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => {
-                    setItems((prev) => prev.filter((x) => x.id !== n.id));
-                    void api.notifications.remove(n.id);
-                  }}
+                  className="text-muted-foreground hover:text-destructive"
+                  title={t('common.delete', 'Delete')}
+                  onClick={() => setToDelete(n)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -139,6 +149,34 @@ export default function Notifications() {
           </ul>
         )}
       </Surface>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('inbox.deleteTitle', 'Delete Notification')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('inbox.deleteDesc', 'Are you sure you want to delete this notification?')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (toDelete) {
+                  setItems((prev) => prev.filter((x) => x.id !== toDelete.id));
+                  void api.notifications.remove(toDelete.id);
+                  toast.success(t('inbox.deleted', 'Notification deleted'));
+                  setToDelete(null);
+                }
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t('common.delete', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }

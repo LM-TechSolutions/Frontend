@@ -8,6 +8,7 @@ import { api } from '../lib/api';
 import LogCallDialog from '../components/LogCallDialog';
 import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import { useAppContext } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Page, PageHeader, FilterBar, Surface } from '../components/layout/PageHeader';
 import { StatusBadge } from '../components/layout/StatusBadge';
 import { EmptyState, StatTile } from '../components/coupons/CouponAtoms';
@@ -28,6 +29,8 @@ const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 
 export default function CallLogs() {
   const { t } = useAppContext();
+  const { role, isSuperAdmin } = useAuth();
+  const isAdmin = role === 'admin' || isSuperAdmin;
   const [logs, setLogs] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -169,7 +172,7 @@ export default function CallLogs() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  {[t('callLogs.time', 'Time'), t('callLogs.customer', 'Customer'), t('callLogs.phone', 'Phone'), t('callLogs.operator', 'Operator'), t('callLogs.status', 'Status'), t('callLogs.duration', 'Duration'), t('callLogs.converted', 'Converted'), t('callLogs.notes', 'Notes'), t('common.actions', 'Actions')].map((h) => (
+                  {[t('callLogs.time', 'Time'), t('callLogs.customer', 'Customer'), t('callLogs.phone', 'Phone'), t('callLogs.operator', 'Operator'), t('callLogs.status', 'Status'), t('callLogs.duration', 'Duration'), t('callLogs.converted', 'Converted'), t('callLogs.notes', 'Notes'), ...(isAdmin ? [t('common.actions', 'Actions')] : [])].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">{h}</th>
                   ))}
                 </tr>
@@ -191,17 +194,19 @@ export default function CallLogs() {
                       )}
                     </td>
                     <td className="max-w-xs truncate px-4 py-3 text-sm text-muted-foreground">{log.notes ?? '-'}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                        title={t('callLogs.delete', 'Delete call log')}
-                        onClick={() => setLogToDelete(log)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3 text-sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          title={t('callLogs.delete', 'Delete call log')}
+                          onClick={() => setLogToDelete(log)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

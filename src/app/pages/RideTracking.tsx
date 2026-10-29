@@ -20,6 +20,7 @@ import type { RoadRoute } from '../lib/route';
 import GebetaMapView, { type MapPoint } from '../components/GebetaMapView';
 import AssignFromMapDialog from '../components/AssignFromMapDialog';
 import { useAppContext } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge, waitTone } from '../components/layout/StatusBadge';
 import { Initials } from '../components/coupons/CouponAtoms';
 import { Surface } from '../components/layout/PageHeader';
@@ -63,6 +64,8 @@ export default function RideTracking() {
   const { rideId } = useParams();
   const navigate = useNavigate();
   const { t } = useAppContext();
+  const { role, isSuperAdmin } = useAuth();
+  const isAdmin = role === 'admin' || isSuperAdmin;
 
   const [ride, setRide] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -303,15 +306,17 @@ export default function RideTracking() {
               {t('common.cancel')}
             </Button>
           )}
-          <Button
-            variant="outline"
-            className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-            onClick={() => setDeleteOpen(true)}
-            title={t('rides.delete', 'Delete ride log')}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {t('common.delete', 'Delete')}
-          </Button>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => setDeleteOpen(true)}
+              title={t('rides.delete', 'Delete ride log')}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t('common.delete', 'Delete')}
+            </Button>
+          )}
         </div>
       </header>
 

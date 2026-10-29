@@ -979,6 +979,8 @@ function SessionsCard() {
   const [sessions, setSessions] = useState<StaffSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [sessionToRevoke, setSessionToRevoke] = useState<StaffSession | null>(null);
+  const [confirmSignOutOthers, setConfirmSignOutOthers] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -998,6 +1000,7 @@ function SessionsCard() {
     try {
       await api.auth.revokeSession(id);
       toast.success(t('settings.sessionRevoked', 'Session revoked'));
+      setSessionToRevoke(null);
       load();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : t('settings.revokeFailed', 'Could not revoke session'));
@@ -1011,6 +1014,7 @@ function SessionsCard() {
     try {
       await api.auth.revokeOtherSessions();
       toast.success(t('settings.othersSignedOut', 'Other sessions signed out'));
+      setConfirmSignOutOthers(false);
       load();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : t('settings.signOutOthersFailed', 'Could not sign out other sessions'));
@@ -1050,7 +1054,7 @@ function SessionsCard() {
                 </p>
               </div>
               {!session.isCurrent && (
-                <Button size="sm" variant="outline" className="text-destructive" onClick={() => revoke(session.id)} disabled={busyId === session.id}>
+                <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive hover:text-white" onClick={() => setSessionToRevoke(session)} disabled={busyId === session.id}>
                   {busyId === session.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t('settings.revoke', 'Revoke')}
                 </Button>
               )}
@@ -1058,11 +1062,55 @@ function SessionsCard() {
           ))
         )}
         {sessions.some((s) => !s.isCurrent) && (
-          <Button variant="outline" size="sm" onClick={revokeOthers} disabled={busyId === 'others'}>
+          <Button variant="outline" size="sm" onClick={() => setConfirmSignOutOthers(true)} disabled={busyId === 'others'}>
             {t('settings.signOutOthers', 'Sign out other sessions')}
           </Button>
         )}
       </CardContent>
+
+      <AlertDialog open={!!sessionToRevoke} onOpenChange={(open) => !open && setSessionToRevoke(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('settings.revokeConfirmTitle', 'Revoke Session')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('settings.revokeConfirmDesc', 'Are you sure you want to sign out {device}? This session will be terminated immediately.', { device: sessionToRevoke?.deviceName ?? 'this device' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (sessionToRevoke) void revoke(sessionToRevoke.id);
+              }}
+            >
+              {busyId === sessionToRevoke?.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('settings.revoke', 'Revoke')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmSignOutOthers} onOpenChange={setConfirmSignOutOthers}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('settings.signOutOthersTitle', 'Sign Out Other Sessions')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('settings.signOutOthersDesc', 'Are you sure you want to sign out of all other active devices? You will remain logged in only on this device.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void revokeOthers()}
+            >
+              {busyId === 'others' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('settings.signOutOthers', 'Sign out other sessions')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

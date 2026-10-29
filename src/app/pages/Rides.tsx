@@ -13,6 +13,7 @@ import { rideStatusLabel, formatETB } from '../lib/format';
 import NewRideDialog from '../components/NewRideDialog';
 import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import { useAppContext } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Page, PageHeader, FilterBar, Surface, Facet } from '../components/layout/PageHeader';
 import { StatusBadge } from '../components/layout/StatusBadge';
 import { EmptyState, Initials } from '../components/coupons/CouponAtoms';
@@ -35,6 +36,8 @@ const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 export default function Rides() {
   const navigate = useNavigate();
   const { t } = useAppContext();
+  const { role, isSuperAdmin } = useAuth();
+  const isAdmin = role === 'admin' || isSuperAdmin;
   const [searchParams, setSearchParams] = useSearchParams();
   const [allRides, setRides] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
@@ -52,6 +55,8 @@ export default function Rides() {
   const [redispatchingId, setRedispatchingId] = useState<string | null>(null);
   const [rideToDelete, setRideToDelete] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -182,23 +187,46 @@ export default function Rides() {
     }
   };
 
-  const bulkCancel = async () => {
+  const bulkCancel = () => {
     const targets = selectedRides.filter((r) => r.status !== 'completed' && r.status !== 'cancelled');
     if (!targets.length) {
       toast.info(t('rides.selectOpenCancel'));
       return;
     }
-    const confirmMsg =
-      targets.length === 1
-        ? t('rides.confirmCancelOne')
-        : t('rides.confirmCancelMany', undefined, { count: targets.length });
-    if (!confirm(confirmMsg)) return;
+    setBulkCancelOpen(true);
+  };
+
+  const handleConfirmBulkCancel = async () => {
+    const targets = selectedRides.filter((r) => r.status !== 'completed' && r.status !== 'cancelled');
+    if (!targets.length) {
+      setBulkCancelOpen(false);
+      return;
+    }
     setBusy(true);
     try {
       const results = await Promise.allSettled(targets.map((r) => api.rides.cancel(r.id, t('rides.bulkCancelNote'))));
       const ok = results.filter((r) => r.status === 'fulfilled').length;
       toast.success(t('rides.cancelledOf', undefined, { ok, total: targets.length }));
+      setBulkCancelOpen(false);
       load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (!selected.size) return;
+    setBusy(true);
+    try {
+      const ids = Array.from(selected);
+      const results = await Promise.allSettled(ids.map((id) => api.rides.delete(id)));
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      toast.success(t('rides.deletedOf', 'Deleted {ok} of {total} ride logs', { ok, total: ids.length }));
+      setSelected(new Set());
+      setBulkDeleteOpen(false);
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || t('rides.deleteFailed', 'Failed to delete ride logs'));
     } finally {
       setBusy(false);
     }
@@ -314,6 +342,11 @@ export default function Rides() {
           <Button size="sm" variant="outline" className="border-[#AE2E2D]/40 text-[#AE2E2D]" disabled={busy} onClick={bulkCancel}>
             <Ban className="mr-1.5 h-4 w-4" /> {t('common.cancel')}
           </Button>
+          {isAdmin && (
+            <Button size="sm" variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground" disabled={busy} onClick={() => setBulkDeleteOpen(true)}>
+              <Trash2 className="mr-1.5 h-4 w-4" /> {t('common.delete', 'Delete')}
+            </Button>
+          )}
         </div>
       )}
 
@@ -427,15 +460,17 @@ export default function Rides() {
                           {redispatchingId === ride.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                         </Button>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                        title={t('rides.delete', 'Delete ride log')}
-                        onClick={() => setRideToDelete(ride)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          title={t('rides.delete', 'Delete ride log')}
+                          onClick={() => setRideToDelete(ride)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -483,6 +518,62 @@ export default function Rides() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {t('common.delete', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkCancelOpen} onOpenChange={setBulkCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('rides.bulkCancelTitle', 'Cancel Selected Rides')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('rides.confirmCancelMany', 'Are you sure you want to cancel {count} selected rides?', {
+                count: selectedRides.filter((r) => r.status !== 'completed' && r.status !== 'cancelled').length,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmBulkCancel();
+              }}
+              disabled={busy}
+            >
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ban className="mr-2 h-4 w-4" />}
+              {t('common.confirm', 'Confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('rides.bulkDeleteTitle', 'Delete Selected Rides')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'rides.bulkDeleteDesc',
+                'Are you sure you want to delete {count} selected ride logs? This action cannot be undone.',
+                { count: selected.size }
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmBulkDelete();
+              }}
+              disabled={busy}
+            >
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               {t('common.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
