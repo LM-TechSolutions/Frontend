@@ -1,0 +1,81 @@
+name: Deploy Frontend to cPanel
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Build & Deploy Frontend via FTP
+
+    steps:
+      - name: 🚚 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: 📥 Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 🏗️ Build Frontend Production Bundle
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://backend-api.tokuma.et' }}
+          VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL || 'https://backend-api.tokuma.et' }}
+          VITE_GEBETA_API_KEY: ${{ secrets.VITE_GEBETA_API_KEY }}
+        run: pnpm run build
+
+      - name: 📦 Prepare Deployment Directory
+        run: |
+          mkdir -p deploy
+          
+          # Copy compiled static output
+          cp -r dist/* deploy/
+          
+          # Ensure Apache/LiteSpeed SPA rewrite .htaccess is present
+          if [ -f .htaccess ]; then
+            cp .htaccess deploy/.htaccess
+          elif [ -f public/.htaccess ]; then
+            cp public/.htaccess deploy/.htaccess
+          fi
+
+          echo "Deployment package contents:"
+          ls -la deploy/
+
+      - name: 🚀 Upload to cPanel via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER || secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME || secrets.FTP_ACCOUNT || secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD || secrets.FTP_PASS }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR || secrets.FTP_DIR || './' }}
+          local-dir: ./deploy/
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.env*
+            **/.DS_Store
+            **/Thumbs.db
+
+      - name: 📋 Post-Deployment Summary
+        if: success()
+        run: |
+          echo "=========================================================="
+          echo "✅ Frontend successfully uploaded to cPanel via FTP!"
+          echo "=========================================================="

@@ -38,19 +38,20 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/v1": {
-        target: "http://localhost:3003",
+        target: "https://backend-api.tokuma.et",
         changeOrigin: true,
-        cookieDomainRewrite: "localhost",
+        secure: true,
       },
       "/api": {
-        target: "http://localhost:3003",
+        target: "https://backend-api.tokuma.et",
         changeOrigin: true,
-        cookieDomainRewrite: "localhost",
+        secure: true,
       },
       "/socket.io": {
-        target: "http://localhost:3003",
+        target: "https://backend-api.tokuma.et",
         changeOrigin: true,
         ws: true,
+        secure: true,
       },
     },
   },
