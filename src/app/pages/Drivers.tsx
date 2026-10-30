@@ -26,6 +26,7 @@ const statusColor = (s: string) =>
 const emptyNew = {
   name: '', phone: '', email: '', vehicleType: 'sedan', vehicleModel: '',
   licensePlate: '', licenseNumber: '', couponBalance: 0, profilePicture: null as string | null,
+  password: 'Driver!123',
 };
 
 type Facet = 'all' | 'available' | 'busy' | 'offline' | 'low' | 'watch' | 'healthy';
@@ -180,6 +181,7 @@ export default function Drivers() {
         vehicleType: form.vehicleType, vehicleModel: form.vehicleModel,
         licensePlate: form.licensePlate, licenseNumber: form.licenseNumber,
         profilePicture: form.profilePicture || undefined,
+        password: form.password?.trim() || 'Driver!123',
       });
       if (form.couponBalance > 0 && created?.id) {
         await api.coupons.refill(created.id, form.couponBalance, 'Initial balance').catch(() => null);
@@ -348,6 +350,19 @@ export default function Drivers() {
                   </div>
                 </div>
                 <div className="space-y-2"><Label>{t('drivers.initialCouponBalance', 'Initial coupon balance')}</Label><Input type="number" value={form.couponBalance} onChange={(e) => setForm({ ...form, couponBalance: parseInt(e.target.value) || 0 })} /></div>
+
+                <div className="space-y-2">
+                  <Label>{t('drivers.temporaryPassword', 'Initial password')}</Label>
+                  <Input
+                    type="text"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Driver!123"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Default is <span className="font-mono font-semibold text-foreground">Driver!123</span>. An SMS and email with these login credentials will be delivered to the driver automatically.
+                  </p>
+                </div>
 
                 {hasConflictAdd && (
                   <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3.5 py-2.5 text-xs text-rose-500 font-medium">
