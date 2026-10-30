@@ -66,6 +66,8 @@ interface UseAvailabilityOptions {
 
 /**
  * Hook to manage real-time debounced uniqueness checking against the backend.
+ * Only the field being actively edited will show "Checking…". All other fields
+ * keep their current status without flickering.
  */
 export function useFieldAvailability(options: UseAvailabilityOptions) {
   const {
@@ -79,41 +81,81 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
   } = options;
 
   const [statuses, setStatuses] = useState<Record<string, FieldCheckStatus>>({});
+
+  // Keep track of previously checked values to detect WHICH specific field was typed into
+  const lastInputRef = useRef<Record<string, string>>({
+    email: (email ?? '').trim(),
+    phone: (phone ?? '').trim(),
+    licensePlate: (licensePlate ?? '').trim(),
+    licenseNumber: (licenseNumber ?? '').trim(),
+  });
+
+  // Cache verified values: { [field]: { value: string, status: FieldCheckStatus } }
+  const cacheRef = useRef<Record<string, { value: string; status: FieldCheckStatus }>>({});
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const currentValues: Record<string, string> = {
+      email: (email ?? '').trim(),
+      phone: (phone ?? '').trim(),
+      licensePlate: (licensePlate ?? '').trim(),
+      licenseNumber: (licenseNumber ?? '').trim(),
+    };
+
+    const prevValues = lastInputRef.current;
+
+    // Detect ONLY the fields that actually changed in this update
+    const changedFields: string[] = [];
+    (['email', 'phone', 'licensePlate', 'licenseNumber'] as const).forEach((field) => {
+      if (currentValues[field] !== prevValues[field]) {
+        changedFields.push(field);
+      }
+    });
+
+    // Update previous values ref
+    lastInputRef.current = currentValues;
+
+    // If no field values changed (e.g. only props like debounceMs or initial mount), do not alter statuses
+    if (changedFields.length === 0) {
+      return;
+    }
+
+    const updates: Record<string, FieldCheckStatus> = {};
+    let hasFieldToQuery = false;
+
+    changedFields.forEach((field) => {
+      const val = currentValues[field];
+      const minLen = field === 'licensePlate' || field === 'licenseNumber' ? 2 : 3;
+
+      // If value is too short, or if email doesn't have '@' yet, clear its badge
+      if (val.length < minLen || (field === 'email' && !val.includes('@'))) {
+        updates[field] = { isChecking: false, available: null };
+        delete cacheRef.current[field];
+        return;
+      }
+
+      // If this exact value is already in cache, restore it immediately
+      const cached = cacheRef.current[field];
+      if (cached && cached.value.toLowerCase() === val.toLowerCase()) {
+        updates[field] = cached.status;
+        return;
+      }
+
+      // ONLY THIS changed field enters "isChecking"
+      updates[field] = { isChecking: true, available: null };
+      hasFieldToQuery = true;
+    });
+
+    // Apply updates ONLY to the changed fields. Untouched fields are untouched!
+    setStatuses((prev) => ({ ...prev, ...updates }));
+
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
 
-    const hasAny = Boolean(
-      (email && email.trim().length >= 3) ||
-      (phone && phone.trim().length >= 3) ||
-      (licensePlate && licensePlate.trim().length >= 2) ||
-      (licenseNumber && licenseNumber.trim().length >= 2)
-    );
-
-    if (!hasAny) {
-      setStatuses({});
+    if (!hasFieldToQuery) {
       return;
     }
-
-    // Set checking state for non-empty fields
-    const nextChecking: Record<string, FieldCheckStatus> = {};
-    if (email && email.trim().length >= 3) {
-      nextChecking.email = { isChecking: true, available: null };
-    }
-    if (phone && phone.trim().length >= 3) {
-      nextChecking.phone = { isChecking: true, available: null };
-    }
-    if (licensePlate && licensePlate.trim().length >= 2) {
-      nextChecking.licensePlate = { isChecking: true, available: null };
-    }
-    if (licenseNumber && licenseNumber.trim().length >= 2) {
-      nextChecking.licenseNumber = { isChecking: true, available: null };
-    }
-
-    setStatuses((prev) => ({ ...prev, ...nextChecking }));
 
     timerRef.current = setTimeout(async () => {
       try {
@@ -122,50 +164,56 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
           excludeDriverId,
         };
 
-        if (email && email.trim().length >= 3 && email.includes('@')) {
-          query.email = email.trim();
+        if (currentValues.email && currentValues.email.length >= 3 && currentValues.email.includes('@')) {
+          query.email = currentValues.email;
         }
-        if (phone && phone.trim().length >= 3) {
-          query.phone = phone.trim();
+        if (currentValues.phone && currentValues.phone.length >= 3) {
+          query.phone = currentValues.phone;
         }
-        if (licensePlate && licensePlate.trim().length >= 2) {
-          query.licensePlate = licensePlate.trim();
+        if (currentValues.licensePlate && currentValues.licensePlate.length >= 2) {
+          query.licensePlate = currentValues.licensePlate;
         }
-        if (licenseNumber && licenseNumber.trim().length >= 2) {
-          query.licenseNumber = licenseNumber.trim();
+        if (currentValues.licenseNumber && currentValues.licenseNumber.length >= 2) {
+          query.licenseNumber = currentValues.licenseNumber;
         }
 
-        // Only query if we have at least one field to check
-        const fieldsToCheck = Object.keys(query).filter(
+        const queryKeys = Object.keys(query).filter(
           (k) => k !== 'excludeUserId' && k !== 'excludeDriverId' && query[k]
         );
 
-        if (fieldsToCheck.length === 0) {
-          setStatuses({});
+        if (queryKeys.length === 0) {
           return;
         }
 
         const res = await api.users.checkAvailability(query);
-        const resolved: Record<string, FieldCheckStatus> = {};
 
         if (res.fields) {
+          const resolved: Record<string, FieldCheckStatus> = {};
           Object.entries(res.fields).forEach(([key, val]) => {
-            resolved[key] = {
+            const checkStatus: FieldCheckStatus = {
               isChecking: false,
               available: val.available,
               message: val.message,
               role: val.role,
             };
+            resolved[key] = checkStatus;
+            cacheRef.current[key] = {
+              value: currentValues[key] ?? '',
+              status: checkStatus,
+            };
           });
-        }
 
-        setStatuses(resolved);
+          // Merge resolved results into status, keeping untouched fields unchanged
+          setStatuses((prev) => ({ ...prev, ...resolved }));
+        }
       } catch {
         // In case of network check failure, clear checking state
         setStatuses((prev) => {
-          const reset: Record<string, FieldCheckStatus> = {};
-          Object.keys(prev).forEach((k) => {
-            reset[k] = { isChecking: false, available: true };
+          const reset: Record<string, FieldCheckStatus> = { ...prev };
+          Object.keys(reset).forEach((k) => {
+            if (reset[k]?.isChecking) {
+              reset[k] = { isChecking: false, available: true };
+            }
           });
           return reset;
         });

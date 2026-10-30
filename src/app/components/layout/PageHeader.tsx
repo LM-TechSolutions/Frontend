@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { cn } from '../ui/utils';
-import { SocketStatusBadge } from './ConnectionDot';
 
 export function PageHeader({
   eyebrow,
@@ -8,7 +7,6 @@ export function PageHeader({
   description,
   actions,
   className,
-  showLiveSocket = false,
 }: {
   eyebrow?: string;
   title: string;
@@ -23,10 +21,7 @@ export function PageHeader({
         {eyebrow && (
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-primary">{eyebrow}</p>
         )}
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-[1.85rem] font-semibold tracking-tight text-foreground">{title}</h2>
-          {showLiveSocket && <SocketStatusBadge />}
-        </div>
+        <h2 className="font-display text-[1.85rem] font-semibold tracking-tight text-foreground">{title}</h2>
         {description && <p className="mt-1.5 max-w-2xl text-base leading-7 text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

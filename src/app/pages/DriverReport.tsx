@@ -26,7 +26,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { StatusBadge } from '../components/layout/StatusBadge';
-import { SocketStatusBadge } from '../components/layout/ConnectionDot';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { toast } from 'sonner';
 import { api, ApiError, type DriverPerformanceReport } from '../lib/api';
@@ -248,10 +247,7 @@ export default function DriverReport() {
           />
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{t('drivers.driverReport')}</p>
-            <div className="flex items-center gap-3">
-              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">{name}</h1>
-              <SocketStatusBadge />
-            </div>
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">{name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <span className="capitalize">
                 {report?.driver?.vehicleType ?? driver?.vehicleType ?? '-'} ·{' '}

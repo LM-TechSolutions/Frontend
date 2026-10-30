@@ -181,7 +181,6 @@ export default function Coupons() {
       <PageHeader
         eyebrow={t('coupons.economy')}
         title={t('coupons.title')}
-        showLiveSocket
         actions={
           <div className="flex items-center gap-2">
             {!isAdminView && (

@@ -262,7 +262,6 @@ export default function Drivers() {
       <PageHeader
         eyebrow={t('drivers.fleet')}
         title={t('drivers.title', 'Drivers')}
-        showLiveSocket
         actions={
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>

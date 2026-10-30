@@ -103,7 +103,6 @@ export default function Notifications() {
       <PageHeader
         eyebrow={t('inbox.eyebrow', 'Inbox')}
         title={t('inbox.title', 'Notifications')}
-        showLiveSocket
         actions={
           <Button variant="outline" onClick={() => api.notifications.markAllRead().then(load)}>
             <Check className="mr-2 h-4 w-4" /> {t('inbox.markAllRead', 'Mark all read')}

@@ -22,7 +22,6 @@ import AssignFromMapDialog from '../components/AssignFromMapDialog';
 import { useAppContext } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge, waitTone } from '../components/layout/StatusBadge';
-import { SocketStatusBadge } from '../components/layout/ConnectionDot';
 import { Initials } from '../components/coupons/CouponAtoms';
 import { Surface } from '../components/layout/PageHeader';
 import { cn } from '../components/ui/utils';
@@ -262,7 +261,6 @@ export default function RideTracking() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h2 className="truncate font-display text-2xl font-semibold tracking-tight">{ride.customerName}</h2>
               <StatusBadge status={ride.status} label={rideStatusLabel(ride.status)} />
-              <SocketStatusBadge />
               {wait && (
                 <span className={cn('text-sm font-medium', wait.className)}>
                   {wait.minutes >= 3

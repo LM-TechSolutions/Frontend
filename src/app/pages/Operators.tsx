@@ -314,9 +314,15 @@ function EditOperatorDialog({
     }
   }, [operator]);
 
+  const { availability, isCheckingAny, hasConflict } = useFieldAvailability({
+    email: form.email,
+    phone: form.phone,
+    excludeUserId: operator?.userId || operator?.id,
+  });
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!operator) return;
+    if (!operator || hasConflict) return;
     setSaving(true);
     try {
       await api.operators.update(operator.id, form);
@@ -339,8 +345,20 @@ function EditOperatorDialog({
         </DialogHeader>
         <form onSubmit={submit} className="mt-4 space-y-4">
           <div className="space-y-2"><Label>{t('operators.fullName', 'Full name')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div className="space-y-2"><Label>{t('operators.email', 'Email')}</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-          <div className="space-y-2"><Label>{t('operators.phone', 'Phone')}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t('operators.email', 'Email')}</Label>
+              <FieldAvailabilityBadge status={availability.email} />
+            </div>
+            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t('operators.phone', 'Phone')}</Label>
+              <FieldAvailabilityBadge status={availability.phone} />
+            </div>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t('operators.shift', 'Shift')}</Label>
@@ -364,9 +382,14 @@ function EditOperatorDialog({
               </Select>
             </div>
           </div>
+          {hasConflict && (
+            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs text-rose-500 font-medium">
+              A user account already exists with this email or phone. Please use unique details.
+            </div>
+          )}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>{t('common.cancel', 'Cancel')}</Button>
-            <Button type="submit" className="flex-1" disabled={saving}>
+            <Button type="submit" className="flex-1" disabled={saving || hasConflict || isCheckingAny}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('common.save', 'Save')}
             </Button>
           </div>
