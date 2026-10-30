@@ -532,6 +532,8 @@ export const api = {
       cc<AdminAccount>(`/admins/${adminId}/permissions`, { method: 'PUT', body: { roles } }),
     transferSuperAdmin: (adminId: string) =>
       cc<AdminAccount>(`/admins/${adminId}/transfer-super-admin`, { method: 'POST' }),
+    remove: (adminId: string) =>
+      cc<{ success: boolean; message: string }>(`/admins/${adminId}`, { method: 'DELETE' }),
   },
 
   operators: {

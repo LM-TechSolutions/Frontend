@@ -231,55 +231,59 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
           <Plus className="mr-2 h-4 w-4" /> {t('operators.addButton', 'Add operator')}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>{t('operators.addNewTitle', 'Add new operator')}</DialogTitle>
+      <DialogContent className="sm:max-w-2xl max-h-[min(90vh,calc(100dvh-2rem))] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-2 border-b border-border/50">
+          <DialogTitle className="text-xl">{t('operators.addNewTitle', 'Add new operator')}</DialogTitle>
           <DialogDescription className="sr-only">{t('operators.addNewDescription', 'Add a call-centre operator')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <Label>{t('operators.fullName', 'Full name')}</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>{t('operators.email', 'Email')}</Label>
-              <FieldAvailabilityBadge status={availability.email} />
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="overflow-y-auto px-6 py-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label>{t('operators.fullName', 'Full name')}</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Alemayehu Tadesse" required />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>{t('operators.email', 'Email')}</Label>
+                  <FieldAvailabilityBadge status={availability.email} />
+                </div>
+                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="operator@tokuma.et" required />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>{t('operators.phone', 'Phone')}</Label>
+                  <FieldAvailabilityBadge status={availability.phone} />
+                </div>
+                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0911…" required />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('operators.password', 'Password')}</Label>
+                <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" required />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>{t('operators.shift', 'Shift')}</Label>
+                <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="morning">{t('operators.morning', 'Morning')}</SelectItem>
+                    <SelectItem value="afternoon">{t('operators.afternoon', 'Afternoon')}</SelectItem>
+                    <SelectItem value="night">{t('operators.night', 'Night')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>{t('operators.phone', 'Phone')}</Label>
-              <FieldAvailabilityBadge status={availability.phone} />
-            </div>
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
-          </div>
-          <div className="space-y-2">
-            <Label>{t('operators.password', 'Password')}</Label>
-            <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
-          </div>
-          <div className="space-y-2">
-            <Label>{t('operators.shift', 'Shift')}</Label>
-            <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="morning">{t('operators.morning', 'Morning')}</SelectItem>
-                <SelectItem value="afternoon">{t('operators.afternoon', 'Afternoon')}</SelectItem>
-                <SelectItem value="night">{t('operators.night', 'Night')}</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {hasConflict && (
+              <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs text-rose-500 font-medium">
+                A user account already exists with this email or phone. Please use unique details.
+              </div>
+            )}
           </div>
 
-          {hasConflict && (
-            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs text-rose-500 font-medium">
-              A user account already exists with this email or phone. Please use unique details.
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">{t('operators.cancel', 'Cancel')}</Button>
-            <Button type="submit" className="flex-1" disabled={saving || hasConflict || isCheckingAny}>
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-border/60 bg-muted/20">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>{t('operators.cancel', 'Cancel')}</Button>
+            <Button type="submit" disabled={saving || hasConflict || isCheckingAny}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('operators.addOperator', 'Add operator')}
             </Button>
           </div>
@@ -338,58 +342,65 @@ function EditOperatorDialog({
 
   return (
     <Dialog open={!!operator} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>{t('operators.editTitle', 'Edit operator')}</DialogTitle>
+      <DialogContent className="sm:max-w-2xl max-h-[min(90vh,calc(100dvh-2rem))] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-2 border-b border-border/50">
+          <DialogTitle className="text-xl">{t('operators.editTitle', 'Edit operator')}</DialogTitle>
           <DialogDescription className="sr-only">{t('operators.editDescription', 'Edit this operator.')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="mt-4 space-y-4">
-          <div className="space-y-2"><Label>{t('operators.fullName', 'Full name')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>{t('operators.email', 'Email')}</Label>
-              <FieldAvailabilityBadge status={availability.email} />
+        <form onSubmit={submit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="overflow-y-auto px-6 py-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label>{t('operators.fullName', 'Full name')}</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>{t('operators.email', 'Email')}</Label>
+                  <FieldAvailabilityBadge status={availability.email} />
+                </div>
+                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>{t('operators.phone', 'Phone')}</Label>
+                  <FieldAvailabilityBadge status={availability.phone} />
+                </div>
+                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('operators.shift', 'Shift')}</Label>
+                <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="morning">{t('operators.morning', 'Morning')}</SelectItem>
+                    <SelectItem value="afternoon">{t('operators.afternoon', 'Afternoon')}</SelectItem>
+                    <SelectItem value="night">{t('operators.night', 'Night')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>{t('operators.account', 'Account')}</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">{t('operators.active', 'Active')}</SelectItem>
+                    <SelectItem value="inactive">{t('operators.inactive', 'Inactive')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+
+            {hasConflict && (
+              <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs text-rose-500 font-medium">
+                A user account already exists with this email or phone. Please use unique details.
+              </div>
+            )}
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>{t('operators.phone', 'Phone')}</Label>
-              <FieldAvailabilityBadge status={availability.phone} />
-            </div>
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>{t('operators.shift', 'Shift')}</Label>
-              <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="morning">{t('operators.morning', 'Morning')}</SelectItem>
-                  <SelectItem value="afternoon">{t('operators.afternoon', 'Afternoon')}</SelectItem>
-                  <SelectItem value="night">{t('operators.night', 'Night')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('operators.account', 'Account')}</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">{t('operators.active', 'Active')}</SelectItem>
-                  <SelectItem value="inactive">{t('operators.inactive', 'Inactive')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {hasConflict && (
-            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs text-rose-500 font-medium">
-              A user account already exists with this email or phone. Please use unique details.
-            </div>
-          )}
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>{t('common.cancel', 'Cancel')}</Button>
-            <Button type="submit" className="flex-1" disabled={saving || hasConflict || isCheckingAny}>
+
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-border/60 bg-muted/20">
+            <Button type="button" variant="outline" onClick={onClose}>{t('common.cancel', 'Cancel')}</Button>
+            <Button type="submit" disabled={saving || hasConflict || isCheckingAny}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('common.save', 'Save')}
             </Button>
           </div>

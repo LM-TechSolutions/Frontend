@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   UserCog,
   UserPlus,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -72,7 +73,7 @@ const RESOURCE_KEYS: Record<string, string> = {
  * resulting capabilities rather than making anyone infer them from role names.
  */
 export default function Admins() {
-  const { isSuperAdmin, refreshPermissions } = useAuth();
+  const { isSuperAdmin, refreshPermissions, user } = useAuth();
   const { t } = useAppContext();
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
   const [catalog, setCatalog] = useState<PermissionCatalog | null>(null);
@@ -80,6 +81,8 @@ export default function Admins() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AdminAccount | null>(null);
   const [transferTarget, setTransferTarget] = useState<AdminAccount | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminAccount | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -96,6 +99,21 @@ export default function Admins() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleDeleteAdmin = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await api.admins.remove(deleteTarget.id);
+      toast.success(t('admins.deletedSuccess', 'Administrator {name} deleted successfully', { name: deleteTarget.name }));
+      setDeleteTarget(null);
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? t('admins.deleteFailed', 'Could not delete administrator'));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const stats = useMemo(
     () => ({
@@ -155,9 +173,11 @@ export default function Admins() {
             <AdminRow
               key={admin.id}
               admin={admin}
+              currentUserId={user?.id}
               catalogSize={catalog?.permissions.length ?? 0}
               onEdit={() => setEditing(admin)}
               onTransfer={() => setTransferTarget(admin)}
+              onDelete={() => setDeleteTarget(admin)}
               onChanged={load}
             />
           ))}
@@ -212,21 +232,55 @@ export default function Admins() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('admins.deleteTitle', 'Delete Administrator {name}?', { name: deleteTarget?.name ?? '' })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'admins.deleteBody',
+                'This administrator account, login credentials, and permission assignments will be permanently deleted. This cannot be undone.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async (e) => {
+                e.preventDefault();
+                await handleDeleteAdmin();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {t('common.delete', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }
 
 function AdminRow({
   admin,
+  currentUserId,
   catalogSize,
   onEdit,
   onTransfer,
+  onDelete,
   onChanged,
 }: {
   admin: AdminAccount;
+  currentUserId?: string;
   catalogSize: number;
   onEdit: () => void;
   onTransfer: () => void;
+  onDelete: () => void;
   onChanged: () => void;
 }) {
   const [saving, setSaving] = useState(false);
@@ -314,6 +368,17 @@ function AdminRow({
               >
                 <Crown className="h-4 w-4" />
               </Button>
+              {admin.userId !== currentUserId && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10"
+                  onClick={onDelete}
+                  title={t('common.delete', 'Delete')}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -382,25 +447,25 @@ function CreateAdminDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle>{t('admins.newAdmin', 'New administrator')}</DialogTitle>
+      <DialogContent className="sm:max-w-2xl max-h-[min(90vh,calc(100dvh-2rem))] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-2 border-b border-border/50">
+          <DialogTitle className="text-xl">{t('admins.newAdmin', 'New administrator')}</DialogTitle>
           <DialogDescription className="sr-only">{t('admins.createDescription', 'Create a staff administrator account.')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="admin-name">{t('admins.fullName', 'Full name')}</Label>
-            <Input
-              id="admin-name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Selam Bekele"
-              autoFocus
-            />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
+        <div className="overflow-y-auto px-6 py-4 space-y-4">
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-name">{t('admins.fullName', 'Full name')}</Label>
+              <Input
+                id="admin-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Selam Bekele"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="admin-email">{t('admins.email', 'Email')}</Label>
                 <FieldAvailabilityBadge status={availability.email} />
@@ -413,7 +478,7 @@ function CreateAdminDialog({
                 placeholder="selam@tokuma.et"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="admin-phone">{t('admins.phone', 'Phone')}</Label>
                 <FieldAvailabilityBadge status={availability.phone} />
@@ -425,28 +490,28 @@ function CreateAdminDialog({
                 placeholder="0911 123456"
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="admin-password">{t('admins.temporaryPassword', 'Temporary password')}</Label>
-            <Input
-              id="admin-password"
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder={t('admins.passwordPlaceholder', 'At least 8 characters')}
-            />
-            {form.password.length > 0 && form.password.length < 8 && (
-              <p className="text-xs text-[#DC2626] dark:text-[#F87171]">
-                {t(
-                  8 - form.password.length === 1 ? 'admins.charsNeededOne' : 'admins.charsNeeded',
-                  '{count} more characters needed.',
-                  { count: 8 - form.password.length }
-                )}
-              </p>
-            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-password">{t('admins.temporaryPassword', 'Temporary password')}</Label>
+              <Input
+                id="admin-password"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder={t('admins.passwordPlaceholder', 'At least 8 characters')}
+              />
+              {form.password.length > 0 && form.password.length < 8 && (
+                <p className="text-xs text-[#DC2626] dark:text-[#F87171]">
+                  {t(
+                    8 - form.password.length === 1 ? 'admins.charsNeededOne' : 'admins.charsNeeded',
+                    '{count} more characters needed.',
+                    { count: 8 - form.password.length }
+                  )}
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 pt-1">
             <Label>{t('admins.permissionSet', 'Permission set')}</Label>
             <div className="grid gap-2 sm:grid-cols-2">
               {assignable.map((role) => {
@@ -486,7 +551,7 @@ function CreateAdminDialog({
           )}
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-border/60 bg-muted/20">
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel', 'Cancel')}
           </Button>
@@ -557,13 +622,13 @@ function PermissionsDialog({
 
   return (
     <Dialog open={!!admin} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
-        <DialogHeader>
-          <DialogTitle>{t('admins.permissionsTitle', 'Permissions for {name}', { name: admin?.name ?? '' })}</DialogTitle>
+      <DialogContent className="sm:max-w-2xl max-h-[min(90vh,calc(100dvh-2rem))] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-2 border-b border-border/50">
+          <DialogTitle className="text-xl">{t('admins.permissionsTitle', 'Permissions for {name}', { name: admin?.name ?? '' })}</DialogTitle>
           <DialogDescription className="sr-only">{t('admins.chooseRoles', 'Choose roles for this administrator.')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
+        <div className="overflow-y-auto px-6 py-4 space-y-5">
           <div className="grid gap-2 sm:grid-cols-2">
             {assignable.map((role) => {
               const checked = selectedRoles.includes(role.name);
@@ -634,7 +699,7 @@ function PermissionsDialog({
           )}
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-border/60 bg-muted/20">
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel', 'Cancel')}
           </Button>

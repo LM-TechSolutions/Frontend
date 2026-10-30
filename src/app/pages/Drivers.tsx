@@ -1,10 +1,20 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users } from 'lucide-react';
+import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -42,6 +52,8 @@ export default function Drivers() {
   const [editing, setEditing] = useState<any | null>(null);
   const [refill, setRefill] = useState<any | null>(null);
   const [refillAmount, setRefillAmount] = useState('25');
+  const [deletingDriver, setDeletingDriver] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [form, setForm] = useState(emptyNew);
 
   // Live real-time uniqueness checker for Add Driver dialog
@@ -250,6 +262,21 @@ export default function Drivers() {
     }
   };
 
+  const handleDeleteDriver = async () => {
+    if (!deletingDriver) return;
+    setIsDeleting(true);
+    try {
+      await api.drivers.remove(deletingDriver.id);
+      toast.success(t('drivers.deletedSuccess', 'Driver {name} deleted successfully', { name: deletingDriver.name }));
+      setDeletingDriver(null);
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || t('drivers.deleteFailed', 'Failed to delete driver'));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const facets: Array<{ id: Facet; label: string; count: number }> = [
     { id: 'all', label: t('common.all'), count: drivers.length },
     { id: 'available', label: t('drivers.online'), count: drivers.filter((d) => d.status === 'available').length },
@@ -271,18 +298,24 @@ export default function Drivers() {
                 <UserPlus className="mr-2 h-4 w-4" /> {t('drivers.addButton', 'Add driver')}
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader><DialogTitle>{t('drivers.addTitle', 'Add new driver')}</DialogTitle></DialogHeader>
-              <div className="space-y-3 py-4">
+            <DialogContent className="sm:max-w-3xl max-h-[min(90vh,calc(100dvh-2rem))] flex flex-col p-0 overflow-hidden">
+              <DialogHeader className="px-6 pt-6 pb-2 border-b border-border/50">
+                <DialogTitle className="text-xl">{t('drivers.addTitle', 'Add new driver')}</DialogTitle>
+              </DialogHeader>
+              <div className="overflow-y-auto px-6 py-4 space-y-4">
                 <DriverPhotoField
                   name={form.name}
                   value={form.profilePicture}
                   onChange={(profilePicture) => setForm({ ...form, profilePicture })}
                   disabled={saving}
                 />
-                <div className="space-y-2"><Label>{t('drivers.fullName', 'Full name *')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="space-y-1.5">
+                    <Label>{t('drivers.fullName', 'Full name *')}</Label>
+                    <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Abebe Bikila" />
+                  </div>
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label>{t('drivers.phone', 'Phone *')}</Label>
                       <FieldAvailabilityBadge status={addStatuses.phone} />
@@ -294,7 +327,8 @@ export default function Drivers() {
                       className={addStatuses.phone?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
                     />
                   </div>
-                  <div className="space-y-2">
+
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label>{t('drivers.email', 'Email *')}</Label>
                       <FieldAvailabilityBadge status={addStatuses.email} />
@@ -307,9 +341,7 @@ export default function Drivers() {
                       className={addStatuses.email?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label>{t('drivers.vehicleType', 'Vehicle type')}</Label>
                     <Select value={form.vehicleType} onValueChange={(v) => setForm({ ...form, vehicleType: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -321,10 +353,12 @@ export default function Drivers() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2"><Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label><Input value={form.vehicleModel} onChange={(e) => setForm({ ...form, vehicleModel: e.target.value })} placeholder="Toyota Corolla" /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
+
+                  <div className="space-y-1.5">
+                    <Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label>
+                    <Input value={form.vehicleModel} onChange={(e) => setForm({ ...form, vehicleModel: e.target.value })} placeholder="Toyota Corolla" />
+                  </div>
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label>{t('drivers.licensePlate', 'License plate *')}</Label>
                       <FieldAvailabilityBadge status={addStatuses.licensePlate} />
@@ -336,7 +370,8 @@ export default function Drivers() {
                       className={addStatuses.licensePlate?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
                     />
                   </div>
-                  <div className="space-y-2">
+
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label>{t('drivers.licenseNumber', 'License number *')}</Label>
                       <FieldAvailabilityBadge status={addStatuses.licenseNumber} />
@@ -348,20 +383,24 @@ export default function Drivers() {
                       className={addStatuses.licenseNumber?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
                     />
                   </div>
-                </div>
-                <div className="space-y-2"><Label>{t('drivers.initialCouponBalance', 'Initial coupon balance')}</Label><Input type="number" value={form.couponBalance} onChange={(e) => setForm({ ...form, couponBalance: parseInt(e.target.value) || 0 })} /></div>
+                  <div className="space-y-1.5">
+                    <Label>{t('drivers.initialCouponBalance', 'Initial coupon balance')}</Label>
+                    <Input type="number" value={form.couponBalance} onChange={(e) => setForm({ ...form, couponBalance: parseInt(e.target.value) || 0 })} />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>{t('drivers.temporaryPassword', 'Initial password')}</Label>
-                  <Input
-                    type="text"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="Driver!123"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Default is <span className="font-mono font-semibold text-foreground">Driver!123</span>. An SMS and email with these login credentials will be delivered to the driver automatically.
-                  </p>
+                  <div className="sm:col-span-2 space-y-1.5 rounded-xl border border-border/70 bg-muted/30 p-3">
+                    <Label className="text-xs font-semibold">{t('drivers.temporaryPassword', 'Initial password')}</Label>
+                    <Input
+                      type="text"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="Driver!123"
+                      className="h-9 font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Default is <span className="font-mono font-semibold text-foreground">Driver!123</span>. An SMS and email with these login credentials will be delivered to the driver automatically.
+                    </p>
+                  </div>
                 </div>
 
                 {hasConflictAdd && (
@@ -370,7 +409,7 @@ export default function Drivers() {
                   </div>
                 )}
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-border/60 bg-muted/20">
                 <Button variant="outline" onClick={() => setAddOpen(false)}>{t('drivers.cancel', 'Cancel')}</Button>
                 <Button onClick={handleAdd} disabled={saving || !canSubmitAdd || hasConflictAdd}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('drivers.save', 'Add driver')}
@@ -515,6 +554,15 @@ export default function Drivers() {
                       <Button variant="ghost" size="sm" title={t('drivers.refillCoupons')} onClick={() => { setRefill(d); setRefillAmount('25'); }}>
                         <Wallet className="h-4 w-4" />
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10"
+                        title={t('common.delete', 'Delete')}
+                        onClick={() => setDeletingDriver(d)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -525,40 +573,80 @@ export default function Drivers() {
       </Surface>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader><DialogTitle>{t('drivers.edit', 'Edit driver')}</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-4">
+        <DialogContent className="sm:max-w-2xl max-h-[min(90vh,calc(100dvh-2rem))] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-2 border-b border-border/50">
+            <DialogTitle className="text-xl">{t('drivers.edit', 'Edit driver')}</DialogTitle>
+          </DialogHeader>
+
+          <div className="overflow-y-auto px-6 py-4 space-y-4">
             <DriverPhotoField
               name={edit.name}
               value={edit.profilePicture}
               onChange={(profilePicture) => setEdit({ ...edit, profilePicture })}
               disabled={saving}
             />
-            <div className="space-y-2"><Label>{t('drivers.fullName', 'Full name')}</Label><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>{t('drivers.phone', 'Phone')}</Label>
-                <FieldAvailabilityBadge status={editStatuses.phone} />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label>{t('drivers.fullName', 'Full name')}</Label>
+                <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
               </div>
-              <Input
-                value={edit.phone}
-                onChange={(e) => setEdit({ ...edit, phone: e.target.value })}
-                className={editStatuses.phone?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
-              />
-            </div>
-            <div className="space-y-2"><Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label><Input value={edit.vehicleModel} onChange={(e) => setEdit({ ...edit, vehicleModel: e.target.value })} /></div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>{t('drivers.licensePlate', 'License plate')}</Label>
-                <FieldAvailabilityBadge status={editStatuses.licensePlate} />
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>{t('drivers.phone', 'Phone')}</Label>
+                  <FieldAvailabilityBadge status={editStatuses.phone} />
+                </div>
+                <Input
+                  value={edit.phone}
+                  onChange={(e) => setEdit({ ...edit, phone: e.target.value })}
+                  className={editStatuses.phone?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+                />
               </div>
-              <Input
-                value={edit.licensePlate}
-                onChange={(e) => setEdit({ ...edit, licensePlate: e.target.value })}
-                className={editStatuses.licensePlate?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
-              />
+
+              <div className="space-y-1.5">
+                <Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label>
+                <Input value={edit.vehicleModel} onChange={(e) => setEdit({ ...edit, vehicleModel: e.target.value })} />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>{t('drivers.licensePlate', 'License plate')}</Label>
+                  <FieldAvailabilityBadge status={editStatuses.licensePlate} />
+                </div>
+                <Input
+                  value={edit.licensePlate}
+                  onChange={(e) => setEdit({ ...edit, licensePlate: e.target.value })}
+                  className={editStatuses.licensePlate?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>{t('drivers.commission', 'Tekumma commission (%)')}</Label>
+                <Input
+                  type="number"
+                  value={edit.commissionPercent}
+                  onChange={(e) => setEdit({ ...edit, commissionPercent: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+
+              {/* Street hail toggle neatly matched in the second column */}
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/30 px-3.5 py-2.5">
+                <div className="min-w-0 pr-2">
+                  <Label className="text-sm font-semibold leading-none">{t('drivers.streetHail', 'Can record street hails')}</Label>
+                  <p className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
+                    {t(
+                      'drivers.streetHailHint',
+                      'Lets driver start trip for hail.'
+                    )}
+                  </p>
+                </div>
+                <Switch
+                  checked={edit.canStreetHail}
+                  onCheckedChange={(v) => setEdit({ ...edit, canStreetHail: v })}
+                />
+              </div>
             </div>
-            <div className="space-y-2"><Label>{t('drivers.commission', 'Tekumma commission (%)')}</Label><Input type="number" value={edit.commissionPercent} onChange={(e) => setEdit({ ...edit, commissionPercent: parseFloat(e.target.value) || 0 })} /></div>
 
             {hasConflictEdit && (
               <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3.5 py-2.5 text-xs text-rose-500 font-medium">
@@ -567,25 +655,7 @@ export default function Drivers() {
             )}
           </div>
 
-          {/* Off by default. A self-service ride-creation path is piloted with
-              drivers you trust before it becomes a fleet-wide surface — the
-              server refuses the request outright unless this is on. */}
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-muted/40 p-3">
-            <div className="min-w-0">
-              <Label className="font-semibold">{t('drivers.streetHail', 'Can record street hails')}</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t(
-                  'drivers.streetHailHint',
-                  'Lets this driver start a trip for a passenger who flagged them down. Coupons and commission apply exactly as they do for a dispatched ride.'
-                )}
-              </p>
-            </div>
-            <Switch
-              checked={edit.canStreetHail}
-              onCheckedChange={(v) => setEdit({ ...edit, canStreetHail: v })}
-            />
-          </div>
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-border/60 bg-muted/20">
             <Button variant="outline" onClick={() => setEditing(null)}>{t('drivers.cancel', 'Cancel')}</Button>
             <Button onClick={handleEdit} disabled={saving || !canSubmitEdit || hasConflictEdit}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('drivers.update', 'Update driver')}
@@ -620,6 +690,36 @@ export default function Drivers() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletingDriver} onOpenChange={(o) => !o && setDeletingDriver(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('drivers.removeTitle', 'Delete driver {name}?', { name: deletingDriver?.name ?? '' })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'drivers.removeBody',
+                'Their driver profile, login credentials, and vehicle registration will be permanently deleted. This cannot be undone.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteDriver();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {t('common.delete', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }
