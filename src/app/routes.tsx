@@ -1,23 +1,42 @@
+import React, { lazy, Suspense } from "react";
 import { createBrowserRouter, Outlet } from "react-router";
-import Login from "./pages/Login";
-import ResetPassword from "./pages/ResetPassword";
-import EnrollTwoFactor from "./pages/EnrollTwoFactor";
 import ProtectedRoute, { RequireAdmin } from "./components/ProtectedRoute";
 import DashboardLayout from "./components/DashboardLayout";
-import Dashboard from "./pages/Dashboard";
-import Rides from "./pages/Rides";
-import Drivers from "./pages/Drivers";
-import Coupons from "./pages/Coupons";
-import Settings from "./pages/Settings";
-import RideTracking from "./pages/RideTracking";
-import Operators from "./pages/Operators";
-import Analytics from "./pages/Analytics";
-import CallLogs from "./pages/CallLogs";
-import DriverReport from "./pages/DriverReport";
-import Admins from "./pages/Admins";
-import AuditLog from "./pages/AuditLog";
-import Notifications from "./pages/Notifications";
 import RouteError, { ErrorPage } from "./pages/ErrorPage";
+
+// Login is loaded eagerly for instant first-paint on authentication
+import Login from "./pages/Login";
+
+// Lazy-loaded pages to enable code splitting
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const EnrollTwoFactor = lazy(() => import("./pages/EnrollTwoFactor"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Rides = lazy(() => import("./pages/Rides"));
+const Drivers = lazy(() => import("./pages/Drivers"));
+const Coupons = lazy(() => import("./pages/Coupons"));
+const Settings = lazy(() => import("./pages/Settings"));
+const RideTracking = lazy(() => import("./pages/RideTracking"));
+const Operators = lazy(() => import("./pages/Operators"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const CallLogs = lazy(() => import("./pages/CallLogs"));
+const DriverReport = lazy(() => import("./pages/DriverReport"));
+const Admins = lazy(() => import("./pages/Admins"));
+const AuditLog = lazy(() => import("./pages/AuditLog"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+
+function PageFallback() {
+  return (
+    <div className="flex h-full min-h-[350px] w-full items-center justify-center p-8">
+      <div className="h-8 w-8 animate-spin rounded-full border-3 border-emerald-500 border-t-transparent" />
+    </div>
+  );
+}
+
+const withLazy = (Component: React.LazyExoticComponent<React.ComponentType<any>>) => (
+  <Suspense fallback={<PageFallback />}>
+    <Component />
+  </Suspense>
+);
 
 export const router = createBrowserRouter([
   {
@@ -25,40 +44,32 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { path: "/", element: <Login /> },
-      { path: "/reset-password", element: <ResetPassword /> },
+      { path: "/reset-password", element: withLazy(ResetPassword) },
       {
         element: <ProtectedRoute />,
         errorElement: <RouteError />,
         children: [
-          { path: "/enroll-2fa", element: <EnrollTwoFactor /> },
+          { path: "/enroll-2fa", element: withLazy(EnrollTwoFactor) },
           {
             path: "/",
             element: <DashboardLayout />,
             errorElement: <RouteError />,
             children: [
-              { path: "dashboard", element: <Dashboard /> },
-              { path: "operators", element: <Operators /> },
-              { path: "call-logs", element: <CallLogs /> },
-              { path: "rides", element: <Rides /> },
-              { path: "rides/:rideId", element: <RideTracking /> },
-              { path: "drivers", element: <Drivers /> },
-              { path: "settings", element: <Settings /> },
-              { path: "notifications", element: <Notifications /> },
-              { path: "audit-log", element: <AuditLog /> },
-              { path: "employees/:employeeId", element: <DriverReport /> },
-              { path: "admins", element: <Admins /> },
-              // Operators belong here, not behind RequireAdmin: they hold their
-              // own coupon inventory, they are who a driver's refill request is
-              // addressed to, and approving it is their job. Gating the page on
-              // admin made the operator tier of the hierarchy unreachable — the
-              // backend scoped every endpoint for them, and the page has an
-              // operator view, but no operator could open it. The page renders
-              // an operator or admin view from the session, and every endpoint
-              // it calls re-checks the role server-side.
-              { path: "coupons", element: <Coupons /> },
+              { path: "dashboard", element: withLazy(Dashboard) },
+              { path: "operators", element: withLazy(Operators) },
+              { path: "call-logs", element: withLazy(CallLogs) },
+              { path: "rides", element: withLazy(Rides) },
+              { path: "rides/:rideId", element: withLazy(RideTracking) },
+              { path: "drivers", element: withLazy(Drivers) },
+              { path: "settings", element: withLazy(Settings) },
+              { path: "notifications", element: withLazy(Notifications) },
+              { path: "audit-log", element: withLazy(AuditLog) },
+              { path: "employees/:employeeId", element: withLazy(DriverReport) },
+              { path: "admins", element: withLazy(Admins) },
+              { path: "coupons", element: withLazy(Coupons) },
               {
                 element: <RequireAdmin />,
-                children: [{ path: "analytics", element: <Analytics /> }],
+                children: [{ path: "analytics", element: withLazy(Analytics) }],
               },
               { path: "*", element: <ErrorPage status={404} /> },
             ],
