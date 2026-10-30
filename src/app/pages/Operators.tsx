@@ -21,6 +21,7 @@ import { useAppContext } from '../contexts/AppContext';
 import { Page, PageHeader, FilterBar } from '../components/layout/PageHeader';
 import { StatusBadge } from '../components/layout/StatusBadge';
 import { EmptyState, Initials, StatTile, timeAgo } from '../components/coupons/CouponAtoms';
+import { FieldAvailabilityBadge, useFieldAvailability } from '../components/FieldAvailabilityBadge';
 
 function onShift(shift: string) {
   const hour = new Date().getHours();
@@ -194,10 +195,19 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', shift: 'morning' });
 
+  const { availability, isCheckingAny, hasConflict } = useFieldAvailability({
+    email: form.email,
+    phone: form.phone,
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.phone || !form.password) {
       toast.error(t('operators.requiredFields', 'Name, email, phone and password are required'));
+      return;
+    }
+    if (hasConflict) {
+      toast.error(t('operators.duplicateField', 'A user with this email or phone already exists'));
       return;
     }
     setSaving(true);
@@ -227,10 +237,28 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
           <DialogDescription className="sr-only">{t('operators.addNewDescription', 'Add a call-centre operator')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div className="space-y-2"><Label>{t('operators.fullName', 'Full name')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-          <div className="space-y-2"><Label>{t('operators.email', 'Email')}</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
-          <div className="space-y-2"><Label>{t('operators.phone', 'Phone')}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required /></div>
-          <div className="space-y-2"><Label>{t('operators.password', 'Password')}</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required /></div>
+          <div className="space-y-2">
+            <Label>{t('operators.fullName', 'Full name')}</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t('operators.email', 'Email')}</Label>
+              <FieldAvailabilityBadge status={availability.email} />
+            </div>
+            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t('operators.phone', 'Phone')}</Label>
+              <FieldAvailabilityBadge status={availability.phone} />
+            </div>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+          </div>
+          <div className="space-y-2">
+            <Label>{t('operators.password', 'Password')}</Label>
+            <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+          </div>
           <div className="space-y-2">
             <Label>{t('operators.shift', 'Shift')}</Label>
             <Select value={form.shift} onValueChange={(v) => setForm({ ...form, shift: v })}>
@@ -242,9 +270,16 @@ function AddOperatorDialog({ onCreated }: { onCreated: () => void }) {
               </SelectContent>
             </Select>
           </div>
+
+          {hasConflict && (
+            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs text-rose-500 font-medium">
+              A user account already exists with this email or phone. Please use unique details.
+            </div>
+          )}
+
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">{t('operators.cancel', 'Cancel')}</Button>
-            <Button type="submit" className="flex-1" disabled={saving}>
+            <Button type="submit" className="flex-1" disabled={saving || hasConflict || isCheckingAny}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('operators.addOperator', 'Add operator')}
             </Button>
           </div>

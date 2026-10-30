@@ -18,6 +18,7 @@ import { Page, PageHeader, FilterBar, Surface, Facet } from '../components/layou
 import { StatusBadge } from '../components/layout/StatusBadge';
 import { BalancePill, EmptyState, Initials, StatTile, timeAgo } from '../components/coupons/CouponAtoms';
 import DriverPhotoField from '../components/DriverPhotoField';
+import { FieldAvailabilityBadge, useFieldAvailability } from '../components/FieldAvailabilityBadge';
 
 const statusColor = (s: string) =>
   s === 'available' ? '#0B7A55' : s === 'busy' ? '#AE2E2D' : '#6B7280';
@@ -41,6 +42,14 @@ export default function Drivers() {
   const [refill, setRefill] = useState<any | null>(null);
   const [refillAmount, setRefillAmount] = useState('25');
   const [form, setForm] = useState(emptyNew);
+
+  // Live real-time uniqueness checker for Add Driver dialog
+  const { statuses: addStatuses, canSubmit: canSubmitAdd, hasConflict: hasConflictAdd } = useFieldAvailability({
+    email: form.email,
+    phone: form.phone,
+    licensePlate: form.licensePlate,
+    licenseNumber: form.licenseNumber,
+  });
   const [edit, setEdit] = useState({
     name: '',
     phone: '',
@@ -262,8 +271,31 @@ export default function Drivers() {
                 />
                 <div className="space-y-2"><Label>{t('drivers.fullName', 'Full name *')}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>{t('drivers.phone', 'Phone')}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0911…" /></div>
-                  <div className="space-y-2"><Label>{t('drivers.email', 'Email *')}</Label><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="driver@…" /></div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>{t('drivers.phone', 'Phone *')}</Label>
+                      <FieldAvailabilityBadge status={addStatuses.phone} />
+                    </div>
+                    <Input
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="0911…"
+                      className={addStatuses.phone?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>{t('drivers.email', 'Email *')}</Label>
+                      <FieldAvailabilityBadge status={addStatuses.email} />
+                    </div>
+                    <Input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="driver@…"
+                      className={addStatuses.email?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -281,14 +313,36 @@ export default function Drivers() {
                   <div className="space-y-2"><Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label><Input value={form.vehicleModel} onChange={(e) => setForm({ ...form, vehicleModel: e.target.value })} placeholder="Toyota Corolla" /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>{t('drivers.licensePlate', 'License plate')}</Label><Input value={form.licensePlate} onChange={(e) => setForm({ ...form, licensePlate: e.target.value })} placeholder="AA-12345" /></div>
-                  <div className="space-y-2"><Label>{t('drivers.licenseNumber', 'License number *')}</Label><Input value={form.licenseNumber} onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })} placeholder="DL-…" /></div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>{t('drivers.licensePlate', 'License plate *')}</Label>
+                      <FieldAvailabilityBadge status={addStatuses.licensePlate} />
+                    </div>
+                    <Input
+                      value={form.licensePlate}
+                      onChange={(e) => setForm({ ...form, licensePlate: e.target.value })}
+                      placeholder="AA-12345"
+                      className={addStatuses.licensePlate?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>{t('drivers.licenseNumber', 'License number *')}</Label>
+                      <FieldAvailabilityBadge status={addStatuses.licenseNumber} />
+                    </div>
+                    <Input
+                      value={form.licenseNumber}
+                      onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
+                      placeholder="DL-…"
+                      className={addStatuses.licenseNumber?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2"><Label>{t('drivers.initialCouponBalance', 'Initial coupon balance')}</Label><Input type="number" value={form.couponBalance} onChange={(e) => setForm({ ...form, couponBalance: parseInt(e.target.value) || 0 })} /></div>
               </div>
               <div className="flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setAddOpen(false)}>{t('drivers.cancel', 'Cancel')}</Button>
-                <Button onClick={handleAdd} disabled={saving}>
+                <Button onClick={handleAdd} disabled={saving || !canSubmitAdd || hasConflictAdd}>
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('drivers.save', 'Add driver')}
                 </Button>
               </div>

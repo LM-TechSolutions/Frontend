@@ -36,6 +36,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useAppContext } from '../contexts/AppContext';
 import { EmptyState, Initials, RowSkeleton, StatTile } from '../components/coupons/CouponAtoms';
 import { Page, PageHeader } from '../components/layout/PageHeader';
+import { FieldAvailabilityBadge, useFieldAvailability } from '../components/FieldAvailabilityBadge';
 
 interface PermissionCatalog {
   permissions: Array<{ key: string; resource: string; action: string; description: string }>;
@@ -337,6 +338,11 @@ function CreateAdminDialog({
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['admin']);
   const [saving, setSaving] = useState(false);
 
+  const { availability, isCheckingAny, hasConflict } = useFieldAvailability({
+    email: form.email,
+    phone: form.phone,
+  });
+
   useEffect(() => {
     if (open) {
       setForm({ name: '', email: '', password: '', phone: '', department: '' });
@@ -346,10 +352,14 @@ function CreateAdminDialog({
 
   // The Super Admin role is transferred, never granted at creation.
   const assignable = roles.filter((r) => r.name !== 'super-admin');
-  const valid = form.name.trim().length >= 2 && /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 8;
+  const valid =
+    form.name.trim().length >= 2 &&
+    /\S+@\S+\.\S+/.test(form.email) &&
+    form.password.length >= 8 &&
+    !hasConflict;
 
   const submit = async () => {
-    if (!valid) return;
+    if (!valid || hasConflict) return;
     setSaving(true);
     try {
       await api.admins.create({
@@ -391,7 +401,10 @@ function CreateAdminDialog({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="admin-email">{t('admins.email', 'Email')}</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="admin-email">{t('admins.email', 'Email')}</Label>
+                <FieldAvailabilityBadge status={availability.email} />
+              </div>
               <Input
                 id="admin-email"
                 type="email"
@@ -401,7 +414,10 @@ function CreateAdminDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="admin-phone">{t('admins.phone', 'Phone')}</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="admin-phone">{t('admins.phone', 'Phone')}</Label>
+                <FieldAvailabilityBadge status={availability.phone} />
+              </div>
               <Input
                 id="admin-phone"
                 value={form.phone}
@@ -462,14 +478,20 @@ function CreateAdminDialog({
               })}
             </div>
           </div>
+
+          {hasConflict && (
+            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-xs text-rose-500 font-medium">
+              A user account already exists with this email or phone. Please use unique details.
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel', 'Cancel')}
           </Button>
-          <Button onClick={submit} disabled={!valid || saving}>
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button onClick={submit} disabled={!valid || saving || isCheckingAny || hasConflict}>
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {t('admins.createAdmin', 'Create administrator')}
           </Button>
         </div>

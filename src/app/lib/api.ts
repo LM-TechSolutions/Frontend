@@ -497,6 +497,22 @@ export const api = {
       cc<CouponRequest>(`/coupon-requests/${requestId}/cancel`, { method: 'POST' }),
   },
 
+  /** Field availability & pre-creation uniqueness validation. */
+  users: {
+    checkAvailability: (query: {
+      email?: string;
+      phone?: string;
+      licensePlate?: string;
+      licenseNumber?: string;
+      excludeUserId?: string;
+      excludeDriverId?: string;
+    }) =>
+      cc<{
+        available: boolean;
+        fields: Record<string, { available: boolean; message?: string; role?: string }>;
+      }>('/users/check-availability', { query }),
+  },
+
   /** Administrator accounts, permission sets, and the Super Admin role. */
   admins: {
     myPermissions: () => cc<MyPermissions>('/me/permissions', { skipAuthClear: true }),
