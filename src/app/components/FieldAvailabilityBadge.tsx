@@ -25,10 +25,10 @@ export function FieldAvailabilityBadge({ status, className = '' }: BadgeProps) {
   if (status.isChecking) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted/80 text-muted-foreground border border-border/60 animate-pulse ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/20 animate-pulse transition-all duration-200 ${className}`}
       >
-        <Loader2 className="h-3 w-3 animate-spin text-primary" />
-        Checking...
+        <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
+        Checking…
       </span>
     );
   }
@@ -36,7 +36,7 @@ export function FieldAvailabilityBadge({ status, className = '' }: BadgeProps) {
   if (status.available) {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs transition-all duration-200 ${className}`}
+        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shadow-xs transition-all duration-200 animate-in fade-in-50 zoom-in-95 ${className}`}
       >
         <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
         Available
@@ -46,9 +46,9 @@ export function FieldAvailabilityBadge({ status, className = '' }: BadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-destructive/10 text-destructive border border-destructive/25 shadow-xs transition-all duration-200 ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 shadow-xs transition-all duration-200 animate-in fade-in-50 zoom-in-95 ${className}`}
     >
-      <AlertCircle className="h-3 w-3 text-destructive shrink-0" />
+      <AlertCircle className="h-3 w-3 text-rose-500 shrink-0" />
       <span>{status.message || 'Already in use'}</span>
     </span>
   );
@@ -75,7 +75,7 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
     licenseNumber,
     excludeUserId,
     excludeDriverId,
-    debounceMs = 350,
+    debounceMs = 300,
   } = options;
 
   const [statuses, setStatuses] = useState<Record<string, FieldCheckStatus>>({});
@@ -87,8 +87,8 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
     }
 
     const hasAny = Boolean(
-      (email && email.trim().length > 3) ||
-      (phone && phone.trim().length >= 4) ||
+      (email && email.trim().length >= 3) ||
+      (phone && phone.trim().length >= 3) ||
       (licensePlate && licensePlate.trim().length >= 2) ||
       (licenseNumber && licenseNumber.trim().length >= 2)
     );
@@ -100,10 +100,10 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
 
     // Set checking state for non-empty fields
     const nextChecking: Record<string, FieldCheckStatus> = {};
-    if (email && email.trim().length > 3 && /\S+@\S+\.\S+/.test(email.trim())) {
+    if (email && email.trim().length >= 3) {
       nextChecking.email = { isChecking: true, available: null };
     }
-    if (phone && phone.trim().length >= 4) {
+    if (phone && phone.trim().length >= 3) {
       nextChecking.phone = { isChecking: true, available: null };
     }
     if (licensePlate && licensePlate.trim().length >= 2) {
@@ -122,10 +122,10 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
           excludeDriverId,
         };
 
-        if (email && email.trim().length > 3 && /\S+@\S+\.\S+/.test(email.trim())) {
+        if (email && email.trim().length >= 3 && email.includes('@')) {
           query.email = email.trim();
         }
-        if (phone && phone.trim().length >= 4) {
+        if (phone && phone.trim().length >= 3) {
           query.phone = phone.trim();
         }
         if (licensePlate && licensePlate.trim().length >= 2) {
@@ -133,6 +133,16 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
         }
         if (licenseNumber && licenseNumber.trim().length >= 2) {
           query.licenseNumber = licenseNumber.trim();
+        }
+
+        // Only query if we have at least one field to check
+        const fieldsToCheck = Object.keys(query).filter(
+          (k) => k !== 'excludeUserId' && k !== 'excludeDriverId' && query[k]
+        );
+
+        if (fieldsToCheck.length === 0) {
+          setStatuses({});
+          return;
         }
 
         const res = await api.users.checkAvailability(query);
@@ -181,6 +191,7 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
 
   return {
     statuses,
+    availability: statuses,
     isCheckingAny,
     hasConflict,
     canSubmit: !isCheckingAny && !hasConflict,

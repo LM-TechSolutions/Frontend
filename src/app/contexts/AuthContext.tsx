@@ -83,22 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    const stored = loadStoredUser();
 
     const hydrate = async () => {
-      if (!stored || !toDashboardRole(stored.role)) {
-        if (stored) {
-          setToken(null);
-          persistUser(null);
-        }
-        if (!cancelled) setIsReady(true);
-        return;
-      }
-
       try {
         const session = await api.auth.me();
         if (cancelled) return;
-        if (session.token) setToken(session.token);
+        const remember = localStorage.getItem('tokuma.rememberDevice') !== 'false';
+        if (session.token) setToken(session.token, remember);
         const nextUser: AuthUser = {
           ...session.user,
           twoFactorEnrollmentRequired: !!(
@@ -136,16 +127,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       code?: string,
       options?: { rememberDevice?: boolean }
     ): Promise<LoginResult> => {
+      const remember = options?.rememberDevice !== false;
+      localStorage.setItem('tokuma.rememberDevice', remember ? 'true' : 'false');
+
       const result = await api.auth.login(email, password, code, {
         deviceId: getDeviceId(),
         deviceName: getDeviceName(),
-        rememberDevice: !!options?.rememberDevice,
+        rememberDevice: remember,
       });
       if (result.twoFactorRequired || !result.user) {
         return { twoFactorRequired: true };
       }
       const sessionToken = result.token || (result as { session?: { token?: string } }).session?.token;
-      if (sessionToken) setToken(sessionToken);
+      if (sessionToken) setToken(sessionToken, remember);
       const enrollment = !!(result.twoFactorEnrollmentRequired || result.user.twoFactorEnrollmentRequired);
       const nextUser: AuthUser = {
         ...result.user,
@@ -171,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       persistUser(null);
       setUser(null);
       setCapabilities(null);
+      localStorage.removeItem('tokuma.rememberDevice');
     };
     window.addEventListener('tokuma:unauthorized', onUnauthorized);
     return () => window.removeEventListener('tokuma:unauthorized', onUnauthorized);
@@ -192,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persistUser(null);
     setUser(null);
     setCapabilities(null);
+    localStorage.removeItem('tokuma.rememberDevice');
   }, []);
 
   const dashboardRole = toDashboardRole(user?.role);

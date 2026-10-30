@@ -281,6 +281,7 @@ export default function Rides() {
       <PageHeader
         eyebrow={t('rides.operations')}
         title={t('rides.title', 'Rides')}
+        showLiveSocket
         actions={
           <>
             <Button variant="outline" onClick={exportCsv} disabled={!rides.length}>

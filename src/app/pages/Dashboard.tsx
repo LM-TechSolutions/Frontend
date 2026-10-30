@@ -14,6 +14,7 @@ import AssignFromMapDialog from '../components/AssignFromMapDialog';
 import { useAppContext } from '../contexts/AppContext';
 import { StatTile, EmptyState, Initials } from '../components/coupons/CouponAtoms';
 import { StatusBadge, waitTone } from '../components/layout/StatusBadge';
+import { SocketStatusBadge } from '../components/layout/ConnectionDot';
 
 const ACTIVE_STATUSES = ['dispatched', 'accepted', 'arrived', 'in_progress'];
 
@@ -164,9 +165,12 @@ export default function Dashboard() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-border/80 bg-card/70 px-4 py-4 sm:px-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">{t('dashboard.liveBoard')}</p>
-            <h2 className="font-display text-2xl font-semibold tracking-tight">{t('nav.dashboard', 'Dashboard')}</h2>
+          <div className="flex items-center gap-3">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-primary">{t('dashboard.liveBoard')}</p>
+              <h2 className="font-display text-2xl font-semibold tracking-tight">{t('nav.dashboard', 'Dashboard')}</h2>
+            </div>
+            <SocketStatusBadge />
           </div>
           <div className="flex flex-wrap gap-2">
             <LogCallDialog onLogged={reload} className="h-10" />

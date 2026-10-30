@@ -131,6 +131,8 @@ export function RequestStatusChip({ status }: { status: string }) {
   );
 }
 
+import { resolveMediaUrl } from '../../lib/config';
+
 /** Initials avatar, used for drivers and operators alike. Shows a photo when `src` is set. */
 export function Initials({
   name,
@@ -150,6 +152,8 @@ export function Initials({
     .slice(0, 2)
     .toUpperCase();
 
+  const resolved = resolveMediaUrl(src);
+
   useEffect(() => {
     setFailed(false);
   }, [src]);
@@ -161,8 +165,14 @@ export function Initials({
         className
       )}
     >
-      {src && !failed ? (
-        <img src={src} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} />
+      {resolved && !failed ? (
+        <img
+          src={resolved}
+          alt=""
+          className="h-full w-full object-cover"
+          crossOrigin="anonymous"
+          onError={() => setFailed(true)}
+        />
       ) : (
         initials
       )}

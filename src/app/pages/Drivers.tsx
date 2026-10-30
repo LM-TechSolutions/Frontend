@@ -50,6 +50,7 @@ export default function Drivers() {
     licensePlate: form.licensePlate,
     licenseNumber: form.licenseNumber,
   });
+
   const [edit, setEdit] = useState({
     name: '',
     phone: '',
@@ -58,6 +59,14 @@ export default function Drivers() {
     commissionPercent: 10,
     canStreetHail: false,
     profilePicture: null as string | null,
+  });
+
+  // Live real-time uniqueness checker for Edit Driver dialog
+  const { statuses: editStatuses, canSubmit: canSubmitEdit, hasConflict: hasConflictEdit } = useFieldAvailability({
+    phone: edit.phone,
+    licensePlate: edit.licensePlate,
+    excludeDriverId: editing?.id,
+    excludeUserId: editing?.userId,
   });
   const [minCouponBalance, setMinCouponBalance] = useState(10);
   const [mapFilter, setMapFilter] = useState<'all' | 'available' | 'busy' | 'offline'>('all');
@@ -253,6 +262,7 @@ export default function Drivers() {
       <PageHeader
         eyebrow={t('drivers.fleet')}
         title={t('drivers.title', 'Drivers')}
+        showLiveSocket
         actions={
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
@@ -339,6 +349,12 @@ export default function Drivers() {
                   </div>
                 </div>
                 <div className="space-y-2"><Label>{t('drivers.initialCouponBalance', 'Initial coupon balance')}</Label><Input type="number" value={form.couponBalance} onChange={(e) => setForm({ ...form, couponBalance: parseInt(e.target.value) || 0 })} /></div>
+
+                {hasConflictAdd && (
+                  <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3.5 py-2.5 text-xs text-rose-500 font-medium">
+                    One or more fields conflict with an existing account. Please resolve before adding.
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setAddOpen(false)}>{t('drivers.cancel', 'Cancel')}</Button>
@@ -505,10 +521,36 @@ export default function Drivers() {
               disabled={saving}
             />
             <div className="space-y-2"><Label>{t('drivers.fullName', 'Full name')}</Label><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
-            <div className="space-y-2"><Label>{t('drivers.phone', 'Phone')}</Label><Input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>{t('drivers.phone', 'Phone')}</Label>
+                <FieldAvailabilityBadge status={editStatuses.phone} />
+              </div>
+              <Input
+                value={edit.phone}
+                onChange={(e) => setEdit({ ...edit, phone: e.target.value })}
+                className={editStatuses.phone?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+              />
+            </div>
             <div className="space-y-2"><Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label><Input value={edit.vehicleModel} onChange={(e) => setEdit({ ...edit, vehicleModel: e.target.value })} /></div>
-            <div className="space-y-2"><Label>{t('drivers.licensePlate', 'License plate')}</Label><Input value={edit.licensePlate} onChange={(e) => setEdit({ ...edit, licensePlate: e.target.value })} /></div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>{t('drivers.licensePlate', 'License plate')}</Label>
+                <FieldAvailabilityBadge status={editStatuses.licensePlate} />
+              </div>
+              <Input
+                value={edit.licensePlate}
+                onChange={(e) => setEdit({ ...edit, licensePlate: e.target.value })}
+                className={editStatuses.licensePlate?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+              />
+            </div>
             <div className="space-y-2"><Label>{t('drivers.commission', 'Tekumma commission (%)')}</Label><Input type="number" value={edit.commissionPercent} onChange={(e) => setEdit({ ...edit, commissionPercent: parseFloat(e.target.value) || 0 })} /></div>
+
+            {hasConflictEdit && (
+              <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3.5 py-2.5 text-xs text-rose-500 font-medium">
+                This phone number or license plate is already used by another account.
+              </div>
+            )}
           </div>
 
           {/* Off by default. A self-service ride-creation path is piloted with
@@ -531,7 +573,7 @@ export default function Drivers() {
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setEditing(null)}>{t('drivers.cancel', 'Cancel')}</Button>
-            <Button onClick={handleEdit} disabled={saving}>
+            <Button onClick={handleEdit} disabled={saving || !canSubmitEdit || hasConflictEdit}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('drivers.update', 'Update driver')}
             </Button>
           </div>

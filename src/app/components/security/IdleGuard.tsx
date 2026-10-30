@@ -13,7 +13,8 @@ export default function IdleGuard() {
   const warned = useRef(false);
 
   useEffect(() => {
-    if (!isAuthenticated || idleTimeoutMinutes <= 0) return;
+    const isRemembered = typeof window !== 'undefined' && localStorage.getItem('tokuma.rememberDevice') === 'true';
+    if (!isAuthenticated || idleTimeoutMinutes <= 0 || isRemembered) return;
 
     const limit = idleTimeoutMinutes * 60_000;
     let timer: ReturnType<typeof setTimeout>;
