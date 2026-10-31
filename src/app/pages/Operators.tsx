@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Phone, Mail, PhoneCall, Users, Plus, Search, UserCog, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Phone, Mail, PhoneCall, Users, Plus, Search, UserCog, Loader2, Pencil, Trash2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -70,8 +70,11 @@ export default function Operators() {
   const totalCustomers = operators.reduce((s, o) => s + (o.totalRidesCreated ?? 0), 0);
   const conversion = totalCalls ? Math.round((totalCustomers / totalCalls) * 100) : 0;
 
+  const [isRemoving, setIsRemoving] = useState(false);
+
   const handleDelete = async () => {
     if (!removing) return;
+    setIsRemoving(true);
     try {
       await api.operators.remove(removing.id);
       toast.success(t('operators.removed', '{name} removed', { name: removing.name }));
@@ -79,6 +82,8 @@ export default function Operators() {
       load();
     } catch (e: any) {
       toast.error(e?.message ?? t('operators.deleteFailed', 'Could not delete operator'));
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -172,15 +177,61 @@ export default function Operators() {
       <EditOperatorDialog operator={editing} onClose={() => setEditing(null)} onSaved={load} />
 
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('operators.removeTitle', 'Remove {name}?', { name: removing?.name ?? '' })}</AlertDialogTitle>
-            <AlertDialogDescription>{t('operators.removeBody', 'Their operator profile and login will be deleted. This cannot be undone.')}</AlertDialogDescription>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-10 w-10 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-lg">
+                  {t('operators.removeTitle', 'Permanently Delete Operator {name}?', { name: removing?.name ?? '' })}
+                </AlertDialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  ID: <span className="font-mono font-medium text-foreground">{removing?.employeeId ?? 'N/A'}</span>
+                  {removing?.phone ? ` • Phone: ${removing.phone}` : ''}
+                </p>
+              </div>
+            </div>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              {t('operators.removeWarning', 'This permanently removes the operator profile and their associated user login account from the platform. Review the cascaded changes below.')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('operators.keep', 'Keep')}</AlertDialogCancel>
-            <AlertDialogAction className="bg-[#AE2E2D] text-white hover:bg-[#8f2423]" onClick={handleDelete}>
-              {t('common.delete', 'Delete')}
+
+          <div className="space-y-3 py-1 text-xs">
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3.5 space-y-2">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>The following will be permanently cascaded & deleted:</span>
+              </div>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-[11px] leading-relaxed">
+                <li><strong className="text-foreground">User Login Account:</strong> Operator login credentials, email/phone bindings, and active web sessions are purged (unless holding a separate Admin role).</li>
+                <li><strong className="text-foreground">Staff Profile:</strong> Employee ID, department record, and assigned shifts.</li>
+                <li><strong className="text-foreground">Telephony Logs:</strong> Inbound and outbound customer call logs recorded under this operator.</li>
+                <li><strong className="text-foreground">Coupon Inventory:</strong> Operator distribution wallet and inventory allocation movements.</li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-muted/40 p-3 space-y-1">
+              <div className="flex items-center gap-2 font-medium text-foreground">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Dispatched Rides Preserved:</span>
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed pl-6">
+                Customer ride bookings created by this operator remain intact in dispatch history with the operator reference unlinked (set to NULL), ensuring customer booking records and ride status histories remain complete.
+              </p>
+            </div>
+          </div>
+
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel disabled={isRemoving}>{t('operators.keep', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
+              disabled={isRemoving}
+            >
+              {isRemoving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {t('common.delete', 'Delete Operator & User')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

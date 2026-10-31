@@ -12,6 +12,7 @@ import {
   UserCog,
   UserPlus,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -234,19 +235,54 @@ export default function Admins() {
       </AlertDialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('admins.deleteTitle', 'Delete Administrator {name}?', { name: deleteTarget?.name ?? '' })}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-10 w-10 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-lg">
+                  {t('admins.deleteTitle', 'Permanently Delete Administrator {name}?', { name: deleteTarget?.name ?? '' })}
+                </AlertDialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Email: <span className="font-mono font-medium text-foreground">{deleteTarget?.email ?? 'N/A'}</span>
+                </p>
+              </div>
+            </div>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
               {t(
-                'admins.deleteBody',
-                'This administrator account, login credentials, and permission assignments will be permanently deleted. This cannot be undone.'
+                'admins.deleteWarning',
+                'This permanently removes the administrator profile and their user login credentials from the platform. Review the cascaded changes below.'
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+
+          <div className="space-y-3 py-1 text-xs">
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3.5 space-y-2">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>The following will be permanently cascaded & deleted:</span>
+              </div>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-[11px] leading-relaxed">
+                <li><strong className="text-foreground">User Login Account:</strong> Email, password, active sessions, and 2FA secrets are completely wiped.</li>
+                <li><strong className="text-foreground">Privileges & Roles:</strong> RBAC role memberships and permission grants are revoked.</li>
+                <li><strong className="text-foreground">Security Credentials:</strong> API keys, recovery codes, and trusted device tokens.</li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-muted/40 p-3 space-y-1">
+              <div className="flex items-center gap-2 font-medium text-foreground">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Security Audit Trail Preserved:</span>
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed pl-6">
+                System audit logs of past administrative actions performed by this user remain preserved in the audit trail with the author reference unlinked, ensuring historical compliance and forensic integrity.
+              </p>
+            </div>
+          </div>
+
+          <AlertDialogFooter className="mt-2">
             <AlertDialogCancel disabled={isDeleting}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -257,7 +293,7 @@ export default function Admins() {
               disabled={isDeleting}
             >
               {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-              {t('common.delete', 'Delete')}
+              {t('common.delete', 'Delete Admin & User')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -60,6 +60,30 @@ function gpsFreshness(
   return { label: t('rides.minutesAgo', undefined, { m: Math.floor(seconds / 60) }), live: false };
 }
 
+function GpsFreshnessBadge({ lastPing, hasDriver }: { lastPing: Date | null; hasDriver: boolean }) {
+  const { t } = useAppContext();
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!lastPing) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [lastPing]);
+
+  const ping = gpsFreshness(lastPing, now, t);
+
+  return (
+    <span
+      className={cn(
+        'rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-sm backdrop-blur',
+        ping?.live ? 'text-primary' : 'text-muted-foreground'
+      )}
+    >
+      {ping?.label ?? (hasDriver ? t('rides.waitingGps') : t('rides.noDriverYet'))}
+    </span>
+  );
+}
+
 export default function RideTracking() {
   const { rideId } = useParams();
   const navigate = useNavigate();
@@ -72,7 +96,6 @@ export default function RideTracking() {
   const [loading, setLoading] = useState(true);
   const [driverPos, setDriverPos] = useState<MapPoint | null>(null);
   const [lastPing, setLastPing] = useState<Date | null>(null);
-  const [now, setNow] = useState(Date.now());
   const [cancelling, setCancelling] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -168,11 +191,6 @@ export default function RideTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideId]);
 
-  useEffect(() => {
-    if (!lastPing) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [lastPing]);
 
   const handleCancel = async () => {
     if (!rideId) return;
@@ -234,7 +252,6 @@ export default function RideTracking() {
   const displayDistanceKm = roadRoute?.distanceKm ?? (ride?.distance != null ? Number(ride.distance) : null);
   const displayDurationMin = roadRoute?.durationMinutes ?? ride?.duration ?? null;
   const wait = ride && REDISPATCH_STATUSES.includes(ride.status) ? waitTone(ride.createdAt) : null;
-  const ping = gpsFreshness(lastPing, now, t);
   const stageIndex = ride ? STAGES.indexOf(ride.status) : -1;
   const events = useMemo(() => history, [history]);
 
@@ -339,14 +356,7 @@ export default function RideTracking() {
             overlay={
               <>
                 <div className="pointer-events-none absolute bottom-3 left-3 right-14 flex items-end justify-between gap-2">
-                  <span
-                    className={cn(
-                      'rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-sm backdrop-blur',
-                      ping?.live ? 'text-primary' : 'text-muted-foreground'
-                    )}
-                  >
-                    {ping?.label ?? (hasDriver ? t('rides.waitingGps') : t('rides.noDriverYet'))}
-                  </span>
+                  <GpsFreshnessBadge lastPing={lastPing} hasDriver={hasDriver} />
                   {(displayDistanceKm != null || displayDurationMin != null) && (
                     <span className="rounded-full border border-border/70 bg-card/95 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur">
                       {displayDistanceKm != null ? t('rides.kmValue', undefined, { n: Number(displayDistanceKm).toFixed(1) }) : ''}

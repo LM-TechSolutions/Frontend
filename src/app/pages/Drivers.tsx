@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2 } from 'lucide-react';
+import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
@@ -692,19 +692,53 @@ export default function Drivers() {
       </Dialog>
 
       <AlertDialog open={!!deletingDriver} onOpenChange={(o) => !o && setDeletingDriver(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('drivers.removeTitle', 'Delete driver {name}?', { name: deletingDriver?.name ?? '' })}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(
-                'drivers.removeBody',
-                'Their driver profile, login credentials, and vehicle registration will be permanently deleted. This cannot be undone.'
-              )}
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-10 w-10 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-lg">
+                  {t('drivers.removeTitle', 'Permanently Delete Driver {name}?', { name: deletingDriver?.name ?? '' })}
+                </AlertDialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Plate: <span className="font-mono font-medium text-foreground">{deletingDriver?.licensePlate || deletingDriver?.vehiclePlate || 'N/A'}</span>
+                  {deletingDriver?.phone ? ` • Phone: ${deletingDriver.phone}` : ''}
+                </p>
+              </div>
+            </div>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              {t('drivers.removeWarning', 'This permanently removes the driver and their associated user login account from the platform. Review the cascaded changes below.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+
+          <div className="space-y-3 py-1 text-xs">
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3.5 space-y-2">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>The following will be permanently cascaded & deleted:</span>
+              </div>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-[11px] leading-relaxed">
+                <li><strong className="text-foreground">User Login Account:</strong> Email, phone, credentials, Better-Auth sessions, and roles are purged (re-registration with this email/phone will be available immediately).</li>
+                <li><strong className="text-foreground">Driver Fleet Profile:</strong> License documents, vehicle registration, and status flags.</li>
+                <li><strong className="text-foreground">Operational Data:</strong> Real-time and historical GPS telemetry points, duty availability logs, and driver metrics.</li>
+                <li><strong className="text-foreground">Coupon Wallet:</strong> Driver coupon balance, internal movements, and pending refill requests.</li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-border/70 bg-muted/40 p-3 space-y-1">
+              <div className="flex items-center gap-2 font-medium text-foreground">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Accounting & Financial Ledger Safety:</span>
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed pl-6">
+                Completed and past ride records remain preserved in the system's ledger with the driver ID unlinked (set to NULL), ensuring company historical revenue, customer receipts, and trip audits remain 100% accurate.
+              </p>
+            </div>
+          </div>
+
+          <AlertDialogFooter className="mt-2">
             <AlertDialogCancel disabled={isDeleting}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -715,7 +749,7 @@ export default function Drivers() {
               disabled={isDeleting}
             >
               {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-              {t('common.delete', 'Delete')}
+              {t('drivers.confirmDelete', 'Delete Driver & User')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
