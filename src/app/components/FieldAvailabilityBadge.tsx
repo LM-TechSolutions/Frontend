@@ -54,7 +54,7 @@ export function FieldAvailabilityBadge({ status, className = '' }: BadgeProps) {
   );
 }
 
-interface UseAvailabilityOptions {
+export interface UseAvailabilityOptions {
   email?: string;
   phone?: string;
   licensePlate?: string;
@@ -62,12 +62,76 @@ interface UseAvailabilityOptions {
   excludeUserId?: string;
   excludeDriverId?: string;
   debounceMs?: number;
+  /**
+   * For edit forms: pass the entity's existing values.
+   * If the field's current value is unchanged from initialValues,
+   * no backend check is performed and no conflict or badge is shown.
+   */
+  initialValues?: {
+    email?: string | null;
+    phone?: string | null;
+    licensePlate?: string | null;
+    licenseNumber?: string | null;
+  };
+}
+
+function normalizePhone(p?: string | null): string {
+  if (!p) return '';
+  let digits = p.replace(/\D/g, '');
+  if (digits.startsWith('251') && digits.length === 12) {
+    digits = '0' + digits.slice(3);
+  } else if (digits.length === 9 && digits.startsWith('9')) {
+    digits = '0' + digits;
+  }
+  return digits;
+}
+
+function normalizeLicense(val?: string | null): string {
+  if (!val) return '';
+  return val.trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+function normalizeEmail(val?: string | null): string {
+  if (!val) return '';
+  return val.trim().toLowerCase();
+}
+
+/**
+ * Tests whether a current field value is identical to its initial loaded value in an edit form.
+ */
+export function isFieldUnchanged(
+  field: string,
+  currentVal?: string | null,
+  initialVal?: string | null
+): boolean {
+  if (initialVal === undefined || initialVal === null) return false;
+  const c = (currentVal ?? '').trim();
+  const i = (initialVal ?? '').trim();
+  if (!c && !i) return true;
+
+  if (field === 'phone') {
+    const normC = normalizePhone(c);
+    const normI = normalizePhone(i);
+    return normC.length > 0 && normC === normI;
+  }
+  if (field === 'email') {
+    const normC = normalizeEmail(c);
+    const normI = normalizeEmail(i);
+    return normC.length > 0 && normC === normI;
+  }
+  if (field === 'licensePlate' || field === 'licenseNumber') {
+    const normC = normalizeLicense(c);
+    const normI = normalizeLicense(i);
+    return normC.length > 0 && normC === normI;
+  }
+  return c === i;
 }
 
 /**
  * Hook to manage real-time debounced uniqueness checking against the backend.
- * Only the field being actively edited will show "Checking…". All other fields
- * keep their current status without flickering.
+ * - In edit forms, unchanged initial values are NEVER checked and display no badges.
+ * - Only fields actively modified away from their initial values are checked.
+ * - Returning to the original value immediately clears checking & conflicts.
  */
 export function useFieldAvailability(options: UseAvailabilityOptions) {
   const {
@@ -78,17 +142,21 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
     excludeUserId,
     excludeDriverId,
     debounceMs = 300,
+    initialValues,
   } = options;
 
   const [statuses, setStatuses] = useState<Record<string, FieldCheckStatus>>({});
 
-  // Keep track of previously checked values to detect WHICH specific field was typed into
+  // Keep track of previously processed input values
   const lastInputRef = useRef<Record<string, string>>({
     email: (email ?? '').trim(),
     phone: (phone ?? '').trim(),
     licensePlate: (licensePlate ?? '').trim(),
     licenseNumber: (licenseNumber ?? '').trim(),
   });
+
+  // Keep track of previous initial values to detect when editing target changed (e.g. opened new edit modal)
+  const lastInitRef = useRef<Record<string, string | null | undefined>>({});
 
   // Cache verified values: { [field]: { value: string, status: FieldCheckStatus } }
   const cacheRef = useRef<Record<string, { value: string; status: FieldCheckStatus }>>({});
@@ -103,57 +171,85 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
     };
 
     const prevValues = lastInputRef.current;
+    const prevInit = lastInitRef.current;
+    const curInit = initialValues ?? {};
 
-    // Detect ONLY the fields that actually changed in this update
+    // Check if initial values changed (e.g. edit dialog opened for a different record)
+    const initChanged = (['email', 'phone', 'licensePlate', 'licenseNumber'] as const).some(
+      (k) => curInit[k] !== prevInit[k]
+    );
+
+    // Detect fields that changed in value or context
     const changedFields: string[] = [];
     (['email', 'phone', 'licensePlate', 'licenseNumber'] as const).forEach((field) => {
-      if (currentValues[field] !== prevValues[field]) {
+      if (currentValues[field] !== prevValues[field] || initChanged) {
         changedFields.push(field);
       }
     });
 
-    // Update previous values ref
+    // Update refs
     lastInputRef.current = currentValues;
+    lastInitRef.current = { ...curInit };
 
-    // If no field values changed (e.g. only props like debounceMs or initial mount), do not alter statuses
     if (changedFields.length === 0) {
       return;
     }
 
     const updates: Record<string, FieldCheckStatus> = {};
-    let hasFieldToQuery = false;
+    const fieldsToQuery: string[] = [];
 
     changedFields.forEach((field) => {
       const val = currentValues[field];
+      const initialVal = curInit[field as keyof typeof curInit];
+
+      // 1. If this field is unchanged from initial value in an edit form:
+      // DO NOT CHECK IT! Clear any previous badge or conflict.
+      if (isFieldUnchanged(field, val, initialVal)) {
+        updates[field] = { isChecking: false, available: null };
+        delete cacheRef.current[field];
+        return;
+      }
+
       const minLen = field === 'licensePlate' || field === 'licenseNumber' ? 2 : 3;
 
-      // If value is too short, or if email doesn't have '@' yet, clear its badge
+      // 2. If value is too short, or if email doesn't have '@' yet, clear badge
       if (val.length < minLen || (field === 'email' && !val.includes('@'))) {
         updates[field] = { isChecking: false, available: null };
         delete cacheRef.current[field];
         return;
       }
 
-      // If this exact value is already in cache, restore it immediately
+      // 3. If exact value was cached, restore it immediately
       const cached = cacheRef.current[field];
       if (cached && cached.value.toLowerCase() === val.toLowerCase()) {
         updates[field] = cached.status;
         return;
       }
 
-      // ONLY THIS changed field enters "isChecking"
+      // 4. Field was modified and needs debounced backend verification
       updates[field] = { isChecking: true, available: null };
-      hasFieldToQuery = true;
+      fieldsToQuery.push(field);
     });
 
-    // Apply updates ONLY to the changed fields. Untouched fields are untouched!
-    setStatuses((prev) => ({ ...prev, ...updates }));
+    // Apply updates immediately
+    setStatuses((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      Object.entries(updates).forEach(([k, v]) => {
+        const cur = prev[k];
+        if (!cur || cur.isChecking !== v.isChecking || cur.available !== v.available || cur.message !== v.message) {
+          next[k] = v;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
 
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
 
-    if (!hasFieldToQuery) {
+    if (fieldsToQuery.length === 0) {
       return;
     }
 
@@ -164,18 +260,14 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
           excludeDriverId,
         };
 
-        if (currentValues.email && currentValues.email.length >= 3 && currentValues.email.includes('@')) {
-          query.email = currentValues.email;
-        }
-        if (currentValues.phone && currentValues.phone.length >= 3) {
-          query.phone = currentValues.phone;
-        }
-        if (currentValues.licensePlate && currentValues.licensePlate.length >= 2) {
-          query.licensePlate = currentValues.licensePlate;
-        }
-        if (currentValues.licenseNumber && currentValues.licenseNumber.length >= 2) {
-          query.licenseNumber = currentValues.licenseNumber;
-        }
+        // ONLY include fields that actually need querying (and are not unchanged!)
+        fieldsToQuery.forEach((field) => {
+          const val = currentValues[field];
+          const initVal = curInit[field as keyof typeof curInit];
+          if (!isFieldUnchanged(field, val, initVal) && val) {
+            query[field] = val;
+          }
+        });
 
         const queryKeys = Object.keys(query).filter(
           (k) => k !== 'excludeUserId' && k !== 'excludeDriverId' && query[k]
@@ -190,6 +282,14 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
         if (res.fields) {
           const resolved: Record<string, FieldCheckStatus> = {};
           Object.entries(res.fields).forEach(([key, val]) => {
+            // If in the meantime the user set it back to initial value, do not overwrite with backend result
+            const latestVal = lastInputRef.current[key];
+            const initVal = lastInitRef.current[key as keyof typeof lastInitRef.current];
+            if (isFieldUnchanged(key, latestVal, initVal)) {
+              resolved[key] = { isChecking: false, available: null };
+              return;
+            }
+
             const checkStatus: FieldCheckStatus = {
               isChecking: false,
               available: val.available,
@@ -198,16 +298,15 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
             };
             resolved[key] = checkStatus;
             cacheRef.current[key] = {
-              value: currentValues[key] ?? '',
+              value: latestVal ?? '',
               status: checkStatus,
             };
           });
 
-          // Merge resolved results into status, keeping untouched fields unchanged
           setStatuses((prev) => ({ ...prev, ...resolved }));
         }
       } catch {
-        // In case of network check failure, clear checking state
+        // Network check failure: clear checking state
         setStatuses((prev) => {
           const reset: Record<string, FieldCheckStatus> = { ...prev };
           Object.keys(reset).forEach((k) => {
@@ -223,7 +322,19 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [email, phone, licensePlate, licenseNumber, excludeUserId, excludeDriverId, debounceMs]);
+  }, [
+    email,
+    phone,
+    licensePlate,
+    licenseNumber,
+    excludeUserId,
+    excludeDriverId,
+    debounceMs,
+    initialValues?.email,
+    initialValues?.phone,
+    initialValues?.licensePlate,
+    initialValues?.licenseNumber,
+  ]);
 
   // Are any fields currently being checked?
   const isCheckingAny = useMemo(
@@ -232,10 +343,16 @@ export function useFieldAvailability(options: UseAvailabilityOptions) {
   );
 
   // Are any fields confirmed unavailable/taken?
-  const hasConflict = useMemo(
-    () => Object.values(statuses).some((s) => s.available === false),
-    [statuses]
-  );
+  // Double-safeguard: unchanged fields are never treated as conflict
+  const hasConflict = useMemo(() => {
+    return Object.entries(statuses).some(([field, s]) => {
+      if (s.available !== false) return false;
+      const cur = (options as any)[field];
+      const init = options.initialValues?.[field as keyof typeof options.initialValues];
+      if (isFieldUnchanged(field, cur, init)) return false;
+      return true;
+    });
+  }, [statuses, options]);
 
   return {
     statuses,

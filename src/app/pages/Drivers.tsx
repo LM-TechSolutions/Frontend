@@ -83,6 +83,12 @@ export default function Drivers() {
     licensePlate: edit.licensePlate,
     excludeDriverId: editing?.id,
     excludeUserId: editing?.userId,
+    initialValues: editing
+      ? {
+          phone: editing.phone,
+          licensePlate: editing.licensePlate,
+        }
+      : undefined,
   });
   const [minCouponBalance, setMinCouponBalance] = useState(10);
   const [mapFilter, setMapFilter] = useState<'all' | 'available' | 'busy' | 'offline'>('all');

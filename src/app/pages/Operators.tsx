@@ -373,6 +373,12 @@ function EditOperatorDialog({
     email: form.email,
     phone: form.phone,
     excludeUserId: operator?.userId || operator?.id,
+    initialValues: operator
+      ? {
+          email: operator.email,
+          phone: operator.phone,
+        }
+      : undefined,
   });
 
   const submit = async (e: React.FormEvent) => {
