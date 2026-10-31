@@ -23,6 +23,7 @@ export function SocketStatusBadge({
   const { t } = useAppContext();
   const [status, setStatus] = useState<'connected' | 'reconnecting' | 'stale' | 'offline'>('offline');
   const [rtt, setRtt] = useState<number | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     const socket = getSocket() ?? connectSocket();
@@ -30,6 +31,7 @@ export function SocketStatusBadge({
 
     const onConnect = () => {
       last = Date.now();
+      setLastError(null);
       setStatus('connected');
     };
     const onDisconnect = () => {
@@ -37,6 +39,10 @@ export function SocketStatusBadge({
       setRtt(null);
     };
     const onReconnectAttempt = () => setStatus('reconnecting');
+    const onConnectError = (err: Error) => {
+      setLastError(err?.message || 'Connection failed');
+      setStatus('reconnecting');
+    };
     const onAnyEvent = () => {
       last = Date.now();
       setStatus((s) => (s === 'offline' || s === 'reconnecting' || s === 'stale' ? 'connected' : s));
@@ -45,6 +51,7 @@ export function SocketStatusBadge({
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('reconnect_attempt', onReconnectAttempt);
+    socket.on('connect_error', onConnectError);
     socket.onAny(onAnyEvent);
     if (socket.connected) setStatus('connected');
 
@@ -69,6 +76,7 @@ export function SocketStatusBadge({
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('reconnect_attempt', onReconnectAttempt);
+      socket.off('connect_error', onConnectError);
       socket.offAny(onAnyEvent);
       window.clearInterval(interval);
     };
@@ -136,7 +144,7 @@ export function SocketStatusBadge({
   if (status === 'reconnecting' || status === 'stale') {
     return (
       <div
-        title="Reconnecting to real-time socket server…"
+        title={lastError ? `Reconnecting to real-time server: ${lastError}` : 'Reconnecting to real-time socket server…'}
         className={cn(
           'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium select-none',
           'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shadow-xs animate-pulse',
