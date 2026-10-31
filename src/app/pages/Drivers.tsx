@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck, Smartphone, Unlink } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
@@ -54,6 +54,9 @@ export default function Drivers() {
   const [refillAmount, setRefillAmount] = useState('25');
   const [deletingDriver, setDeletingDriver] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [unlinkingDriver, setUnlinkingDriver] = useState<any | null>(null);
+  const [unlinkReason, setUnlinkReason] = useState('Device replaced / lost');
+  const [isUnlinking, setIsUnlinking] = useState(false);
   const [form, setForm] = useState(emptyNew);
 
   // Live real-time uniqueness checker for Add Driver dialog
@@ -274,6 +277,22 @@ export default function Drivers() {
       toast.error(err?.message || t('drivers.deleteFailed', 'Failed to delete driver'));
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleUnlinkDevice = async () => {
+    if (!unlinkingDriver) return;
+    setIsUnlinking(true);
+    try {
+      const res = await api.drivers.unlinkDevice(unlinkingDriver.id, { reason: unlinkReason });
+      toast.success(res.message || 'Device unlinked successfully');
+      setUnlinkingDriver(null);
+      setUnlinkReason('Device replaced / lost');
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to unlink device');
+    } finally {
+      setIsUnlinking(false);
     }
   };
 
@@ -518,6 +537,7 @@ export default function Drivers() {
                 <TableHead className="font-semibold">{t('drivers.driverName', 'Driver')}</TableHead>
                 <TableHead className="font-semibold">{t('drivers.phone', 'Phone')}</TableHead>
                 <TableHead className="font-semibold">{t('drivers.vehicle', 'Vehicle')}</TableHead>
+                <TableHead className="font-semibold">Device</TableHead>
                 <TableHead className="font-semibold">{t('drivers.couponBalance', 'Coupons')}</TableHead>
                 <TableHead className="font-semibold">{t('drivers.status', 'Status')}</TableHead>
                 <TableHead className="font-semibold">{t('drivers.lastSeen')}</TableHead>
@@ -543,6 +563,24 @@ export default function Drivers() {
                   </TableCell>
                   <TableCell className="capitalize text-sm text-muted-foreground">{d.vehicleType ?? d.vehicleModel ?? '-'}</TableCell>
                   <TableCell>
+                    {d.linkedDevice ? (
+                      <button
+                        type="button"
+                        onClick={() => setUnlinkingDriver(d)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer group"
+                        title={`Linked: ${d.linkedDevice.deviceName || 'Device'} - Click to manage or unlink`}
+                      >
+                        <Smartphone className="w-3.5 h-3.5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                        <span className="truncate max-w-[110px]">{d.linkedDevice.deviceName || 'Linked'}</span>
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs text-muted-foreground bg-muted/40 border border-border/40">
+                        <Smartphone className="w-3.5 h-3.5 opacity-40" />
+                        <span>No device</span>
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <BalancePill balance={d.couponBalance ?? 0} threshold={minCouponBalance} size="sm" />
                   </TableCell>
                   <TableCell><StatusBadge status={d.status} /></TableCell>
@@ -554,6 +592,17 @@ export default function Drivers() {
                       <Button variant="ghost" size="sm" title={t('drivers.refillCoupons')} onClick={() => { setRefill(d); setRefillAmount('25'); }}>
                         <Wallet className="h-4 w-4" />
                       </Button>
+                      {d.linkedDevice && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                          title="Unlink Device"
+                          onClick={() => setUnlinkingDriver(d)}
+                        >
+                          <Unlink className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -754,6 +803,86 @@ export default function Drivers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!unlinkingDriver} onOpenChange={(o) => !o && setUnlinkingDriver(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <Smartphone className="h-5 w-5 text-amber-500" />
+              Unlink Driver Device
+            </DialogTitle>
+          </DialogHeader>
+
+          {unlinkingDriver && (
+            <div className="space-y-4 pt-2">
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold">Single-Device Fleet Security Policy</p>
+                  <p>
+                    Unlinking immediately revokes this phone's authorization and active sessions, setting the driver offline.
+                    The driver will then be allowed to sign in on their new or replacement phone.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-muted/30 p-4 space-y-2.5 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Driver:</span>
+                  <span className="font-semibold">{unlinkingDriver.name}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Phone:</span>
+                  <span className="font-mono text-xs">{unlinkingDriver.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Authorized Hardware:</span>
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Smartphone className="h-3.5 w-3.5" />
+                    {unlinkingDriver.linkedDevice?.deviceName || 'Mobile Device'}
+                  </span>
+                </div>
+                {unlinkingDriver.linkedDevice?.enrolledAt && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Linked Since:</span>
+                    <span className="text-xs text-muted-foreground">{timeAgo(unlinkingDriver.linkedDevice.enrolledAt)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">Reason for Unlinking (Audit Trail)</Label>
+                <Select value={unlinkReason} onValueChange={setUnlinkReason}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Device replaced / lost">Phone lost or replaced</SelectItem>
+                    <SelectItem value="Phone stolen">Device reported stolen</SelectItem>
+                    <SelectItem value="Technical reset / reinstall">App reinstalled / factory reset</SelectItem>
+                    <SelectItem value="Administrative authorization">Administrative security reset</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setUnlinkingDriver(null)} disabled={isUnlinking}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleUnlinkDevice}
+                  disabled={isUnlinking}
+                  className="gap-2"
+                >
+                  {isUnlinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4" />}
+                  Confirm Unlink Device
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 }

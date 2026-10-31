@@ -443,6 +443,13 @@ export const api = {
     /** Activity report for a custom date range (inclusive of both days). */
     performance: (driverId: string, query: { startDate?: string; endDate?: string; page?: number; limit?: number }) =>
       v1<DriverPerformanceReport>(`/drivers/${driverId}/performance`, { query }),
+    unlinkDevice: (driverId: string, body?: { reason?: string }) =>
+      v1<{ success: boolean; message: string; unlinkedCount: number; unlinkedDevices?: any[] }>(
+        `/drivers/${driverId}/unlink-device`,
+        { method: 'POST', body }
+      ),
+    devices: (driverId: string) =>
+      v1<{ driverId: string; activeDevice: any | null; previousDevices: any[] }>(`/drivers/${driverId}/devices`),
   },
 
   coupons: {
