@@ -215,9 +215,9 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
     </AlertDialog>
 
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[min(1120px,96vw)] gap-0 overflow-hidden p-0 sm:max-w-[min(1120px,96vw)]">
-        <div className="grid max-h-[92vh] grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_26rem]">
-          <div className="relative min-h-[280px] lg:min-h-[640px]">
+      <DialogContent className="flex flex-col max-w-[min(1120px,96vw)] w-full h-[min(92vh,780px)] max-h-[min(92vh,calc(100dvh-1.5rem))] gap-0 overflow-hidden p-0 sm:max-w-[min(1120px,96vw)]">
+        <div className="grid flex-1 min-h-0 w-full grid-cols-1 overflow-y-auto lg:overflow-hidden lg:grid-cols-[minmax(0,1.25fr)_26rem] scroll-smooth">
+          <div className="relative h-[280px] shrink-0 lg:h-full lg:min-h-0">
             <GebetaMapView
               pickup={pickup ? { lat: pickup.lat, lng: pickup.lng } : null}
               dropoff={dropoff ? { lat: dropoff.lat, lng: dropoff.lng } : null}
@@ -225,7 +225,7 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
               autoRoadRoute
               onRouteResolved={setRoute}
               onMapClick={(lng, lat) => dropPin(lat, lng)}
-              className="h-full min-h-[280px] w-full lg:min-h-[640px]"
+              className="h-full min-h-[260px] w-full lg:min-h-0"
               fullscreen={mapFs}
               onFullscreenChange={setMapFs}
               overlay={
@@ -314,13 +314,13 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
             />
           </div>
 
-          <div className="flex min-h-0 flex-col border-t border-border/70 lg:border-l lg:border-t-0">
-            <DialogHeader className="space-y-1 border-b border-border/70 px-5 py-4 text-left">
+          <div className="flex flex-col min-h-0 h-full border-t border-border/70 lg:border-l lg:border-t-0 bg-card overflow-hidden">
+            <DialogHeader className="shrink-0 space-y-1 border-b border-border/70 px-5 py-3.5 text-left bg-card z-10">
               <DialogTitle className="font-display text-xl">{t('rides.createRide', 'New ride')}</DialogTitle>
-              <DialogDescription>{t('rides.dialogHint', 'Customer first, then pickup and drop-off. Dispatch starts as soon as you create.')}</DialogDescription>
+              <DialogDescription className="text-xs leading-relaxed">{t('rides.dialogHint', 'Customer first, then pickup and drop-off. Dispatch starts as soon as you create.')}</DialogDescription>
             </DialogHeader>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 overscroll-contain scroll-smooth">
               <ol className="grid grid-cols-3 gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 <li className={cn('rounded-full px-2 py-1 text-center', phoneOk ? 'bg-primary/12 text-primary' : 'bg-muted')}>{t('rides.stepPhone', '1 Phone')}</li>
                 <li className={cn('rounded-full px-2 py-1 text-center', pickup ? 'bg-primary/12 text-primary' : 'bg-muted')}>{t('rides.stepPickup', '2 Pickup')}</li>
@@ -386,13 +386,13 @@ export default function NewRideDialog({ open, onOpenChange, onCreated }: Props) 
               </ul>
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-border/70 px-5 py-4">
+            <div className="shrink-0 flex flex-col gap-2 border-t border-border/70 px-5 py-3.5 bg-card/95 backdrop-blur z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
               {missing && <p className="text-center text-[11px] text-muted-foreground">{missing}</p>}
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
                   {t('common.cancel', 'Cancel')}
                 </Button>
-                <Button className="flex-1" onClick={() => void submit()} disabled={creating || !ready}>
+                <Button className="flex-1 shadow-sm" onClick={() => void submit()} disabled={creating || !ready}>
                   {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {t('rides.createAndDispatch', 'Create and dispatch')}
                 </Button>
