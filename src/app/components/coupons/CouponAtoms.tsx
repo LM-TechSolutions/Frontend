@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '../ui/utils';
 import { useAppContext } from '../../contexts/AppContext';
+import { formatCompactNumber } from '../../lib/format';
 import i18n from '../../i18n';
 
 /**
@@ -40,13 +41,96 @@ export const TONE_STYLES: Record<CouponTone, { text: string; bg: string; ring: s
   },
 };
 
-/** A number that matters, with its label and an optional trend note. */
+/**
+ * Automatically formats KPI card values:
+ * - Numbers >= 1,000 -> compact (e.g. 1.2k, 1.25k, 10.5k, 250k, 1.5m, 2.1b)
+ * - Currency strings (e.g. "ETB 1,250,000.00" -> "ETB 1.25m")
+ * - Numeric ratios (e.g. "1200/4500" -> "1.2k/4.5k")
+ * - Plain numeric strings (e.g. "1,500,000" -> "1.5m")
+ * - Preserves time / duration ("5m"), percentages ("85%"), and labels as-is.
+ * Returns both the compacted display node and uncompacted tooltip string for hover inspectability.
+ */
+export function formatStatTileValue(value: React.ReactNode): { display: React.ReactNode; tooltip?: string } {
+  if (value == null) {
+    return { display: '-' };
+  }
+
+  if (typeof value === 'number') {
+    return {
+      display: formatCompactNumber(value),
+      tooltip: value.toLocaleString(),
+    };
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '-') {
+      return { display: value };
+    }
+
+    // 1. Ratio format: e.g. "1200/4500" or "12 / 45"
+    const ratioMatch = trimmed.match(/^([\d,]+(?:\.\d+)?)\s*\/\s*([\d,]+(?:\.\d+)?)$/);
+    if (ratioMatch) {
+      const leftNum = Number(ratioMatch[1].replace(/,/g, ''));
+      const rightNum = Number(ratioMatch[2].replace(/,/g, ''));
+      if (Number.isFinite(leftNum) && Number.isFinite(rightNum)) {
+        return {
+          display: `${formatCompactNumber(leftNum)}/${formatCompactNumber(rightNum)}`,
+          tooltip: trimmed,
+        };
+      }
+    }
+
+    // 2. Pure number with optional commas or decimals, e.g. "1,500,000" or "2500"
+    if (/^-?[\d,]+(?:\.\d+)?$/.test(trimmed)) {
+      const num = Number(trimmed.replace(/,/g, ''));
+      if (Number.isFinite(num)) {
+        return {
+          display: formatCompactNumber(num),
+          tooltip: trimmed,
+        };
+      }
+    }
+
+    // 3. Currency format, e.g. "ETB 1,250,000.00", "1,250,000.00 ETB", "ብር 5,000", "$1,200"
+    const currencyMatch = trimmed.match(
+      /^([A-Za-z]{2,4}\.?\s*|[$€£¥]\s*|ብር\s*)?(-?[\d,]+(?:\.\d+)?)(.*)$/
+    );
+    if (currencyMatch) {
+      const prefix = currencyMatch[1] ?? '';
+      const numStr = currencyMatch[2];
+      const rawSuffix = currencyMatch[3] ?? '';
+      const trimmedSuffix = rawSuffix.trim();
+
+      // Only treat as currency if there is a known currency prefix OR suffix
+      const isKnownCurrencySuffix = /^(?:[A-Za-z]{2,4}\.?|[$€£¥]|ብር)$/.test(trimmedSuffix);
+      if (prefix.trim() || isKnownCurrencySuffix) {
+        const num = Number(numStr.replace(/,/g, ''));
+        if (Number.isFinite(num)) {
+          return {
+            display: `${prefix}${formatCompactNumber(num)}${rawSuffix}`,
+            tooltip: trimmed,
+          };
+        }
+      }
+    }
+
+    // Fallback: duration ("5m"), percentage ("85%"), or textual label
+    return { display: value };
+  }
+
+  return { display: value };
+}
+
+/** A number that matters, with its label and an optional trend note. Formats large numbers into k, m, b notation with hover tooltip. */
 export function StatTile({
   label,
   value,
   hint,
   icon: Icon,
   accent = '#00b4bb',
+  title,
+  disableCompact = false,
   onClick,
 }: {
   label: string;
@@ -54,12 +138,27 @@ export function StatTile({
   hint?: string;
   icon: LucideIcon;
   accent?: string;
+  title?: string;
+  disableCompact?: boolean;
   onClick?: () => void;
 }) {
   const interactive = Boolean(onClick);
+  const { display, tooltip } = useMemo(() => {
+    if (disableCompact) {
+      return {
+        display: value,
+        tooltip: typeof value === 'string' || typeof value === 'number' ? String(value) : undefined,
+      };
+    }
+    return formatStatTileValue(value);
+  }, [value, disableCompact]);
+
+  const resolvedTitle = title ?? tooltip;
+
   return (
     <Card
       onClick={onClick}
+      title={resolvedTitle}
       className={cn(
         'relative overflow-hidden transition-all',
         interactive && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_rgba(5,50,54,.4)]'
@@ -73,8 +172,9 @@ export function StatTile({
             <p
               className="mt-2 text-[28px] font-semibold leading-none tabular-nums text-foreground"
               style={{ color: accent }}
+              title={resolvedTitle}
             >
-              {value}
+              {display}
             </p>
             {hint && <p className="mt-2 text-xs text-muted-foreground truncate">{hint}</p>}
           </div>
@@ -103,8 +203,11 @@ export function BalancePill({
   const { t } = useAppContext();
   const tone = TONE_STYLES[couponTone(balance, threshold)];
   return (
-    <span className={cn('inline-flex items-baseline gap-1 font-semibold tabular-nums', tone.text, size === 'sm' ? 'text-sm' : 'text-base')}>
-      {balance.toLocaleString()}
+    <span
+      className={cn('inline-flex items-baseline gap-1 font-semibold tabular-nums', tone.text, size === 'sm' ? 'text-sm' : 'text-base')}
+      title={balance.toLocaleString()}
+    >
+      {formatCompactNumber(balance)}
       <span className="font-normal text-muted-foreground">{balance === 1 ? t('common.coupon') : t('common.coupons')}</span>
     </span>
   );

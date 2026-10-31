@@ -25,7 +25,7 @@ import DateRangePicker, { type DateRange } from '../components/DateRangePicker';
 import { useAppContext } from '../contexts/AppContext';
 import { Page, PageHeader, Surface, Facet } from '../components/layout/PageHeader';
 import { StatusBadge } from '../components/layout/StatusBadge';
-import { StatTile } from '../components/coupons/CouponAtoms';
+import { StatTile, formatStatTileValue } from '../components/coupons/CouponAtoms';
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 const PRIMARY = '#00b4bb';
@@ -501,10 +501,13 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
+  const { display, tooltip } = formatStatTileValue(value);
   return (
-    <div className="flex items-center justify-between px-5 py-3.5">
+    <div className="flex items-center justify-between px-5 py-3.5" title={tooltip}>
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold tabular-nums">{value}</p>
+      <p className="text-sm font-semibold tabular-nums" title={tooltip}>
+        {display}
+      </p>
     </div>
   );
 }

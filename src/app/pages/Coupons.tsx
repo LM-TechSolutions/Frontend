@@ -31,7 +31,7 @@ import { withStepUp } from '../components/security/StepUpDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppContext } from '../contexts/AppContext';
 import { connectSocket, getSocket } from '../lib/socket';
-import { formatETB } from '../lib/format';
+import { formatETB, formatCompactNumber } from '../lib/format';
 import {
   BalancePill,
   EmptyState,
@@ -399,7 +399,9 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/70">{t('coupons.myInventory')}</p>
-            <p className="mt-2 text-5xl font-semibold leading-none tabular-nums">{balance.toLocaleString()}</p>
+            <p className="mt-2 text-5xl font-semibold leading-none tabular-nums" title={balance.toLocaleString()}>
+              {formatCompactNumber(balance)}
+            </p>
             <p className="mt-2 text-sm text-white/80">
               {isLow ? t('coupons.lowStockHint') : t('coupons.availableToSell')}
             </p>
@@ -408,13 +410,15 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
           <div className="flex flex-wrap items-center gap-6">
             <div>
               <p className="text-[11px] uppercase tracking-[0.09em] text-white/60">{t('coupons.received')}</p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">
-                {(wallet?.totalAllocated ?? 0).toLocaleString()}
+              <p className="mt-1 text-xl font-semibold tabular-nums" title={(wallet?.totalAllocated ?? 0).toLocaleString()}>
+                {formatCompactNumber(wallet?.totalAllocated ?? 0)}
               </p>
             </div>
             <div>
               <p className="text-[11px] uppercase tracking-[0.09em] text-white/60">{t('coupons.sold')}</p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">{(wallet?.totalSold ?? 0).toLocaleString()}</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums" title={(wallet?.totalSold ?? 0).toLocaleString()}>
+                {formatCompactNumber(wallet?.totalSold ?? 0)}
+              </p>
             </div>
             <Button onClick={onRequest} className="bg-white text-primary shadow-sm hover:bg-white/90">
               <Send className="mr-2 h-4 w-4" /> {t('coupons.requestMore')}
