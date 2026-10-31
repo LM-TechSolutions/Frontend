@@ -2,18 +2,34 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { format, subDays } from 'date-fns';
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   Clock,
   Download,
   Gauge,
   Loader2,
+  Monitor,
   Phone,
+  RefreshCw,
+  Shield,
+  ShieldOff,
+  Smartphone,
   Star,
   Ticket,
   TrendingUp,
+  Unlink,
   Wallet,
+  Wifi,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 import {
   Area,
   AreaChart,
@@ -57,6 +73,11 @@ export default function DriverReport() {
   const [range, setRange] = useState<DateRange | undefined>({ from: subDays(new Date(), 29), to: new Date() });
   const [report, setReport] = useState<DriverPerformanceReport | null>(null);
   const [driver, setDriver] = useState<any | null>(null);
+  const [devices, setDevices] = useState<{ activeDevice: any | null; previousDevices: any[] } | null>(null);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [unlinkOpen, setUnlinkOpen] = useState(false);
+  const [unlinkReason, setUnlinkReason] = useState('');
+  const [unlinkLoading, setUnlinkLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
@@ -89,6 +110,23 @@ export default function DriverReport() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadDevices = useCallback(async () => {
+    if (!employeeId) return;
+    setDevicesLoading(true);
+    try {
+      const data = await api.drivers.devices(employeeId);
+      setDevices(data);
+    } catch {
+      // non-blocking
+    } finally {
+      setDevicesLoading(false);
+    }
+  }, [employeeId]);
+
+  useEffect(() => {
+    loadDevices();
+  }, [loadDevices]);
 
   // Refetch when this driver's work changes underneath the page.
   //
@@ -536,6 +574,36 @@ export default function DriverReport() {
         </CardContent>
       </Card>
 
+      {/* Linked Hardware & Device Security */}
+      <LinkedDevicesCard
+        driverId={employeeId ?? ''}
+        driverName={name}
+        devices={devices}
+        loading={devicesLoading}
+        unlinkOpen={unlinkOpen}
+        unlinkReason={unlinkReason}
+        unlinkLoading={unlinkLoading}
+        onOpenUnlink={() => setUnlinkOpen(true)}
+        onCloseUnlink={() => { setUnlinkOpen(false); setUnlinkReason(''); }}
+        onReasonChange={setUnlinkReason}
+        onConfirmUnlink={async () => {
+          if (!employeeId) return;
+          setUnlinkLoading(true);
+          try {
+            await api.drivers.unlinkDevice(employeeId, { reason: unlinkReason || 'Admin action' });
+            toast.success('Device unlinked. Driver session terminated.');
+            setUnlinkOpen(false);
+            setUnlinkReason('');
+            await loadDevices();
+          } catch (e: any) {
+            toast.error(e?.message ?? 'Failed to unlink device');
+          } finally {
+            setUnlinkLoading(false);
+          }
+        }}
+        onRefresh={loadDevices}
+      />
+
       {/* Live position */}
       <Card className="border-border/70">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -626,5 +694,262 @@ function Measure({
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>
       </div>
     </div>
+  );
+}
+
+// ─── Linked Devices Card ─────────────────────────────────────────────────────
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return format(new Date(iso), 'd MMM yyyy');
+}
+
+function deviceIcon(name?: string) {
+  const n = (name ?? '').toLowerCase();
+  if (
+    n.includes('web') ||
+    n.includes('chrome') ||
+    n.includes('firefox') ||
+    n.includes('safari') ||
+    n.includes('edge') ||
+    n.includes('browser')
+  ) {
+    return Monitor;
+  }
+  return Smartphone;
+}
+
+function LinkedDevicesCard({
+  driverName,
+  devices,
+  loading,
+  unlinkOpen,
+  unlinkReason,
+  unlinkLoading,
+  onOpenUnlink,
+  onCloseUnlink,
+  onReasonChange,
+  onConfirmUnlink,
+  onRefresh,
+}: {
+  driverId: string;
+  driverName: string;
+  devices: { activeDevice: any | null; previousDevices: any[] } | null;
+  loading: boolean;
+  unlinkOpen: boolean;
+  unlinkReason: string;
+  unlinkLoading: boolean;
+  onOpenUnlink: () => void;
+  onCloseUnlink: () => void;
+  onReasonChange: (v: string) => void;
+  onConfirmUnlink: () => Promise<void>;
+  onRefresh: () => void;
+}) {
+  const active = devices?.activeDevice;
+  const prev = devices?.previousDevices ?? [];
+  const DevIcon = deviceIcon(active?.deviceName);
+
+  return (
+    <>
+      <Card className="overflow-hidden border-border/70">
+        {/* Header */}
+        <CardHeader className="border-b border-border/50 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Shield className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Linked Hardware &amp; Terminal</CardTitle>
+                <p className="text-[11px] text-muted-foreground">Single-device fleet security policy</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRefresh}
+              disabled={loading}
+              className="h-8 w-8"
+              title="Refresh"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {loading && !devices ? (
+            <div className="flex items-center justify-center p-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !active ? (
+            /* No device linked */
+            <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/40">
+                <ShieldOff className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">No Device Linked</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {driverName.trim() || 'This driver'} has not logged in from any device yet.
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Active device */
+            <div className="p-5">
+              <div className="relative overflow-hidden rounded-2xl border border-[#00BDC3]/25 bg-gradient-to-br from-[#00BDC3]/5 via-transparent to-primary/5 p-5 shadow-sm">
+                {/* Live pulse */}
+                <span className="absolute right-4 top-4 flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10B981] opacity-60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#10B981]" />
+                </span>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#00BDC3]/10 ring-1 ring-[#00BDC3]/20">
+                    <DevIcon className="h-5 w-5 text-[#00BDC3]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-foreground">{active.deviceName ?? 'Unknown Device'}</p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#10B981]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#10B981] ring-1 ring-[#10B981]/20">
+                        <Wifi className="h-2.5 w-2.5" /> Active
+                      </span>
+                    </div>
+                    <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                      ID: {active.deviceId?.substring(0, 16)}&hellip;
+                    </p>
+
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                      {active.ipAddress && (
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <span className="font-medium text-foreground/70">IP</span>
+                          <span className="font-mono">{active.ipAddress}</span>
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="font-medium text-foreground/70">Enrolled</span>
+                        <span>{timeAgo(active.enrolledAt)}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="font-medium text-foreground/70">Last seen</span>
+                        <span>{timeAgo(active.lastUsedAt)}</span>
+                      </span>
+                    </div>
+
+                    {active.userAgent && (
+                      <p className="mt-2 truncate text-[10px] text-muted-foreground/60">
+                        {active.userAgent.substring(0, 90)}
+                        {active.userAgent.length > 90 ? '…' : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Unlink action */}
+                <div className="mt-4 flex justify-end border-t border-border/40 pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onOpenUnlink}
+                    className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                    Unlink Device
+                  </Button>
+                </div>
+              </div>
+
+              {/* Previous devices history */}
+              {prev.length > 0 && (
+                <div className="mt-5">
+                  <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                    Previous Terminals ({prev.length})
+                  </p>
+                  <div className="space-y-2">
+                    {prev.map((d: any) => {
+                      const PIcon = deviceIcon(d.deviceName);
+                      return (
+                        <div
+                          key={d.id}
+                          className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/20 px-4 py-3"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                            <PIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground/80">
+                              {d.deviceName ?? 'Unknown Device'}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {d.revokedAt
+                                ? `Unlinked ${timeAgo(d.revokedAt)}`
+                                : `Last used ${timeAgo(d.lastUsedAt)}`}
+                            </p>
+                          </div>
+                          <span className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-border/60">
+                            <AlertTriangle className="h-2.5 w-2.5" /> Revoked
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Unlink confirmation dialog */}
+      <Dialog open={unlinkOpen} onOpenChange={(o) => { if (!o) onCloseUnlink(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
+              <Unlink className="h-5 w-5 text-destructive" />
+            </div>
+            <DialogTitle>Unlink Driver Device</DialogTitle>
+            <DialogDescription>
+              This will immediately revoke the linked device and terminate the driver&apos;s active session.
+              The driver will need to log in again from any device.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <label className="text-sm font-medium text-foreground">Reason for unlinking</label>
+            <textarea
+              className="min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              placeholder="e.g. Device lost, stolen, or replaced…"
+              value={unlinkReason}
+              onChange={(e) => onReasonChange(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={onCloseUnlink} disabled={unlinkLoading}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={onConfirmUnlink}
+              disabled={unlinkLoading}
+              className="gap-1.5"
+            >
+              {unlinkLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Unlink className="h-3.5 w-3.5" />
+              )}
+              Confirm Unlink
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

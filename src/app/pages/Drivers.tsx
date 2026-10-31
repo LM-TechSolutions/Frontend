@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck, Smartphone, Unlink } from 'lucide-react';
+import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck, Smartphone, Unlink, Lock } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
@@ -33,8 +33,22 @@ import { FieldAvailabilityBadge, useFieldAvailability } from '../components/Fiel
 const statusColor = (s: string) =>
   s === 'available' ? '#0B7A55' : s === 'busy' ? '#AE2E2D' : '#6B7280';
 
+const VEHICLE_COLOR_PRESETS = [
+  { name: 'White', color: '#FFFFFF', border: '#CBD5E1' },
+  { name: 'Black', color: '#18181B', border: '#3F3F46' },
+  { name: 'Silver', color: '#94A3B8', border: '#64748B' },
+  { name: 'Grey', color: '#475569', border: '#334155' },
+  { name: 'Blue', color: '#3B82F6', border: '#2563EB' },
+  { name: 'Red', color: '#EF4444', border: '#DC2626' },
+  { name: 'Yellow', color: '#FACC15', border: '#EAB308' },
+  { name: 'Green', color: '#10B981', border: '#059669' },
+  { name: 'Bronze', color: '#92400E', border: '#78350F' },
+  { name: 'Cyan', color: '#06B6D4', border: '#0891B2' },
+];
+
 const emptyNew = {
   name: '', phone: '', email: '', vehicleType: 'sedan', vehicleModel: '',
+  vehicleColor: '',
   licensePlate: '', licenseNumber: '', couponBalance: 0, profilePicture: null as string | null,
   password: 'Driver!123',
 };
@@ -71,7 +85,9 @@ export default function Drivers() {
     name: '',
     phone: '',
     vehicleModel: '',
+    vehicleColor: '',
     licensePlate: '',
+    licenseNumber: '',
     commissionPercent: 10,
     canStreetHail: false,
     profilePicture: null as string | null,
@@ -200,6 +216,7 @@ export default function Drivers() {
       const created = await api.drivers.create({
         name: form.name, phone: form.phone, email: form.email,
         vehicleType: form.vehicleType, vehicleModel: form.vehicleModel,
+        vehicleColor: form.vehicleColor,
         licensePlate: form.licensePlate, licenseNumber: form.licenseNumber,
         profilePicture: form.profilePicture || undefined,
         password: form.password?.trim() || 'Driver!123',
@@ -224,7 +241,9 @@ export default function Drivers() {
       name: d.name,
       phone: d.phone,
       vehicleModel: d.vehicleModel ?? '',
+      vehicleColor: d.vehicleColor ?? '',
       licensePlate: d.licensePlate,
+      licenseNumber: d.licenseNumber ?? '',
       commissionPercent: d.commissionPercent ?? 10,
       canStreetHail: d.canStreetHail === true,
       profilePicture: d.profilePicture ?? null,
@@ -237,6 +256,7 @@ export default function Drivers() {
     try {
       await api.drivers.update(editing.id, {
         name: edit.name, phone: edit.phone, vehicleModel: edit.vehicleModel,
+        vehicleColor: edit.vehicleColor,
         licensePlate: edit.licensePlate, commissionPercent: edit.commissionPercent,
         canStreetHail: edit.canStreetHail,
         profilePicture: edit.profilePicture ?? '',
@@ -382,6 +402,40 @@ export default function Drivers() {
                   <div className="space-y-1.5">
                     <Label>{t('drivers.vehicleModel', 'Vehicle model')}</Label>
                     <Input value={form.vehicleModel} onChange={(e) => setForm({ ...form, vehicleModel: e.target.value })} placeholder="Toyota Corolla" />
+                  </div>
+
+                  {/* Vehicle Color Chooser */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label>{t('drivers.vehicleColor', 'Vehicle color')}</Label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {VEHICLE_COLOR_PRESETS.map((preset) => {
+                        const active = (form.vehicleColor || '').toLowerCase() === preset.name.toLowerCase();
+                        return (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => setForm({ ...form, vehicleColor: preset.name })}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                              active
+                                ? 'ring-2 ring-primary ring-offset-1 bg-primary/10 text-primary font-bold'
+                                : 'bg-muted/60 text-muted-foreground hover:bg-muted border border-border/60'
+                            }`}
+                          >
+                            <span
+                              className="w-3.5 h-3.5 rounded-full inline-block shadow-xs shrink-0"
+                              style={{ backgroundColor: preset.color, border: `1.5px solid ${preset.border}` }}
+                            />
+                            <span>{preset.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Input
+                      placeholder="Or custom color name (e.g. Metallic Charcoal)"
+                      value={form.vehicleColor}
+                      onChange={(e) => setForm({ ...form, vehicleColor: e.target.value })}
+                      className="mt-1 text-sm"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -666,13 +720,71 @@ export default function Drivers() {
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label>{t('drivers.licensePlate', 'License plate')}</Label>
-                  <FieldAvailabilityBadge status={editStatuses.licensePlate} />
+                  <Label className="inline-flex items-center gap-1.5">
+                    <span>{t('drivers.licensePlate', 'License plate')}</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/60">
+                      <Lock className="w-2.5 h-2.5" /> Locked
+                    </span>
+                  </Label>
                 </div>
                 <Input
                   value={edit.licensePlate}
-                  onChange={(e) => setEdit({ ...edit, licensePlate: e.target.value })}
-                  className={editStatuses.licensePlate?.available === false ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  disabled
+                  readOnly
+                  className="bg-muted/50 cursor-not-allowed font-mono text-muted-foreground font-semibold"
+                  title="Official registration license plates cannot be modified directly."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="inline-flex items-center gap-1.5">
+                    <span>{t('drivers.licenseNumber', 'License number')}</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/60">
+                      <Lock className="w-2.5 h-2.5" /> Locked
+                    </span>
+                  </Label>
+                </div>
+                <Input
+                  value={edit.licenseNumber || '—'}
+                  disabled
+                  readOnly
+                  className="bg-muted/50 cursor-not-allowed font-mono text-muted-foreground font-semibold"
+                  title="Official permit / license numbers cannot be modified directly."
+                />
+              </div>
+
+              {/* Vehicle Color Chooser */}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>{t('drivers.vehicleColor', 'Vehicle color')}</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {VEHICLE_COLOR_PRESETS.map((preset) => {
+                    const active = (edit.vehicleColor || '').toLowerCase() === preset.name.toLowerCase();
+                    return (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => setEdit({ ...edit, vehicleColor: preset.name })}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                          active
+                            ? 'ring-2 ring-primary ring-offset-1 bg-primary/10 text-primary font-bold'
+                            : 'bg-muted/60 text-muted-foreground hover:bg-muted border border-border/60'
+                        }`}
+                      >
+                        <span
+                          className="w-3.5 h-3.5 rounded-full inline-block shadow-xs shrink-0"
+                          style={{ backgroundColor: preset.color, border: `1.5px solid ${preset.border}` }}
+                        />
+                        <span>{preset.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Input
+                  placeholder="Or custom color name (e.g. Metallic Charcoal)"
+                  value={edit.vehicleColor}
+                  onChange={(e) => setEdit({ ...edit, vehicleColor: e.target.value })}
+                  className="mt-1 text-sm"
                 />
               </div>
 
