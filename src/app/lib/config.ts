@@ -1,9 +1,15 @@
 /** Centralized runtime config sourced from Vite env vars. */
+const FALLBACK_GEBETA_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb21wYW55bmFtZSI6IkxldWxzZWdlZCIsImRlc2NyaXB0aW9uIjoiOWZlYTViZjUtMGM5Zi00NjA3LTg4ODAtNjZkZmFkNWMwNWYyIiwiaWQiOiIzNGMwMGMxMS1hZTMwLTQ3ZWYtOTdhYy03NDkyMTg0YTZiOGIiLCJpc3N1ZWRfYXQiOjE3ODIxNTkyNjUsImlzc3VlciI6Imh0dHBzOi8vbWFwYXBpLmdlYmV0YS5hcHAiLCJqd3RfaWQiOiIwIiwic2NvcGVzIjpbIk1BVFJJWCIsIk9OTSIsIlRJTEUiLCJESVJFQ1RJT04iLCJUU1MiLCJWUlAiLCJUUkFDS0lOR19IVFRQIiwiVFJBQ0tJTkdfU09DS0VUIiwiR0VPQ09ESU5HIiwiUkVWRVJTRUdFT0NPRElORyIsIk1BVENISU5HIl0sInVzZXJuYW1lIjoibHVkaXMifQ.RnR5UjYBhv9LrBMOfRa4WknvfRMedPOrQlHc3DsdstE';
+
 export const config = {
   // Empty => same-origin (requests go through the Vite proxy to the backend).
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? '',
   socketUrl: import.meta.env.VITE_SOCKET_URL ?? '',
-  gebetaApiKey: import.meta.env.VITE_GEBETA_API_KEY ?? '',
+  gebetaApiKey:
+    (import.meta.env.VITE_GEBETA_MAPS_API_KEY as string | undefined)?.trim() ||
+    (import.meta.env.VITE_GEBETA_API_KEY as string | undefined)?.trim() ||
+    FALLBACK_GEBETA_KEY,
 };
 
 // Backend route prefixes.
