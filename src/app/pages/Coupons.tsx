@@ -25,6 +25,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Switch } from '../components/ui/switch';
+import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
 import { api, type CouponPackage, type CouponRequest, type OperatorWallet } from '../lib/api';
 import { withStepUp } from '../components/security/StepUpDialog';
@@ -75,6 +76,11 @@ export default function Coupons() {
   const [allocateTarget, setAllocateTarget] = useState<OperatorWallet | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
+  const [selectedDriverIds, setSelectedDriverIds] = useState<Set<string>>(new Set());
+  const [bulkRefillOpen, setBulkRefillOpen] = useState(false);
+  const [bulkRefillAmount, setBulkRefillAmount] = useState('50');
+  const [bulkRefillNote, setBulkRefillNote] = useState('');
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const [search, setSearch] = useState('');
   const [minCouponBalance, setMinCouponBalance] = useState(10);
 
@@ -166,6 +172,44 @@ export default function Coupons() {
         (d.phone ?? '').toLowerCase().includes(q)
     );
   }, [drivers, search]);
+
+  const allVisibleDriversSelected = visibleDrivers.length > 0 && visibleDrivers.every((d) => selectedDriverIds.has(d.id));
+
+  const toggleSelectAllDrivers = () => {
+    if (allVisibleDriversSelected) {
+      setSelectedDriverIds(new Set());
+    } else {
+      setSelectedDriverIds(new Set(visibleDrivers.map((d) => d.id)));
+    }
+  };
+
+  const toggleSelectDriver = (id: string) => {
+    const next = new Set(selectedDriverIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedDriverIds(next);
+  };
+
+  const handleBulkRefillDrivers = async () => {
+    const ids = Array.from(selectedDriverIds);
+    const amount = Number(bulkRefillAmount);
+    if (!ids.length || !Number.isFinite(amount) || amount <= 0) {
+      toast.error('Please enter a valid refill amount');
+      return;
+    }
+    setBulkProcessing(true);
+    try {
+      const res = await api.coupons.bulkRefill(ids, amount, bulkRefillNote || 'Bulk coupon management refill');
+      toast.success(`Refilled ${res?.totalRefilled ?? ids.length} drivers (${amount} ETB each)`);
+      setBulkRefillOpen(false);
+      setSelectedDriverIds(new Set());
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || 'Bulk coupon refill failed');
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
 
   const totals = useMemo(
     () => ({
@@ -269,15 +313,57 @@ export default function Coupons() {
 
         {/* ------------------------------------------------------- drivers */}
         <TabsContent value="drivers" className="space-y-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={t('coupons.searchPlaceholder')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-11 pl-10"
-            />
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={t('coupons.searchPlaceholder')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-11 pl-10"
+              />
+            </div>
+            {visibleDrivers.length > 0 && (
+              <Button
+                type="button"
+                variant={allVisibleDriversSelected ? 'secondary' : 'outline'}
+                onClick={toggleSelectAllDrivers}
+                className="h-11 px-4 text-xs font-medium gap-2 shrink-0 cursor-pointer"
+              >
+                <Checkbox checked={allVisibleDriversSelected} />
+                <span>{allVisibleDriversSelected ? 'Deselect All' : `Select All (${visibleDrivers.length})`}</span>
+              </Button>
+            )}
           </div>
+
+          {selectedDriverIds.size > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-primary/10 border border-primary/20 rounded-xl animate-in fade-in-50">
+              <div className="flex items-center gap-2.5">
+                <span className="font-semibold text-sm text-foreground">
+                  {selectedDriverIds.size} {selectedDriverIds.size === 1 ? 'driver' : 'drivers'} selected
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedDriverIds(new Set())}
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear Selection
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  disabled={bulkProcessing}
+                  onClick={() => { setBulkRefillOpen(true); setBulkRefillAmount('50'); setBulkRefillNote(''); }}
+                  className="h-8 gap-1.5 text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  <Wallet className="h-3.5 w-3.5" />
+                  Bulk Refill Coupons
+                </Button>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <RowSkeleton rows={5} />
@@ -289,7 +375,14 @@ export default function Coupons() {
           ) : (
             <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
               {visibleDrivers.map((driver) => (
-                <DriverCouponCard key={driver.id} driver={driver} threshold={minCouponBalance} onSell={() => setSellTarget(driver)} />
+                <DriverCouponCard
+                  key={driver.id}
+                  driver={driver}
+                  threshold={minCouponBalance}
+                  selected={selectedDriverIds.has(driver.id)}
+                  onToggleSelect={() => toggleSelectDriver(driver.id)}
+                  onSell={() => setSellTarget(driver)}
+                />
               ))}
             </div>
           )}
@@ -445,15 +538,36 @@ function InventoryHero({ wallet, onRequest }: { wallet: OperatorWallet | null; o
 
 /* ------------------------------------------------------------- cards ---- */
 
-function DriverCouponCard({ driver, threshold, onSell }: { driver: any; threshold: number; onSell: () => void }) {
+function DriverCouponCard({
+  driver,
+  threshold,
+  onSell,
+  selected,
+  onToggleSelect,
+}: {
+  driver: any;
+  threshold: number;
+  onSell: () => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const { t } = useAppContext();
   const balance = driver.couponBalance ?? 0;
   const tone = couponTone(balance, threshold);
 
   return (
-    <Card className="group overflow-hidden border-border/70 transition-all hover:-translate-y-0.5 hover:shadow-md">
+    <Card className={`group overflow-hidden border-border/70 transition-all hover:-translate-y-0.5 hover:shadow-md ${selected ? 'ring-2 ring-primary/50 bg-primary/5 border-primary/40' : ''}`}>
       <CardContent className="space-y-4 p-5">
         <div className="flex items-start gap-3">
+          {onToggleSelect && (
+            <div className="pt-1">
+              <Checkbox
+                checked={selected ?? false}
+                onCheckedChange={onToggleSelect}
+                aria-label={`Select ${driver.name}`}
+              />
+            </div>
+          )}
           <Initials name={driver.name} src={driver.profilePicture} />
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-foreground">{driver.name}</p>

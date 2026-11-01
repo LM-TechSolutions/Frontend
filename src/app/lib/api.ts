@@ -435,6 +435,10 @@ export const api = {
     create: (body: any) => cc<any>('/drivers', { method: 'POST', body }),
     update: (driverId: string, body: any) => cc<any>(`/drivers/${driverId}`, { method: 'PATCH', body }),
     remove: (driverId: string) => cc<any>(`/drivers/${driverId}`, { method: 'DELETE' }),
+    bulkStreetHail: (driverIds: string[], canStreetHail: boolean) =>
+      cc<any>('/drivers/bulk/street-hail', { method: 'POST', body: { driverIds, canStreetHail } }),
+    bulkDelete: (driverIds: string[]) =>
+      cc<any>('/drivers/bulk/delete', { method: 'POST', body: { driverIds } }),
     locationHistory: (driverId: string) => cc<any>(`/drivers/${driverId}/location-history`),
     approve: (driverId: string) => v1<any>(`/drivers/${driverId}/approve`, { method: 'POST' }),
     suspend: (driverId: string, reason: string, suspendedBy: string) =>
@@ -461,6 +465,8 @@ export const api = {
      */
     refill: (driverId: string, amount: number, notes?: string) =>
       cc<any>('/coupons/refill', { method: 'POST', body: { driverId, amount, notes } }),
+    bulkRefill: (driverIds: string[], amount: number, notes?: string) =>
+      cc<any>('/coupons/bulk-refill', { method: 'POST', body: { driverIds, amount, notes } }),
     deduct: (driverId: string, amount: number, notes?: string) =>
       cc<any>('/coupons/deduct', { method: 'POST', body: { driverId, amount, notes } }),
     transactions: (driverId: string, limit = 50) =>

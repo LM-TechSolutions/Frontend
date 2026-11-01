@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck, Smartphone, Unlink, Lock } from 'lucide-react';
+import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck, Smartphone, Unlink, Lock, Sparkles, CheckSquare } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Checkbox } from '../components/ui/checkbox';
+import { cn } from '../components/ui/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import {
   AlertDialog,
@@ -66,6 +68,12 @@ export default function Drivers() {
   const [editing, setEditing] = useState<any | null>(null);
   const [refill, setRefill] = useState<any | null>(null);
   const [refillAmount, setRefillAmount] = useState('25');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRefillOpen, setBulkRefillOpen] = useState(false);
+  const [bulkRefillAmount, setBulkRefillAmount] = useState('50');
+  const [bulkRefillNote, setBulkRefillNote] = useState('');
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const [deletingDriver, setDeletingDriver] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [unlinkingDriver, setUnlinkingDriver] = useState<any | null>(null);
@@ -288,6 +296,93 @@ export default function Drivers() {
       toast.error(e?.message ?? t('drivers.refillFailed'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const allVisibleSelected = visible.length > 0 && visible.every((d) => selectedIds.has(d.id));
+  const someVisibleSelected = visible.some((d) => selectedIds.has(d.id));
+
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visible.map((d) => d.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleToggleStreetHailSingle = async (driver: any) => {
+    const next = !driver.canStreetHail;
+    try {
+      await api.drivers.bulkStreetHail([driver.id], next);
+      toast.success(next ? `Street hail enabled for ${driver.name}` : `Street hail disabled for ${driver.name}`);
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update street hail permission');
+    }
+  };
+
+  const handleBulkStreetHail = async (allowed: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    setBulkProcessing(true);
+    try {
+      await api.drivers.bulkStreetHail(ids, allowed);
+      toast.success(allowed ? `Street hail enabled for ${ids.length} drivers` : `Street hail revoked for ${ids.length} drivers`);
+      setSelectedIds(new Set());
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || 'Bulk street hail update failed');
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkRefill = async () => {
+    const ids = Array.from(selectedIds);
+    const amount = Number(bulkRefillAmount);
+    if (!ids.length || !Number.isFinite(amount) || amount <= 0) {
+      toast.error('Please enter a valid refill amount');
+      return;
+    }
+    setBulkProcessing(true);
+    try {
+      const res = await api.coupons.bulkRefill(ids, amount, bulkRefillNote || 'Bulk staff refill');
+      toast.success(`Refilled ${res?.totalRefilled ?? ids.length} drivers (${amount} ETB each)`);
+      setBulkRefillOpen(false);
+      setSelectedIds(new Set());
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || 'Bulk coupon refill failed');
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    setBulkProcessing(true);
+    try {
+      const res = await api.drivers.bulkDelete(ids);
+      const count = res?.deletedCount ?? ids.length;
+      toast.success(`Deleted ${count} drivers successfully`);
+      if (res?.skippedDrivers?.length) {
+        toast.warning(`Skipped ${res.skippedDrivers.length} drivers with active trips`);
+      }
+      setBulkDeleteOpen(false);
+      setSelectedIds(new Set());
+      load();
+    } catch (err: any) {
+      toast.error(err?.message || 'Bulk delete failed');
+    } finally {
+      setBulkProcessing(false);
     }
   };
 
@@ -591,22 +686,98 @@ export default function Drivers() {
         ) : visible.length === 0 ? (
           <div className="p-6"><EmptyState icon={Users} title={t('drivers.noDrivers', 'No drivers found')} /></div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/60">
-                <TableHead className="font-semibold">{t('drivers.driverName', 'Driver')}</TableHead>
-                <TableHead className="font-semibold">{t('drivers.phone', 'Phone')}</TableHead>
-                <TableHead className="font-semibold">{t('drivers.vehicle', 'Vehicle')}</TableHead>
-                <TableHead className="font-semibold">Device</TableHead>
-                <TableHead className="font-semibold">{t('drivers.couponBalance', 'Coupons')}</TableHead>
-                <TableHead className="font-semibold">{t('drivers.status', 'Status')}</TableHead>
-                <TableHead className="font-semibold">{t('drivers.lastSeen')}</TableHead>
-                <TableHead className="font-semibold">{t('drivers.actions', 'Actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
+          <div className="space-y-3">
+            {selectedIds.size > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-primary/10 border border-primary/20 rounded-xl animate-in fade-in-50">
+                <div className="flex items-center gap-2.5">
+                  <span className="font-semibold text-sm text-foreground">
+                    {selectedIds.size} {selectedIds.size === 1 ? 'driver' : 'drivers'} selected
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedIds(new Set())}
+                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Deselect
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkProcessing}
+                    onClick={() => handleBulkStreetHail(true)}
+                    className="h-8 gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Allow Street Hail
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkProcessing}
+                    onClick={() => handleBulkStreetHail(false)}
+                    className="h-8 gap-1.5 text-xs text-muted-foreground hover:bg-muted cursor-pointer"
+                  >
+                    Revoke Street Hail
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkProcessing}
+                    onClick={() => { setBulkRefillOpen(true); setBulkRefillAmount('50'); setBulkRefillNote(''); }}
+                    className="h-8 gap-1.5 text-xs cursor-pointer"
+                  >
+                    <Wallet className="h-3.5 w-3.5" />
+                    Refill Coupons
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={bulkProcessing}
+                    onClick={() => setBulkDeleteOpen(true)}
+                    className="h-8 gap-1.5 text-xs cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete Selected
+                  </Button>
+                </div>
+              </div>
+            )}
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/60">
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all drivers"
+                    />
+                  </TableHead>
+                  <TableHead className="font-semibold">{t('drivers.driverName', 'Driver')}</TableHead>
+                  <TableHead className="font-semibold">{t('drivers.phone', 'Phone')}</TableHead>
+                  <TableHead className="font-semibold">{t('drivers.vehicle', 'Vehicle')}</TableHead>
+                  <TableHead className="font-semibold">Device</TableHead>
+                  <TableHead className="font-semibold">Street Hail</TableHead>
+                  <TableHead className="font-semibold">{t('drivers.couponBalance', 'Coupons')}</TableHead>
+                  <TableHead className="font-semibold">{t('drivers.status', 'Status')}</TableHead>
+                  <TableHead className="font-semibold">{t('drivers.lastSeen')}</TableHead>
+                  <TableHead className="font-semibold">{t('drivers.actions', 'Actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
-              {visible.map((d) => (
-                <TableRow key={d.id} className="hover:bg-muted/50">
+              {visible.map((d) => {
+                const isSelected = selectedIds.has(d.id);
+                return (
+                <TableRow key={d.id} className={cn("hover:bg-muted/50 transition-colors", isSelected && "bg-primary/5")}>
+                  <TableCell className="w-10">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleSelectOne(d.id)}
+                      aria-label={`Select ${d.name}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Initials name={d.name} src={d.profilePicture} className="h-10 w-10 text-xs" />
@@ -639,6 +810,22 @@ export default function Drivers() {
                         <span>No device</span>
                       </span>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStreetHailSingle(d)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer group",
+                        d.canStreetHail
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/20 shadow-xs"
+                          : "bg-muted/50 text-muted-foreground border-border/50 hover:bg-muted"
+                      )}
+                      title={d.canStreetHail ? "Street Hail Allowed - Click to revoke" : "Street Hail Disabled - Click to allow"}
+                    >
+                      <span className={cn("size-2 rounded-full", d.canStreetHail ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40")} />
+                      <span>{d.canStreetHail ? "Allowed" : "Off"}</span>
+                    </button>
                   </TableCell>
                   <TableCell>
                     <BalancePill balance={d.couponBalance ?? 0} threshold={minCouponBalance} size="sm" />
@@ -675,9 +862,10 @@ export default function Drivers() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              );})}
             </TableBody>
           </Table>
+          </div>
         )}
       </Surface>
 
@@ -1001,6 +1189,103 @@ export default function Drivers() {
           )}
         </DialogContent>
       </Dialog>
+    
+      {/* Bulk Coupon Refill Dialog */}
+      <Dialog open={bulkRefillOpen} onOpenChange={setBulkRefillOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              Bulk Coupon Refill
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-xs text-muted-foreground">
+              Refilling <span className="font-semibold text-foreground">{selectedIds.size}</span> selected {selectedIds.size === 1 ? 'driver' : 'drivers'}.
+            </p>
+            <div className="space-y-2">
+              <Label>Refill Amount per Driver (ETB)</Label>
+              <div className="flex gap-2">
+                {['25', '50', '100', '200', '500'].map((amt) => (
+                  <Button
+                    key={amt}
+                    type="button"
+                    variant={bulkRefillAmount === amt ? 'default' : 'outline'}
+                    size="sm"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => setBulkRefillAmount(amt)}
+                  >
+                    +{amt}
+                  </Button>
+                ))}
+              </div>
+              <Input
+                type="number"
+                placeholder="Custom amount"
+                value={bulkRefillAmount}
+                onChange={(e) => setBulkRefillAmount(e.target.value)}
+                className="h-10 mt-2"
+                min="1"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Optional Note</Label>
+              <Input
+                placeholder="Reason or dispatch batch note"
+                value={bulkRefillNote}
+                onChange={(e) => setBulkRefillNote(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="p-3 bg-muted/50 rounded-lg text-xs space-y-1">
+              <div className="flex justify-between font-medium">
+                <span>Total Drivers:</span>
+                <span>{selectedIds.size}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-foreground text-sm">
+                <span>Total Coupons:</span>
+                <span className="text-primary">{((Number(bulkRefillAmount) || 0) * selectedIds.size).toLocaleString()} ETB</span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setBulkRefillOpen(false)} disabled={bulkProcessing}>
+                Cancel
+              </Button>
+              <Button onClick={handleBulkRefill} disabled={bulkProcessing}>
+                {bulkProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Confirm Refill
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Alert Dialog */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Delete {selectedIds.size} Selected Drivers?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete these {selectedIds.size} driver profiles? Drivers with active ongoing rides will be safely skipped. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkProcessing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete {selectedIds.size} Drivers
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </Page>
   );
 }
