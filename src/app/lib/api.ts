@@ -436,9 +436,9 @@ export const api = {
     update: (driverId: string, body: any) => cc<any>(`/drivers/${driverId}`, { method: 'PATCH', body }),
     remove: (driverId: string) => cc<any>(`/drivers/${driverId}`, { method: 'DELETE' }),
     bulkStreetHail: (driverIds: string[], canStreetHail: boolean) =>
-      cc<any>('/drivers/bulk/street-hail', { method: 'POST', body: { driverIds, canStreetHail } }),
+      v1<any>('/drivers/bulk/street-hail', { method: 'POST', body: { driverIds, canStreetHail } }),
     bulkDelete: (driverIds: string[]) =>
-      cc<any>('/drivers/bulk/delete', { method: 'POST', body: { driverIds } }),
+      v1<any>('/drivers/bulk/delete', { method: 'POST', body: { driverIds } }),
     locationHistory: (driverId: string) => cc<any>(`/drivers/${driverId}/location-history`),
     approve: (driverId: string) => v1<any>(`/drivers/${driverId}/approve`, { method: 'POST' }),
     suspend: (driverId: string, reason: string, suspendedBy: string) =>

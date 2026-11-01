@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck, Smartphone, Unlink, Lock, Sparkles, CheckSquare } from 'lucide-react';
+import { Search, UserPlus, Edit, Eye, Loader2, Wallet, Phone, Users, Trash2, AlertTriangle, ShieldCheck, Smartphone, Unlink, Lock, Sparkles, CheckSquare, CheckCircle2 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
+import { Progress } from '../components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Checkbox } from '../components/ui/checkbox';
 import { cn } from '../components/ui/utils';
@@ -74,6 +75,25 @@ export default function Drivers() {
   const [bulkRefillNote, setBulkRefillNote] = useState('');
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    open: boolean;
+    title: string;
+    total: number;
+    current: number;
+    currentRowName: string;
+    logs: Array<{ text: string; time: string; success?: boolean }>;
+    running: boolean;
+    completed: boolean;
+  }>({
+    open: false,
+    title: '',
+    total: 0,
+    current: 0,
+    currentRowName: '',
+    logs: [],
+    running: false,
+    completed: false,
+  });
   const [deletingDriver, setDeletingDriver] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [unlinkingDriver, setUnlinkingDriver] = useState<any | null>(null);
@@ -143,9 +163,17 @@ export default function Drivers() {
       'coupon:empty',
       'coupon:balance',
       'driver:location',
+      'driver:street_hail_permission',
     ],
-    refetchEvents: ['driver:approved', 'driver:suspended'],
+    refetchEvents: ['driver:approved', 'driver:suspended', 'driver:street_hail_permission'],
     apply: (prev, event, payload) => {
+      if (event === 'driver:street_hail_permission' && payload?.driverId) {
+        return prev.map((d: any) =>
+          d.id === payload.driverId
+            ? { ...d, canStreetHail: payload.canStreetHail === true }
+            : d
+        );
+      }
       if (event === 'driver:location' && payload?.driverId && typeof payload.latitude === 'number') {
         return prev.map((d: any) =>
           d.id === payload.driverId
@@ -332,13 +360,59 @@ export default function Drivers() {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
     setBulkProcessing(true);
+    setBulkProgress({
+      open: true,
+      title: allowed ? 'Allowing Street Hail' : 'Revoking Street Hail',
+      total: ids.length,
+      current: 0,
+      currentRowName: 'Preparing drivers...',
+      logs: [],
+      running: true,
+      completed: false,
+    });
+
     try {
-      await api.drivers.bulkStreetHail(ids, allowed);
+      const logs: Array<{ text: string; time: string; success?: boolean }> = [];
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const driver = visible.find((d: any) => d.id === id) || { name: 'Driver', vehiclePlate: id.slice(0, 8) };
+        const label = `${driver.name} (${driver.vehiclePlate || driver.phone || id.slice(0, 8)})`;
+
+        setBulkProgress(prev => ({
+          ...prev,
+          current: i + 1,
+          currentRowName: label,
+        }));
+
+        await api.drivers.bulkStreetHail([id], allowed);
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        logs.unshift({
+          text: `${driver.name}: Street hail ${allowed ? 'allowed & notified' : 'revoked'}`,
+          time,
+          success: true,
+        });
+
+        setBulkProgress(prev => ({
+          ...prev,
+          logs: [...logs],
+        }));
+
+        if (ids.length > 1) await new Promise(r => setTimeout(r, 40));
+      }
+
+      setBulkProgress(prev => ({
+        ...prev,
+        running: false,
+        completed: true,
+        currentRowName: 'All drivers updated',
+      }));
+
       toast.success(allowed ? `Street hail enabled for ${ids.length} drivers` : `Street hail revoked for ${ids.length} drivers`);
       setSelectedIds(new Set());
       load();
     } catch (err: any) {
       toast.error(err?.message || 'Bulk street hail update failed');
+      setBulkProgress(prev => ({ ...prev, running: false }));
     } finally {
       setBulkProcessing(false);
     }
@@ -351,15 +425,61 @@ export default function Drivers() {
       toast.error('Please enter a valid refill amount');
       return;
     }
+    setBulkRefillOpen(false);
     setBulkProcessing(true);
+    setBulkProgress({
+      open: true,
+      title: `Bulk Coupon Refill (+${amount} ETB)`,
+      total: ids.length,
+      current: 0,
+      currentRowName: 'Preparing drivers...',
+      logs: [],
+      running: true,
+      completed: false,
+    });
+
     try {
-      const res = await api.coupons.bulkRefill(ids, amount, bulkRefillNote || 'Bulk staff refill');
-      toast.success(`Refilled ${res?.totalRefilled ?? ids.length} drivers (${amount} ETB each)`);
-      setBulkRefillOpen(false);
+      const logs: Array<{ text: string; time: string; success?: boolean }> = [];
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const driver = visible.find((d: any) => d.id === id) || { name: 'Driver', vehiclePlate: id.slice(0, 8) };
+        const label = `${driver.name} (${driver.vehiclePlate || driver.phone || id.slice(0, 8)})`;
+
+        setBulkProgress(prev => ({
+          ...prev,
+          current: i + 1,
+          currentRowName: label,
+        }));
+
+        await api.coupons.refill(id, amount, bulkRefillNote || 'Bulk staff refill');
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        logs.unshift({
+          text: `${driver.name}: Credited +${amount} ETB`,
+          time,
+          success: true,
+        });
+
+        setBulkProgress(prev => ({
+          ...prev,
+          logs: [...logs],
+        }));
+
+        if (ids.length > 1) await new Promise(r => setTimeout(r, 40));
+      }
+
+      setBulkProgress(prev => ({
+        ...prev,
+        running: false,
+        completed: true,
+        currentRowName: 'All coupons refilled',
+      }));
+
+      toast.success(`Refilled ${ids.length} drivers (${amount} ETB each)`);
       setSelectedIds(new Set());
       load();
     } catch (err: any) {
       toast.error(err?.message || 'Bulk coupon refill failed');
+      setBulkProgress(prev => ({ ...prev, running: false }));
     } finally {
       setBulkProcessing(false);
     }
@@ -368,19 +488,70 @@ export default function Drivers() {
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
+    setBulkDeleteOpen(false);
     setBulkProcessing(true);
+    setBulkProgress({
+      open: true,
+      title: 'Bulk Delete Drivers',
+      total: ids.length,
+      current: 0,
+      currentRowName: 'Preparing drivers...',
+      logs: [],
+      running: true,
+      completed: false,
+    });
+
     try {
-      const res = await api.drivers.bulkDelete(ids);
-      const count = res?.deletedCount ?? ids.length;
-      toast.success(`Deleted ${count} drivers successfully`);
-      if (res?.skippedDrivers?.length) {
-        toast.warning(`Skipped ${res.skippedDrivers.length} drivers with active trips`);
+      const logs: Array<{ text: string; time: string; success?: boolean }> = [];
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const driver = visible.find((d: any) => d.id === id) || { name: 'Driver', vehiclePlate: id.slice(0, 8) };
+        const label = `${driver.name} (${driver.vehiclePlate || driver.phone || id.slice(0, 8)})`;
+
+        setBulkProgress(prev => ({
+          ...prev,
+          current: i + 1,
+          currentRowName: label,
+        }));
+
+        try {
+          await api.drivers.remove(id);
+          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          logs.unshift({
+            text: `${driver.name}: Deleted successfully`,
+            time,
+            success: true,
+          });
+        } catch (e: any) {
+          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          logs.unshift({
+            text: `${driver.name}: Skipped (${e?.message || 'Active ride'})`,
+            time,
+            success: false,
+          });
+        }
+
+        setBulkProgress(prev => ({
+          ...prev,
+          logs: [...logs],
+        }));
+
+        if (ids.length > 1) await new Promise(r => setTimeout(r, 40));
       }
-      setBulkDeleteOpen(false);
+
+      setBulkProgress(prev => ({
+        ...prev,
+        running: false,
+        completed: true,
+        currentRowName: 'Bulk delete finished',
+      }));
+
+      toast.success(`Processed bulk deletion for ${ids.length} drivers`);
       setSelectedIds(new Set());
       load();
     } catch (err: any) {
       toast.error(err?.message || 'Bulk delete failed');
+      setBulkProgress(prev => ({ ...prev, running: false }));
     } finally {
       setBulkProcessing(false);
     }
@@ -1285,6 +1456,104 @@ export default function Drivers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Progress & Live Activity Modal */}
+      <Dialog
+        open={bulkProgress.open}
+        onOpenChange={(open) => {
+          if (!bulkProgress.running) setBulkProgress((prev) => ({ ...prev, open }));
+        }}
+      >
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden border-border/80 shadow-2xl rounded-2xl bg-card">
+          <div className="p-5 pb-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={cn(
+                    "size-8 rounded-lg flex items-center justify-center transition-colors",
+                    bulkProgress.completed ? "bg-emerald-500/15 text-emerald-500" : "bg-primary/10 text-primary"
+                  )}
+                >
+                  {bulkProgress.completed ? (
+                    <CheckCircle2 className="size-5" />
+                  ) : (
+                    <Loader2 className="size-4 animate-spin" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm text-foreground">
+                    {bulkProgress.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {bulkProgress.completed
+                      ? `Successfully completed ${bulkProgress.total} items`
+                      : `Processing batch: ${bulkProgress.current} of ${bulkProgress.total} items`}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-muted text-foreground">
+                {Math.round((bulkProgress.current / Math.max(1, bulkProgress.total)) * 100)}%
+              </span>
+            </div>
+
+            <Progress
+              value={(bulkProgress.current / Math.max(1, bulkProgress.total)) * 100}
+              className={cn("h-1.5 transition-all duration-300", bulkProgress.completed && "[&>div]:bg-emerald-500")}
+            />
+
+            {!bulkProgress.completed && (
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted/40 border border-border/50 text-xs">
+                <div className="flex items-center gap-2 truncate">
+                  <span className="relative flex h-2 w-2 flex-shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                  </span>
+                  <span className="text-muted-foreground">Current:</span>
+                  <span className="font-semibold text-foreground truncate">
+                    {bulkProgress.currentRowName || 'Processing...'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground px-0.5">
+                <span>Operation Live Log</span>
+                <span>{bulkProgress.logs.length} logged</span>
+              </div>
+              <div className="max-h-44 min-h-24 overflow-y-auto rounded-xl bg-muted/20 border border-border/40 p-2.5 space-y-1.5 font-mono text-[11px]">
+                {bulkProgress.logs.length === 0 ? (
+                  <div className="text-muted-foreground/60 italic text-center py-4">
+                    Initializing batch worker...
+                  </div>
+                ) : (
+                  bulkProgress.logs.map((log, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-foreground/90 animate-in fade-in-50 duration-200">
+                      <span className={cn("flex-shrink-0 font-bold mt-0.5", log.success === false ? "text-amber-500" : "text-emerald-500")}>
+                        {log.success === false ? "⚠" : "✓"}
+                      </span>
+                      <span className="flex-1 truncate">{log.text}</span>
+                      <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">{log.time}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end px-5 py-3 bg-muted/30 border-t border-border/60">
+            <Button
+              size="sm"
+              variant={bulkProgress.completed ? "default" : "secondary"}
+              disabled={bulkProgress.running}
+              onClick={() => setBulkProgress((prev) => ({ ...prev, open: false }))}
+              className="h-8 text-xs font-semibold px-4 cursor-pointer"
+            >
+              {bulkProgress.completed ? "Done" : "Processing..."}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </Page>
   );
