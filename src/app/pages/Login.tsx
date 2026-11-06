@@ -109,9 +109,11 @@ export default function Login() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(0,212,219,0.45),transparent_42%),radial-gradient(circle_at_88%_88%,rgba(224,138,20,0.22),transparent_40%)]" />
         <div className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#00d4db] text-xl font-bold text-[#042f32] shadow-[0_0_40px_rgba(0,212,219,0.45)]">
-              T
-            </div>
+            <img
+              src="/logo.png"
+              alt="TEKUMMA"
+              className="h-12 w-12 rounded-2xl object-contain shadow-[0_0_40px_rgba(0,212,219,0.45)]"
+            />
             <div>
               <p className="font-display text-lg font-semibold tracking-[0.22em]">TEKUMMA</p>
             </div>
@@ -141,7 +143,11 @@ export default function Login() {
         </div>
         <div className="relative w-full max-w-[440px]">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground">T</div>
+            <img
+              src="/logo.png"
+              alt="TEKUMMA"
+              className="h-11 w-11 rounded-2xl object-contain shadow-md"
+            />
             <span className="font-display text-xl font-semibold tracking-tight">TEKUMMA</span>
           </div>
 

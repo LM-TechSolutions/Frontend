@@ -234,9 +234,11 @@ export default function DashboardLayout() {
   const SidebarBody = ({ onNavigate, compact }: { onNavigate?: () => void; compact?: boolean }) => (
     <>
       <div className={cn('flex h-16 items-center border-b border-sidebar-border', compact ? 'justify-center px-2' : 'gap-3 px-4')}>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sidebar-primary text-lg font-bold text-sidebar-primary-foreground shadow-[0_0_28px_rgba(0,212,219,0.45)]">
-          T
-        </div>
+        <img
+          src="/logo.png"
+          alt="TEKUMMA"
+          className="h-10 w-10 shrink-0 rounded-2xl object-contain shadow-[0_0_24px_rgba(0,212,219,0.35)]"
+        />
         {!compact && (
           <div className="min-w-0">
             <p className="font-display text-lg font-semibold tracking-[0.16em] text-sidebar-foreground">TEKUMMA</p>
